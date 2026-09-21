@@ -1,0 +1,11 @@
+name: leo_800km_single
+description: >-
+  Higher orbit.  A higher spacecraft sees a lower local plasma frequency, which
+  moves the lower band edge, so this configuration exercises INS-01 from the
+  other direction.
+orbit:
+  altitude_m: 8.0e5
+  inclination_deg: 98.6
+  eccentricity: 0.0
+antenna_count: 1
+antenna_length_m: 5.0

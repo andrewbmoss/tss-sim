@@ -1,0 +1,258 @@
+# The requirement set, machine readable.
+#
+# This file is the only thing L5 scores against.  The first governing principle
+# of Section 3.1 of the proposal is that no simulated performance figure is
+# scored pass or fail until the number it is scored against exists and is traced
+# to a source, and this file is that principle in code.
+#
+# Schema per entry, documented in docs/requirements-traceability.md:
+#   title          one line, as it reads in the requirements document
+#   sense          min | max | range | bool     which direction is better
+#   unit           the unit of threshold and goal
+#   threshold      the number that must be met.  A [lower, upper] pair for a range.
+#   goal           the number worth reaching.  May be null.
+#   claims         the claims (C1..C5) this requirement helps resolve
+#   work_packages  the packages that validate it
+#   source         where the number came from.  An entry with no source cannot
+#                  be used to score, and `tss requirements` will fail on it.
+#   derivation     required when source is `derived`; names the derivation
+#   notes          anything a reader needs in order to not misread the entry
+#
+# STATUS: this file currently carries the seventeen requirements of Table 3.1
+# of the proposal, which are those against which the five claims are scored.
+# The full Rev E set is twenty-seven measurement, twenty-six instrument and nine
+# mission requirements, held in TSS_Science_Requirements_RevE.docx and
+# TSS_SRM_RevE.xlsx.  scripts/import_srm.py exists to bring the remainder across
+# as a diff review rather than a retype.  Until that is run, a campaign scored
+# against this file is scored against the claim-bearing subset and no more.
+
+revision: "E (partial import: Table 3.1 subset)"
+source_document: "TSS_Science_Requirements_RevE.docx"
+source_matrix: "TSS_SRM_RevE.xlsx"
+
+requirements:
+
+  INS-01:
+    title: Sounding band
+    sense: range
+    unit: Hz
+    threshold: [3.3e+5, 2.0e+7]
+    goal: [2.6e+5, 2.0e+7]
+    claims: [C1, C2]
+    work_packages: [WP0, WP1, WP3, WP12]
+    source: derived
+    derivation: "Band-edge study, 1.2e6 IRI-2020 profiles across 60 configurations; validated against 5118 hand-scaled ISIS-1 profiles"
+    notes: >-
+      The lower edge is the 95 per cent profile-coverage point over the full
+      mission envelope; the goal is the 99 per cent point.  An earlier revision
+      combined the model ensemble in the unsafe direction and delivered 53 per
+      cent coverage rather than the 95 per cent claimed.  That is why this entry
+      is traced to the archive comparison and not to the model ensemble alone.
+
+  INS-02:
+    title: Frequency step law
+    sense: max
+    unit: fraction of f, capped at 150 kHz
+    threshold: 0.05
+    goal: 0.025
+    claims: [C2]
+    work_packages: [WP0, WP4, WP7]
+    source: derived
+    derivation: "dNe/Ne = 2 df/f with the density precision of SCI-02; crossover at 3 MHz"
+    notes: >-
+      Scored as df <= min(0.05 f, 150 kHz).  The 150 kHz cap is dropped in the
+      A2 observing mode, where polarization separates the O and X traces.
+
+  INS-04:
+    title: Unambiguous range
+    sense: min
+    unit: m
+    threshold: 1.0e+6
+    goal: 1.5e+6
+    claims: [C1, C2]
+    work_packages: [WP3, WP4]
+    source: derived
+    derivation: "Topside extent from the F2 peak to the plasmapause at the orbit altitudes of interest"
+
+  INS-05:
+    title: Virtual range resolution
+    sense: max
+    unit: m
+    threshold: 1.0e+4
+    goal: 5.0e+3
+    claims: [C2]
+    work_packages: [WP4, WP6]
+    source: derived
+    derivation: "Height resolution required by SCI-03 through the lamination inversion"
+
+  INS-07:
+    title: Ionogram period
+    sense: max
+    unit: s
+    threshold: 6.7
+    goal: 3.3
+    claims: [C2]
+    work_packages: [WP4, WP7]
+    source: derived
+    derivation: "Along-track sampling of SCI-09 at orbital velocity"
+
+  INS-08:
+    title: Mode discrimination
+    sense: bool
+    unit: ""
+    threshold: true
+    goal: null
+    claims: [C5]
+    work_packages: [WP11]
+    source: "Reinisch et al. 2001, Radio Plasma Imager on IMAGE"
+    notes: Detect and label the ordinary and extraordinary traces.
+
+  INS-09:
+    title: Doppler measurement
+    sense: max
+    unit: m
+    threshold: 1.0
+    goal: 1.0
+    claims: [C3]
+    work_packages: [WP5, WP6]
+    source: derived
+    derivation: "dd = v f / K_f, bounded to one range cell of INS-05"
+    notes: >-
+      Scored as the residual apparent-range bias in units of range cells after
+      the motion-based separation of WP5.  The companion conditions, plus or
+      minus 1 km/s unambiguous and 100 m/s resolution, are carried as INS-09a
+      and INS-09b in the full set and are not yet imported.
+
+  INS-10:
+    title: Sensitivity
+    sense: min
+    unit: dB
+    threshold: 10.0
+    goal: 20.0
+    claims: [C1]
+    work_packages: [WP3, WP12]
+    source: derived
+    derivation: "Corrected sensitivity model against the Franklin and MacLean 1969 in-orbit sky noise measurement"
+    notes: >-
+      SNR per range cell at maximum range, across the band.  Resolved
+      affirmative with large margin over the band where a measured noise
+      reference exists.  Below 0.6 MHz the reference is an extrapolation, which
+      is what WP12 exists to close.
+
+  INS-11:
+    title: Receiver dynamic range, instantaneous
+    sense: min
+    unit: dB
+    threshold: 60.0
+    goal: 90.0
+    claims: [C4]
+    work_packages: [WP3, WP5]
+    source: derived
+    derivation: "Leakage-to-weakest-echo ratio admitted by INS-10 at the isolation of INS-23"
+
+  INS-14:
+    title: Resource constraint, transmit power
+    sense: max
+    unit: W
+    threshold: 1.0
+    goal: 0.5
+    claims: [C1, C2]
+    work_packages: [WP3, WP7]
+    source: "Mission constraint, 6U bus power budget"
+    notes: >-
+      The volume limit of 6U and the instrument power limit of 5 W are carried
+      as INS-14a and INS-14b in the full set.
+
+  INS-15:
+    title: Coherent processing interval
+    sense: min
+    unit: s
+    threshold: 1.0
+    goal: 2.0
+    claims: [C3]
+    work_packages: [WP5]
+    source: derived
+    derivation: "T >= c / (2 delta_v f) for the zonal drift resolution of SCI-23"
+    notes: >-
+      The product f*T is independent of sounding frequency, so this requirement
+      is one number rather than a curve.
+
+  INS-18:
+    title: Vector receive channel phase match
+    sense: max
+    unit: deg
+    threshold: 2.0
+    goal: 1.0
+    claims: [C5]
+    work_packages: [WP11]
+    source: derived
+    derivation: "Arrival-angle error budget for the 2 degree goal of SCI-20"
+    notes: Three orthogonal antennas.  Goal level; no threshold requirement depends on it.
+
+  INS-23:
+    title: Transmit to receive isolation
+    sense: min
+    unit: dB
+    threshold: 40.0
+    goal: 60.0
+    claims: [C4]
+    work_packages: [WP3, WP5, WP9]
+    source: derived
+    derivation: "Leakage floor of INS-24 against the transmit power of INS-14"
+
+  INS-24:
+    title: Residual leakage floor
+    sense: min
+    unit: dB
+    threshold: 10.0
+    goal: 20.0
+    claims: [C4]
+    work_packages: [WP3, WP5, WP9]
+    source: derived
+    derivation: "Ten decibels below the weakest echo INS-10 admits"
+    notes: >-
+      Scored as the margin between the weakest admitted echo and the de-chirped
+      leakage residual.  Technical Volume Chapter 5 shows this is less binding
+      than earlier drafts asserted once range correlation is credited, but the
+      credit depends on the single-reference architecture of INS-21.
+
+  INS-26:
+    title: Oscillator stability
+    sense: max
+    unit: Allan deviation
+    threshold: 2.0e-9
+    goal: 5.0e-10
+    claims: [C3]
+    work_packages: [WP3, WP5]
+    source: derived
+    derivation: "sigma_phi = 2 pi (f T) sigma_y(T) at the coherent interval of INS-15"
+    notes: >-
+      Scored at 1 s and 2 s.  Open item 12 is whether the range-correlation
+      credit of factor 24 to 48 applies here, which would relax this by more
+      than an order of magnitude.  Until that is settled the uncredited number
+      stands.
+
+  SCI-09:
+    title: Along-track sampling
+    sense: max
+    unit: m
+    threshold: 5.0e+4
+    goal: 2.5e+4
+    claims: [C2]
+    work_packages: [WP4, WP7]
+    source: "Horizontal structure scale from GOLD, COSMIC-2 and Swarm depletion statistics"
+
+  SCI-23:
+    title: Zonal drift resolution
+    sense: max
+    unit: m/s
+    threshold: 50.0
+    goal: 25.0
+    claims: [C3]
+    work_packages: [WP5, WP10]
+    source: "Measured equatorial plasma bubble drift speeds, 75 to 250 m/s"
+    notes: >-
+      This requirement is what sets the coherent interval of INS-15 and
+      therefore what makes the platform non-stationary within one velocity
+      estimate.  It is the reason C3 is not a routine application of a known
+      technique.

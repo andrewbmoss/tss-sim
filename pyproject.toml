@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tss-sim"
+version = "0.1.0"
+description = "Modelling and simulation for a low-SWaP FMCW topside ionospheric sounder"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+authors = [{name = "Andrew B. Moss", email = "andrew.blake.moss@gmail.com"}]
+keywords = ["ionosphere", "topside sounder", "FMCW", "radar", "cubesat", "HF"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Kept optional so that `import tss` works on a machine with none of them.
+# IRI needs a Fortran compiler, which is why the conda route exists.
+iri = ["iri2016>=1.11"]
+geomag = ["ppigrf>=2.0"]
+orbits = ["sgp4>=2.22"]
+data = ["requests>=2.31", "pandas>=2.0"]
+figures = ["matplotlib>=3.7"]
+dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.4"]
+all = [
+  "iri2016>=1.11", "ppigrf>=2.0", "sgp4>=2.22",
+  "requests>=2.31", "pandas>=2.0", "matplotlib>=3.7",
+  "pytest>=7.0", "pytest-cov", "ruff>=0.4",
+]
+
+[project.scripts]
+tss = "tss.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/andrewbmoss/tss-sim"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "network: hits an external service; deselected by default",
+  "matlab: needs a MATLAB installation",
+  "pharlap: needs PHaRLAP on the MATLAB path",
+  "slow: takes more than a few seconds",
+]
+addopts = "-m 'not network and not matlab and not pharlap' --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]

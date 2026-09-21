@@ -1,0 +1,149 @@
+"""The L0 to L5 orchestrator.
+
+The pipeline owns the sequencing and nothing else.  It builds the tier
+implementations a campaign names, runs one configuration end to end, and hands
+the result to the assessment tier.  It contains no physics, so a change of
+fidelity in any tier requires no change here.
+
+Two properties are deliberate.  First, every intermediate product is retained
+when ``keep_intermediates`` is set, because verification level V1 compares a
+layer against the one beneath it and cannot do that if only the final profile
+survives.  Second, the RNG is created once from the campaign seed and split per
+configuration, so two configurations in the same campaign do not share a noise
+realisation and a single configuration reruns identically.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+
+from tss.interfaces import (
+    Assessment,
+    DensityProfile,
+    EchoSet,
+    Ionogram,
+    IonosphereState,
+    PlatformState,
+    ReceivedSignal,
+    SweepSchedule,
+)
+from tss.registry import build
+
+__all__ = ["Pipeline", "RunResult", "build_tiers"]
+
+
+@dataclass
+class RunResult:
+    """Everything one configuration produced."""
+
+    configuration: str
+    assessment: Assessment | None = None
+    truth: IonosphereState | None = None
+    echoes: EchoSet | None = None
+    signal: ReceivedSignal | None = None
+    ionogram: Ionogram | None = None
+    retrieved: DensityProfile | None = None
+    timing_s: dict[str, float] = field(default_factory=dict)
+    flags: dict[str, Any] = field(default_factory=dict)
+
+
+def build_tiers(tiers: Mapping[str, Any]) -> dict[str, Any]:
+    """Instantiate every tier a campaign names.
+
+    A tier entry is either a bare name (``l0: chapman``) or a mapping with a
+    ``name`` and keyword arguments (``l0: {name: iri2020, topside: NeQuick}``).
+    """
+    built: dict[str, Any] = {}
+    for layer, spec in tiers.items():
+        if isinstance(spec, str):
+            built[layer] = build(layer, spec)
+        elif isinstance(spec, Mapping):
+            kwargs = {k: v for k, v in spec.items() if k != "name"}
+            built[layer] = build(layer, spec["name"], **kwargs)
+        else:
+            raise TypeError(f"tier spec for {layer} must be a name or a mapping")
+    return built
+
+
+class Pipeline:
+    """Runs configurations through L0 to L5."""
+
+    def __init__(self, tiers: Mapping[str, Any], *, seed: int = 0,
+                 keep_intermediates: bool = True) -> None:
+        self.tiers = dict(tiers)
+        self.seed = int(seed)
+        self.keep_intermediates = keep_intermediates
+
+    def _rng(self, configuration: str) -> np.random.Generator:
+        """A generator unique to (seed, configuration) and stable across runs."""
+        mixed = np.random.SeedSequence(
+            entropy=self.seed,
+            spawn_key=(abs(hash(configuration)) % (2**31),),
+        )
+        return np.random.default_rng(mixed)
+
+    def run_configuration(
+        self,
+        configuration: str,
+        *,
+        platform: PlatformState,
+        sweep: SweepSchedule,
+        freq_hz: np.ndarray,
+        alt_m: np.ndarray,
+        epoch: str,
+    ) -> RunResult:
+        """Run one configuration end to end."""
+        import time
+
+        rng = self._rng(configuration)
+        result = RunResult(configuration=configuration)
+        t: dict[str, float] = {}
+
+        t0 = time.perf_counter()
+        truth = self.tiers["l0"].state_at(
+            platform.lat_deg, platform.lon_deg, epoch, alt_m
+        )
+        t["l0"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        echoes = self.tiers["l1"].echoes(truth, platform, freq_hz, rng)
+        t["l1"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        signal = self.tiers["l2"].receive(echoes, sweep, rng)
+        t["l2"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        ionogram = self.tiers["l3"].form_ionogram(signal, platform)
+        t["l3"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        retrieved = self.tiers["l4"].invert(ionogram, platform)
+        t["l4"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        assessment = self.tiers["l5"].score(retrieved, truth, ionogram, configuration)
+        t["l5"] = time.perf_counter() - t0
+
+        result.assessment = assessment
+        result.timing_s = t
+        if self.keep_intermediates:
+            result.truth = truth
+            result.echoes = echoes
+            result.signal = signal
+            result.ionogram = ionogram
+            result.retrieved = retrieved
+        return result
+
+    def describe(self) -> dict[str, Any]:
+        """Tier descriptions for the run manifest."""
+        out: dict[str, Any] = {"seed": self.seed}
+        for layer, tier in self.tiers.items():
+            out[layer] = dict(tier.describe()) if hasattr(tier, "describe") else {
+                "name": getattr(tier, "name", type(tier).__name__)
+            }
+        return out

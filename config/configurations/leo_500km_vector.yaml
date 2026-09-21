@@ -1,0 +1,13 @@
+name: leo_500km_vector
+description: >-
+  Goal-level.  Three orthogonal receive antennas for arrival angle and
+  polarization mode separation (C5, INS-18, INS-08).  No threshold requirement
+  depends on this configuration.
+orbit:
+  altitude_m: 5.0e5
+  inclination_deg: 97.4
+  eccentricity: 0.0
+antenna_count: 3
+antenna_length_m: 5.0
+vector_receive: true
+channel_phase_match_deg: 2.0

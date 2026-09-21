@@ -1,0 +1,344 @@
+"""Layer: L1
+WP: WP2, WP5
+Claims: C3
+Status: implemented
+Requirements: INS-09, SCI-23
+
+The forward model C3 has to invert: platform-motion Doppler and the
+apparent-range bias it puts on an FMCW measurement.
+
+This module is deliberately not a stub.  The generation of the bias is
+geometry and arithmetic and both are settled; what is unsettled is the
+inversion, which lives in :mod:`tss.l3_signal.novel.sweep_pairing`.  Keeping the
+forward model honest and complete here is what makes the inversion testable at
+all, because the test of C3 is that the estimator recovers the range and the
+velocity this module put in.
+
+Geometry and sign conventions
+-----------------------------
+``u_los`` is the unit vector pointing **from the platform toward the reflection
+point**.  For a vertical topside sounding that is local down.  The closing
+velocity is
+
+    v_close = dot(v_platform - v_reflector, u_los)
+
+so a positive closing velocity means the two-way path is shortening.  The range
+rate is its negative, ``Rdot = -v_close``.  The two-way Doppler shift is
+
+    f_d = 2 * v_close * f / c
+
+positive for a closing geometry, which is the usual radar convention.
+
+The apparent-range bias
+-----------------------
+In a linear FMCW sweep of rate ``K_f`` the de-chirped beat frequency for a
+two-way range ``R`` is ``f_R = 2 K_f R / c``.  Motion changes it.  The echo
+arrives with instantaneous frequency
+
+    f_rx(t) = f_tx(t) - K_f * tau + f_d
+
+so on an up-sweep the beat is ``f_R - f_d`` and not ``f_R + f_d``: a closing
+geometry makes the up-sweep beat frequency smaller.  That is the standard FMCW
+result and it is easy to write down backwards.  The processor, which has no way
+to tell the two terms apart in a single sweep, converts the difference back to
+range:
+
+    R_apparent(up) = c (f_R - f_d) / (2 K_f) = R - v_close * f / K_f
+
+On a down-sweep ``K_f`` changes sign, the beat becomes ``f_R + f_d``, and the
+displacement is the other way.  Writing it with the range rate
+``Rdot = -v_close`` instead of the closing velocity removes the minus sign:
+
+    R_apparent = R + direction * Rdot * f / K_f
+
+and ``Rdot * f / K_f`` is :func:`tss.constants.doppler_range_bias`.  Three
+properties of that expression drive the whole of C3.
+
+* It does not depend on range.  Every echo in the sweep is displaced by the
+  same amount, so it cannot be found by looking at the shape of a single trace.
+* It grows linearly with sounding frequency, so it is worst at the top of the
+  band.  At 20 MHz with a 5.6 MHz/s sweep, 1 m/s of closing velocity is 3.6 m
+  of range error, and a few hundred metres per second of unmodelled radial
+  motion is kilometres.
+* It changes sign with the sweep direction.  ``K_f`` is negative on a
+  down-sweep, so the same closing velocity displaces the two traces opposite
+  ways: short range on the up-sweep, long range on the down-sweep, by the same
+  amount.  That sign change is the entire lever C3 pulls on, and it is why
+  :class:`~tss.interfaces.SweepSchedule` carries ``direction`` as a field rather
+  than leaving the sign implicit in ``k_f_hz_per_s``.
+
+What is and is not included
+---------------------------
+Included: platform velocity projected on the line of sight, and a reflector
+velocity along the same line so that a vertical plasma drift can be modelled.
+Not included: the second-order term from the geometry changing during the
+sweep, and the along-track term from flying into a horizontally varying
+ionosphere.  Neither is negligible for a 1 to 2 s coherent interval.  The first
+is quantified in :func:`residual_bias_second_order_m` so that it can at least be
+bounded; the second needs a ray-traced tier and a horizontally structured L0
+state, and there is no honest way to put a number on it here.
+
+A caution that belongs in the forward model rather than only in the inversion:
+a vertical plasma drift and a radial platform motion enter through the same
+projection and are not separable from a single line of sight.  The simulator
+can separate them because it knows the truth.  The instrument cannot, and any
+retrieved drift from one line of sight is really the sum of the two.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+from tss.constants import C_LIGHT, doppler_range_bias
+from tss.interfaces import PlatformState, SweepSchedule
+
+__all__ = [
+    "DopplerGeometry",
+    "vertical_line_of_sight",
+    "closing_velocity_mps",
+    "doppler_shift_hz",
+    "velocity_from_doppler_mps",
+    "apparent_range_bias_m",
+    "residual_bias_second_order_m",
+    "coherent_interval_for_velocity_resolution_s",
+    "doppler_geometry",
+]
+
+
+@dataclass(frozen=True)
+class DopplerGeometry:
+    """One frequency's Doppler picture for one echo.
+
+    Attributes
+    ----------
+    freq_hz
+        Sounding frequency.
+    closing_velocity_mps
+        Line-of-sight closing velocity, positive when the two-way path is
+        shortening.
+    range_rate_mps
+        Its negative, for readers who prefer range rate.
+    doppler_hz
+        Two-way Doppler shift, positive for a closing geometry.
+    range_bias_m
+        Apparent-range bias on an up-sweep.  Negate it for a down-sweep.
+    sweep_direction
+        +1 for the up-sweep the bias was computed for, -1 for a down-sweep.
+    """
+
+    freq_hz: float
+    closing_velocity_mps: float
+    range_rate_mps: float
+    doppler_hz: float
+    range_bias_m: float
+    sweep_direction: int = 1
+
+
+def vertical_line_of_sight() -> np.ndarray:
+    """Unit vector from platform to reflection point for a vertical sounding.
+
+    Returned in the local north-east-down frame, so it is ``(0, 0, 1)``: down.
+    This exists so that the vertical case is written once and the choice of
+    frame is stated once, rather than a bare ``[0, 0, 1]`` appearing in three
+    modules with three different conventions.
+    """
+    return np.array([0.0, 0.0, 1.0], dtype=float)
+
+
+def closing_velocity_mps(
+    platform_velocity: np.ndarray,
+    u_los: np.ndarray,
+    *,
+    reflector_velocity: np.ndarray | None = None,
+) -> float:
+    """Line-of-sight closing velocity, m/s.
+
+    ``dot(v_platform - v_reflector, u_los)`` with ``u_los`` pointing from the
+    platform toward the reflection point.  Positive means the path is
+    shortening.
+
+    Both vectors must be expressed in the same frame.  The function normalises
+    ``u_los`` rather than trusting the caller, because an un-normalised line of
+    sight scales the answer silently and the resulting velocity error looks
+    exactly like a physical one.
+    """
+    v = np.asarray(platform_velocity, dtype=float)
+    u = np.asarray(u_los, dtype=float)
+    if v.shape != (3,) or u.shape != (3,):
+        raise ValueError(
+            f"velocity and line of sight must both be 3-vectors; got {v.shape} and {u.shape}"
+        )
+    norm = float(np.linalg.norm(u))
+    if norm == 0.0:
+        raise ValueError("line-of-sight vector has zero length")
+    u = u / norm
+    if reflector_velocity is not None:
+        v = v - np.asarray(reflector_velocity, dtype=float)
+    return float(np.dot(v, u))
+
+
+def doppler_shift_hz(
+    closing_velocity_mps: float | np.ndarray,
+    f_hz: float | np.ndarray,
+) -> np.ndarray:
+    """Two-way Doppler shift, Hz.  ``f_d = 2 v f / c``, positive when closing.
+
+    The non-relativistic form is used.  At orbital speeds the relativistic
+    correction is of order ``(v/c)^2``, about 6e-10 for 7.5 km/s, which is four
+    orders of magnitude below the frequency stability INS-26 asks for and is not
+    worth carrying.
+    """
+    v = np.asarray(closing_velocity_mps, dtype=float)
+    f = np.asarray(f_hz, dtype=float)
+    return 2.0 * v * f / C_LIGHT
+
+
+def velocity_from_doppler_mps(
+    doppler_hz: float | np.ndarray,
+    f_hz: float | np.ndarray,
+) -> np.ndarray:
+    """Invert :func:`doppler_shift_hz`.  ``v = c f_d / (2 f)``."""
+    f_d = np.asarray(doppler_hz, dtype=float)
+    f = np.asarray(f_hz, dtype=float)
+    return C_LIGHT * f_d / (2.0 * f)
+
+
+def apparent_range_bias_m(
+    closing_velocity_mps: float | np.ndarray,
+    f_hz: float | np.ndarray,
+    k_f_hz_per_s: float | np.ndarray,
+    *,
+    direction: int = 1,
+) -> np.ndarray:
+    """Apparent-range bias from Doppler in a linear sweep, metres.
+
+    ``direction * Rdot * f / K_f`` with ``Rdot = -v_close``, evaluated through
+    :func:`tss.constants.doppler_range_bias` so that the relation lives in one
+    place.  ``direction`` is +1 for an up-sweep and -1 for a down-sweep,
+    matching :attr:`tss.interfaces.SweepSchedule.direction`.
+
+    The sign is the thing to read carefully.  A closing geometry makes the
+    up-sweep beat frequency smaller, so the up-sweep trace appears at shorter
+    range than it should and the down-sweep trace appears at longer range by
+    the same amount.  That is what makes the half-sum of the two an unbiased
+    range, and it is the property C3 rests on.
+
+    ``k_f_hz_per_s`` is the magnitude of the sweep rate.  Passing a negative
+    rate and a direction of -1 together would apply the sign twice, so the
+    function takes the absolute value and the sign comes from ``direction``
+    alone.  That is a choice, and it is made this way because the sign of the
+    bias is the one thing C3 must not get wrong by accident.
+    """
+    if direction not in (1, -1):
+        raise ValueError(f"direction must be +1 or -1; got {direction!r}")
+    range_rate = -np.asarray(closing_velocity_mps, dtype=float)
+    magnitude = doppler_range_bias(
+        range_rate, f_hz, np.abs(np.asarray(k_f_hz_per_s, dtype=float))
+    )
+    return float(direction) * magnitude
+
+
+def residual_bias_second_order_m(
+    acceleration_mps2: float | np.ndarray,
+    f_hz: float | np.ndarray,
+    k_f_hz_per_s: float | np.ndarray,
+    sweep_period_s: float,
+) -> np.ndarray:
+    """Bound on the bias left after up and down sweeps are averaged, metres.
+
+    The half-sum of an up-sweep and a down-sweep cancels the first-order bias
+    exactly, because the two biases are equal and opposite.  What survives is
+    the change in closing velocity between the two sweeps.  If the line-of-sight
+    acceleration is ``a`` and the two sweeps are separated by one sweep period
+    ``T``, the velocities differ by ``a T`` and the residual in the half-sum is
+
+        ``delta_R ~ (a * T / 2) * f / K_f``
+
+    which is the first-order expression evaluated at half the velocity change.
+    This is an order-of-magnitude bound and not an error model: it assumes the
+    acceleration is constant across the pair and it ignores the variation of
+    the line of sight during a sweep.
+
+    It is here because INS-09 asks for the residual range bias to stay inside
+    one range cell, and a bound that can be evaluated from an ephemeris is what
+    turns that requirement into something a campaign can score before the
+    estimator of WP5 exists.
+    """
+    a = np.asarray(acceleration_mps2, dtype=float)
+    delta_v = a * float(sweep_period_s) / 2.0
+    return doppler_range_bias(delta_v, f_hz, np.abs(np.asarray(k_f_hz_per_s, dtype=float)))
+
+
+def coherent_interval_for_velocity_resolution_s(
+    delta_v_mps: float | np.ndarray,
+    f_hz: float | np.ndarray,
+) -> np.ndarray:
+    """Coherent interval needed to resolve a velocity difference, seconds.
+
+    Resolving two Doppler shifts that differ by ``2 delta_v f / c`` needs a
+    coherent interval of at least the reciprocal of that difference:
+
+        ``T >= c / (2 delta_v f)``
+
+    The product ``f T = c / (2 delta_v)`` is therefore independent of sounding
+    frequency, which is the statement that the demand is on the velocity
+    resolution alone.  For the 50 m/s of SCI-23 the product is about 3.0e6, so
+    1 MHz needs 3.0 s and 10 MHz needs 0.30 s.  The same relation appears in
+    :mod:`tss.l3_signal.novel.motion_compensation`, where its consequence is
+    that the geometry moves materially inside one velocity estimate.
+    """
+    dv = np.asarray(delta_v_mps, dtype=float)
+    f = np.asarray(f_hz, dtype=float)
+    return C_LIGHT / (2.0 * dv * f)
+
+
+def doppler_geometry(
+    platform: PlatformState,
+    freq_hz: float | np.ndarray,
+    sweep: SweepSchedule,
+    *,
+    u_los: np.ndarray | None = None,
+    reflector_velocity: np.ndarray | None = None,
+) -> list[DopplerGeometry]:
+    """Assemble the Doppler picture for a set of sounding frequencies.
+
+    ``platform.velocity_ecef_mps`` and ``u_los`` must be in the same frame.  The
+    interface names the field ``velocity_ecef_mps``; for a vertical sounding the
+    caller usually supplies the local north-east-down components and the default
+    line of sight of :func:`vertical_line_of_sight`, in which case only the
+    vertical component contributes.  That is stated here rather than enforced,
+    because enforcing it would need an attitude and a geodetic conversion that
+    belong in the platform package and not in L1.
+
+    A platform with no velocity gives zero Doppler and zero bias, which is the
+    correct answer for a stationary sounder and is not a masked result.
+    """
+    freqs = np.atleast_1d(np.asarray(freq_hz, dtype=float))
+    direction = int(np.sign(sweep.direction)) or 1
+    k_f = abs(float(sweep.k_f_hz_per_s))
+
+    if platform.velocity_ecef_mps is None:
+        v_close = 0.0
+    else:
+        los = vertical_line_of_sight() if u_los is None else np.asarray(u_los, dtype=float)
+        v_close = closing_velocity_mps(
+            platform.velocity_ecef_mps, los, reflector_velocity=reflector_velocity
+        )
+
+    out: list[DopplerGeometry] = []
+    for f in freqs:
+        f_d = float(doppler_shift_hz(v_close, float(f)))
+        bias = float(apparent_range_bias_m(v_close, float(f), k_f, direction=direction))
+        out.append(
+            DopplerGeometry(
+                freq_hz=float(f),
+                closing_velocity_mps=float(v_close),
+                range_rate_mps=-float(v_close),
+                doppler_hz=f_d,
+                range_bias_m=bias,
+                sweep_direction=direction,
+            )
+        )
+    return out

@@ -1,0 +1,30 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.venv/
+venv/
+
+# Downloaded external data.  Regenerate with `tss fetch <source>`.
+# The .meta.json sidecars are kept so provenance survives a clean checkout.
+data/external/**
+!data/external/**/
+!data/external/**/*.meta.json
+
+# Run outputs.  Regenerate with `tss run`, `tss study`, `tss figure`.
+results/
+!results/.gitkeep
+
+# MATLAB
+*.asv
+*.mex*
+slprj/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

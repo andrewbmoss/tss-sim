@@ -1,0 +1,47 @@
+# Base configuration.  Every campaign inherits this and overrides what it needs.
+# Nothing here is a scientific result; these are defaults that make a run
+# possible, and a campaign that cares about a number states it explicitly.
+
+name: default
+
+paths:
+  data_external: data/external      # download cache, gitignored
+  data_reference: data/reference    # small checked-in reference values
+  results: results                  # run outputs and manifests, gitignored
+  figures: results/figures
+
+# Which implementation answers for each layer.  `tss tiers` lists what is
+# registered.  A campaign overrides any of these.
+tiers:
+  l0: chapman
+  l1: analytic
+  l2: baseline
+  l3: baseline
+  l4: lamination
+  l5: standard
+
+# The requirement set L5 scores against.  Resolved by tss.config.resolve_path.
+requirements: requirements/requirements
+
+# Seed for the run.  The pipeline splits this per configuration, so two
+# configurations in one campaign do not share a noise realisation.
+seed: 20260921
+
+instrument: instrument/baseline_6u
+
+sweep:
+  f_start_hz: 3.3e5
+  f_stop_hz: 2.0e7
+  k_f_hz_per_s: 5.6e6
+  sweep_period_s: 3.3
+  direction: 1
+  nonlinearity_ppm: 0.0
+
+grid:
+  alt_min_m: 9.0e4
+  alt_max_m: 2.0e6
+  alt_step_m: 5.0e3
+
+run:
+  keep_intermediates: true
+  strict_provenance: false   # campaigns for publication set this true

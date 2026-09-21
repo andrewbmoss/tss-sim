@@ -1,0 +1,27 @@
+# conda env create -f environment.yml && conda activate tss
+#
+# The conda route exists because iri2016 needs a Fortran compiler, and getting
+# one on Windows any other way is more trouble than it is worth.  Everything
+# else in here is available as a wheel, so a plain `pip install -e .[all]` in a
+# virtualenv works too if IRI is not needed.
+name: tss
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - pyyaml
+  - requests
+  - pytest
+  - pytest-cov
+  - ruff
+  - fortran-compiler      # needed to build iri2016
+  - cmake
+  - pip
+  - pip:
+      - iri2016
+      - ppigrf
+      - sgp4
+      - -e .

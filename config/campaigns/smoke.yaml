@@ -1,0 +1,17 @@
+# The fastest campaign that exercises every layer.  Analytic throughout, one
+# configuration, a coarse grid.  This is what CI and a new checkout run to
+# confirm the pipeline is wired, and it makes no scientific claim.
+name: smoke
+tiers:
+  l0: chapman
+  l1: analytic
+  l2: baseline
+  l3: baseline
+  l4: lamination
+  l5: standard
+configurations: [leo_500km_single]
+grid:
+  alt_step_m: 2.0e4
+seed: 1
+run:
+  strict_provenance: false

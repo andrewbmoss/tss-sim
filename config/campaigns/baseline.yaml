@@ -1,0 +1,19 @@
+# The reference campaign.  IRI-2020 truth, analytic propagation, the baseline
+# instrument, scored against the full claim-bearing requirement subset.
+name: baseline
+tiers:
+  l0:
+    name: iri2020
+    topside: NeQuick
+  l1: analytic
+  l2: baseline
+  l3: baseline
+  l4: lamination
+  l5: standard
+configurations:
+  - leo_500km_single
+  - leo_800km_single
+  - leo_500km_small_antenna
+seed: 20260921
+run:
+  strict_provenance: true

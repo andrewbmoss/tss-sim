@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+title: "tss-sim: modelling and simulation for a low-SWaP FMCW topside ionospheric sounder"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Moss
+    given-names: Andrew B.
+    affiliation: "Utah State University, Department of Electrical and Computer Engineering"
+abstract: >-
+  An end-to-end simulator for a frequency modulated continuous wave topside
+  ionospheric sounder small enough to fly on a nanosatellite.  The package is
+  layered truth-in and profile-out, from an ionosphere state model through
+  propagation, instrument, signal processing and retrieval to an assessment
+  scored against a traced requirement set.  It carries a corrected sensitivity
+  model for spaceborne HF sounding, a derived and archive-validated lower edge
+  for the sounding band, and the algorithms for separating Doppler shift from
+  range using spacecraft motion alone.
+license: BSD-3-Clause
+version: 0.1.0
+date-released: "2026-09-21"
+keywords:
+  - ionosphere
+  - topside sounder
+  - FMCW radar
+  - CubeSat
+  - high frequency
+references:
+  - type: data
+    title: "Alouette and ISIS topside sounder data restoration"
+    institution:
+      name: "NASA Space Physics Data Facility"
+    url: "https://spdf.gsfc.nasa.gov/isis/isis-status.html"
+  - type: software
+    title: "PHaRLAP: Provision of High-frequency Raytracing Laboratory for Propagation studies"
+    authors:
+      - family-names: Cervera
+        given-names: Manuel A.
+    institution:
+      name: "Defence Science and Technology Group, Australia"

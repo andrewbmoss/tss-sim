@@ -1,0 +1,11 @@
+name: leo_500km_single
+description: >-
+  Baseline. 500 km circular sun-synchronous orbit, one transmit and one receive
+  antenna, 5 m deployed scale.  This is the configuration every threshold
+  requirement must close against.
+orbit:
+  altitude_m: 5.0e5
+  inclination_deg: 97.4
+  eccentricity: 0.0
+antenna_count: 1
+antenna_length_m: 5.0

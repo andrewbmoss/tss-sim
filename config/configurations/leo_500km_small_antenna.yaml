@@ -1,0 +1,11 @@
+name: leo_500km_small_antenna
+description: >-
+  The pessimistic antenna case.  A 1 m deployed scale is what a 6U bus can
+  manage without a deployment mechanism worth arguing about.  The point of this
+  configuration is to price the loss, not to recommend it.
+orbit:
+  altitude_m: 5.0e5
+  inclination_deg: 97.4
+  eccentricity: 0.0
+antenna_count: 1
+antenna_length_m: 1.0

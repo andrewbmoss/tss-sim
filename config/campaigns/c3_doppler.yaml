@@ -1,0 +1,16 @@
+# WP5 and WP6.  The campaign that resolves the principal contribution.
+# It is listed here so that the shape of the answer is fixed before the
+# algorithms exist, which is the point of writing requirements before results.
+# The l3 tier it names is not yet implemented and `tss run` will say so.
+name: c3_doppler
+inherits: [campaigns/baseline]
+tiers:
+  l3: motion_separated
+configurations: [leo_500km_single]
+doppler:
+  truth_drift_mps: [0.0, 25.0, 50.0, 100.0, 250.0]
+  sweep_pairs: up_down
+  coherent_interval_s: [1.0, 2.0]
+seed: 20260921
+run:
+  strict_provenance: true
