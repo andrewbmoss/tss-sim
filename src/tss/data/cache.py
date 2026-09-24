@@ -338,12 +338,54 @@ def polite_get(
     from the retry set on purpose; honouring it means backing off for longer
     than a fetch should block for, and the caller should reschedule.
 
+    ``params`` may be a mapping or a sequence of ``(key, value)`` pairs.  The
+    pair form is what a service that takes a repeated key needs; Madrigal's
+    ``isprintService.py`` takes one ``parms=`` per parameter, for instance.
+
     ``requests`` is imported here rather than at module scope so that importing
     :mod:`tss.data` costs nothing on a machine that will only read cached files.
     """
     import requests  # imported lazily, see the docstring
 
     sess = session if session is not None else requests
+
+    def _send(hdrs: dict[str, str]) -> Any:
+        # verify is left at its default.  Never pass verify=False here.
+        return sess.get(
+            url,
+            params=_as_params(params),
+            headers=hdrs,
+            timeout=timeout,
+            stream=stream,
+        )
+
+    return _polite_request(
+        "GET", url, _send, headers=headers, max_retries=max_retries,
+        min_interval_s=min_interval_s, backoff_s=backoff_s,
+    )
+
+
+def _as_params(params: Any) -> Any:
+    """Pass a mapping through as a dict and a sequence of pairs as a list."""
+    if not params:
+        return None
+    if isinstance(params, Mapping):
+        return dict(params)
+    return list(params)
+
+
+def _polite_request(
+    method: str,
+    url: str,
+    send: Any,
+    *,
+    headers: Mapping[str, str] | None,
+    max_retries: int,
+    min_interval_s: float,
+    backoff_s: float,
+) -> Any:
+    """The retry loop behind :func:`polite_get`, kept separate so a second method
+    could share it without duplicating the policy."""
     hdrs: dict[str, str] = {"User-Agent": user_agent(), "Accept-Encoding": "gzip"}
     if headers:
         hdrs.update(headers)
@@ -352,18 +394,13 @@ def polite_get(
     for attempt in range(max_retries + 1):
         _throttle(url, min_interval_s)
         try:
-            # verify is left at its default.  Never pass verify=False here.
-            response = sess.get(
-                url,
-                params=dict(params) if params else None,
-                headers=hdrs,
-                timeout=timeout,
-                stream=stream,
-            )
+            response = send(hdrs)
         except Exception as exc:  # transport failure, worth one more try
             last_error = exc
             if attempt >= max_retries:
-                raise FetchError(f"GET {url} failed after {attempt + 1} attempts: {exc}") from exc
+                raise FetchError(
+                    f"{method} {url} failed after {attempt + 1} attempts: {exc}"
+                ) from exc
             _sleep_backoff(backoff_s, attempt)
             continue
 
@@ -375,16 +412,19 @@ def polite_get(
             reason = getattr(response, "reason", "") or ""
             body = _short_body(response)
             raise FetchError(
-                f"GET {url} returned {status} {reason}; not retrying a client error. {body}".strip()
+                f"{method} {url} returned {status} {reason}; not retrying a client error. "
+                f"{body}".strip()
             )
 
         if status in _RETRY_STATUS and attempt < max_retries:
             _sleep_backoff(backoff_s, attempt)
             continue
 
-        raise FetchError(f"GET {url} returned {status}; giving up after {attempt + 1} attempts")
+        raise FetchError(
+            f"{method} {url} returned {status}; giving up after {attempt + 1} attempts"
+        )
 
-    raise FetchError(f"GET {url} failed: {last_error}")  # pragma: no cover
+    raise FetchError(f"{method} {url} failed: {last_error}")  # pragma: no cover
 
 
 def _sleep_backoff(backoff_s: float, attempt: int) -> None:

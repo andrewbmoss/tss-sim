@@ -1,0 +1,3 @@
+  File &quot;/opt/openmadrigal/madroot/bin/isprint&quot;, line 126, in &lt;module&gt;
+    raise IOError(&quot;Illegal parameter: &quot; + str(arg))
+OSError: Illegal parameter: YEAR,MONTH,DAY,HOUR,MIN,SEC,GDLAT,GLON,GDALT,NE

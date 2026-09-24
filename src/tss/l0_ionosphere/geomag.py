@@ -60,6 +60,8 @@ __all__ = [
     "dipole_field_ned_t",
     "field_ned_t",
     "geomagnetic_latitude_deg",
+    "inclination_deg",
+    "modip_deg",
 ]
 
 #: Equatorial surface field of the centred dipole, tesla.
@@ -170,6 +172,11 @@ def _parse_epoch_to_datetime(epoch: str):
     A field model that cannot read the epoch should fall back to a default date
     rather than fail the run, because the secular variation over a few years
     moves the field by far less than the dipole fallback already does.
+
+    The result is always naive UTC.  ppigrf compares the date against a
+    timezone-naive table and raises on an aware datetime, so an epoch carrying
+    an offset (``+00:00``, as ``datetime.isoformat`` writes for an aware time)
+    is converted to UTC and its offset dropped.
     """
     import datetime as _dt
 
@@ -177,14 +184,18 @@ def _parse_epoch_to_datetime(epoch: str):
     if not text:
         return None
     if text.endswith("Z"):
-        text = text[:-1]
+        text = text[:-1] + "+00:00"
     for fmt in (None, "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
         try:
             if fmt is None:
-                return _dt.datetime.fromisoformat(text)
-            return _dt.datetime.strptime(text, fmt)
+                dt = _dt.datetime.fromisoformat(text)
+            else:
+                dt = _dt.datetime.strptime(text, fmt)
         except (TypeError, ValueError):
             continue
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+        return dt
     return None
 
 
@@ -239,7 +250,7 @@ def field_ned_t(
 
         return b, {
             "model": "IGRF via ppigrf",
-            "version": str(getattr(ppigrf, "__version__", "") or ""),
+            "version": str(getattr(ppigrf, "__version__", "") or _package_version("ppigrf")),
         }
     except Exception as exc:                       # noqa: BLE001 - see below
         # Any failure of the optional route is the same thing to the caller:
@@ -256,3 +267,121 @@ def field_ned_t(
             "b0_equatorial_t": B0_EQUATORIAL_T,
             "reason": f"ppigrf unavailable or failed: {type(exc).__name__}: {exc}",
         }
+
+
+# ---------------------------------------------------------------------------
+# Vectorised inclination and modified dip, for global maps
+# ---------------------------------------------------------------------------
+
+
+def inclination_deg(
+    lat_deg: np.ndarray | float,
+    lon_deg: np.ndarray | float,
+    *,
+    alt_km: float = 300.0,
+    epoch: str = "",
+    prefer: str = "igrf",
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Magnetic inclination (dip) in degrees, positive downward, at many points.
+
+    :func:`field_ned_t` answers for one location on an altitude grid, which is
+    what a profile needs.  A global map needs the opposite shape, many
+    locations at one altitude, and looping :func:`field_ned_t` over a few
+    thousand grid points would call ppigrf a few thousand times.  This function
+    makes one ppigrf call for all of them.
+
+    ``prefer`` defaults to ``"igrf"`` here, not ``"auto"``, because the one
+    consumer so far is the IRTAM and CCIR map evaluation, where modip enters
+    every spatial basis function and the dipole's error of several degrees in
+    modip moves the equatorial anomaly crests.  Ask for ``"dipole"`` explicitly
+    to run on a machine without ppigrf, and expect maps that are qualitatively
+    right and quantitatively not.
+    """
+    lat = np.asarray(lat_deg, dtype=float)
+    lon = np.asarray(lon_deg, dtype=float)
+    lat, lon = np.broadcast_arrays(lat, lon)
+    shape = lat.shape
+    flat_lat, flat_lon = lat.reshape(-1), lon.reshape(-1)
+
+    if prefer not in ("auto", "igrf", "dipole"):
+        raise ValueError(f"unknown prefer {prefer!r}, expected auto, igrf or dipole")
+
+    def _dipole() -> np.ndarray:
+        alt_m = np.array([alt_km * 1.0e3])
+        out = np.empty(flat_lat.size)
+        for i, (la, lo) in enumerate(zip(flat_lat, flat_lon, strict=True)):
+            bn, be, bd = dipole_field_ned_t(float(la), float(lo), alt_m)[:, 0]
+            out[i] = np.degrees(np.arctan2(bd, np.hypot(bn, be)))
+        return out
+
+    dipole_record = {
+        "model": "centred dipole",
+        "version": "",
+        "alt_km": float(alt_km),
+        "pole_lat_deg": DIPOLE_POLE_LAT_DEG,
+        "pole_lon_deg": DIPOLE_POLE_LON_DEG,
+    }
+    if prefer == "dipole":
+        return _dipole().reshape(shape), dipole_record
+
+    try:
+        import datetime as _dt
+
+        import ppigrf  # type: ignore
+
+        when = _parse_epoch_to_datetime(epoch) or _dt.datetime(2020, 1, 1, 12, 0, 0)
+        h = np.full(flat_lat.shape, float(alt_km))
+        # ppigrf divides by sin(colatitude) and returns NaN exactly at a pole.
+        # A thousandth of a degree is about 100 m, far below anything a map at
+        # degree resolution can resolve.
+        safe_lat = np.clip(flat_lat, -89.999, 89.999)
+        be, bn, bu = ppigrf.igrf(flat_lon, safe_lat, h, when)
+        be = np.asarray(be, dtype=float).reshape(-1)[: flat_lat.size]
+        bn = np.asarray(bn, dtype=float).reshape(-1)[: flat_lat.size]
+        bd = -np.asarray(bu, dtype=float).reshape(-1)[: flat_lat.size]
+        inc = np.degrees(np.arctan2(bd, np.hypot(bn, be)))
+        record = {
+            "model": "IGRF via ppigrf",
+            "version": _package_version("ppigrf"),
+            "alt_km": float(alt_km),
+            "epoch": when.isoformat(),
+        }
+        return inc.reshape(shape), record
+    except Exception as exc:  # noqa: BLE001 - same policy as field_ned_t
+        if prefer == "igrf":
+            raise
+        rec = dict(dipole_record)
+        rec["reason"] = f"ppigrf unavailable or failed: {type(exc).__name__}: {exc}"
+        return _dipole().reshape(shape), rec
+
+
+def modip_deg(
+    lat_deg: np.ndarray | float,
+    lon_deg: np.ndarray | float,
+    *,
+    alt_km: float = 300.0,
+    epoch: str = "",
+    prefer: str = "igrf",
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Rawer's modified dip latitude, degrees, at many points.
+
+    ``tan(modip) = I / sqrt(cos(lat))`` with the inclination ``I`` in radians.
+    This is the coordinate the CCIR, URSI and IRTAM foF2 and hmF2 maps are
+    expanded in.  The defaults, IGRF at 300 km, are the ones IRI and PyIRI use;
+    PyIRI also evaluates the field at mid-month, which a caller reproduces by
+    passing that date as ``epoch``.
+    """
+    inc, record = inclination_deg(lat_deg, lon_deg, alt_km=alt_km, epoch=epoch, prefer=prefer)
+    lat = np.radians(np.broadcast_to(np.asarray(lat_deg, dtype=float), inc.shape))
+    coslat = np.clip(np.cos(lat), 1.0e-12, None)
+    mod = np.degrees(np.arctan(np.radians(inc) / np.sqrt(coslat)))
+    return mod, dict(record, quantity="modip (Rawer)")
+
+
+def _package_version(name: str) -> str:
+    try:
+        import importlib.metadata as md
+
+        return md.version(name)
+    except Exception:  # noqa: BLE001
+        return ""

@@ -26,6 +26,13 @@ WP8 and V4 need archived real ionograms, which live in the same SPDF archive as
 the profiles but as a much larger and less uniform product.  This layer records
 where they are and does not bulk-download them.
 
+WP1 and WP8 also need present-day truth that the ISIS archive cannot give.
+Madrigal supplies incoherent scatter radar profiles through the F2 peak and into
+the topside, and DMSP in-situ density at about 850 km; GIRO DIDBase supplies
+the F2 peak from ground Digisondes; IRTAM supplies assimilated global peak maps
+for event-driven L0 truth.  See :mod:`tss.data.madrigal`, :mod:`tss.data.giro`
+and :mod:`tss.data.irtam`.
+
 WP12 needs a sub-megahertz sky noise reference.  The WSPR record does not reach
 below 137 kHz and is a poor proxy there, so what this layer provides for WP12
 is the band behaviour above 1.8 MHz as context; the sub-megahertz reference
@@ -60,7 +67,10 @@ from typing import Any
 from tss.data import (  # noqa: E402,F401
     cache,
     datagov_absorption,
+    giro,
+    irtam,
     local_models,
+    madrigal,
     spdf_isis,
     wspr,
 )
@@ -83,7 +93,10 @@ __all__ = [
     "register_source",
     "describe_sources",
     "cache",
+    "giro",
+    "irtam",
     "local_models",
+    "madrigal",
 ]
 
 

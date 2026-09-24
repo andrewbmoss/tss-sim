@@ -1,6 +1,6 @@
 # External data sources
 
-Three external data sources and a set of locally installed models feed this
+Six external data sources and a set of locally installed models feed this
 repository.  This document says what each one provides, where it comes from,
 what its licence and citation requirements are, how it is cached, how to be a
 good citizen when fetching it, what is checked in versus downloaded, and which
@@ -15,7 +15,16 @@ tss fetch list                       # every source with its one-line descriptio
 tss fetch spdf_isis_ne
 tss fetch wspr_live --limit 20000
 tss fetch datagov_absorption --force
+tss fetch giro_didbase               # one day at Millstone Hill
+tss fetch irtam                      # one epoch, all four characteristics
+tss fetch madrigal                   # needs TSS_MADRIGAL_* set; see below
 ```
+
+The first three sources were chosen for the proposal.  Madrigal, GIRO DIDBase
+and IRTAM were added on 2026-09-23 after an evaluation of candidate ground-truth
+sources (Dissertation project note `data-sources-evaluation.md`).  They answer a
+gap the first three leave: present-day truth for the topside profile, the F2
+peak and the density at the spacecraft, where ISIS supplies only 1969 to 1980.
 
 Two rules apply throughout.
 
@@ -237,6 +246,208 @@ sufficient to test the parser and one comparison case.
 
 **Consumed by.**  WP2, and WP8 at verification level V3, as one of the
 independent absorption references alongside Barry 1971.
+
+## CEDAR Madrigal: incoherent scatter radar and DMSP
+
+Registered as **`madrigal`**.  Module `src/tss/data/madrigal.py`.
+
+**What it provides.**  Two products from the CEDAR Madrigal database.
+Incoherent scatter radar electron density profiles, of which the Millstone Hill
+zenith single-pulse product (kindat 3420) is the most useful: it runs from about
+150 km through the F2 peak to about 800 km with a per-point error estimate.
+That is measured topside profile shape, which no ionosonde and no GNSS product
+provides.  And DMSP SSIES in-situ electron density at about 850 km at
+one-second cadence, which is the local plasma frequency at a spacecraft in the
+current solar cycle, the modern counterpart to the first sample of an ISIS
+profile.
+
+**Where.**  https://cedar.openmadrigal.org/ through its plain-text services
+`getInstrumentsService.py`, `getExperimentsService.py`,
+`getExperimentFilesService.py` and `isprintService.py`.  These are what the
+`madrigalWeb` client calls.  The module calls them directly through
+`polite_get` so caching, sidecars and throttling match every other source and
+`madrigalWeb` is not a dependency.  `isprint` asks the server to extract only
+the parameters and time window wanted, which returns kilobytes of text instead
+of an HDF5 file of tens of megabytes.
+
+**Identity.**  Madrigal requires a name, email and affiliation on every data
+request.  Listings do not.  Set them in the environment, never in a file in the
+repository:
+
+```bash
+export TSS_MADRIGAL_NAME="Andrew B. Moss"
+export TSS_MADRIGAL_EMAIL="..."
+export TSS_MADRIGAL_AFFILIATION="Utah State University"
+```
+
+On Windows use `setx` or the conda environment's `env_vars`.  A data request
+without them raises `MadrigalIdentityError` rather than going out anonymously.
+The URL recorded in a sidecar has all three values replaced by `[redacted]`,
+and the cache key is built from the redacted URL, so the identity reaches
+neither a filename nor a committed sidecar.
+
+**Licence and citation.**  CEDAR Madrigal data are openly available under the
+CEDAR Rules of the Road: acknowledge the database, each instrument and its
+funding, and consult the instrument PI where a result depends heavily on their
+data.  Each file listing carries a DOI-style `w3id.org/cedar` URL, which is the
+citation for that file.  The PI of each experiment is in the listing.
+
+**Cache.**  `data/external/madrigal/`.  Listings expire after 30 days
+(instruments after 90), because files move from preliminary to final.  An
+isprint extract is cached permanently, since it names a specific file version.
+
+**Rate limits and etiquette.**  No published limit.  Two seconds between
+requests.  Use `isprint` with a narrow window rather than downloading whole
+files.  `list_files` keeps only the final default files unless asked otherwise,
+because scoring against a superseded calibration is an easy silent mistake.
+
+**Behaviours the parser exists to handle.**  `isprintService.py` takes one
+`parms=` per parameter and rejects a comma-joined list.  It answers HTTP 200 on
+failure with a Python traceback in the body; `parse_isprint` detects that and
+raises, and an error body is never cached.  A window that matches nothing
+returns "No records were selected with the filters above", also with HTTP 200,
+and is read as an empty table.  The output has no header line, so
+columns are named by the requested parameters in order and a row with the
+wrong field count is an error.
+
+**Checked in versus downloaded.**  Checked in under `tests/fixtures/madrigal/`,
+all captured live on 2026-09-23: a DMSP experiment listing, two file listings,
+an instrument sample, 20 s of DMSP F16, two Millstone Hill zenith profiles from
+2023-09-20 22:01 UT, the error body returned for a malformed request, and the
+body returned for a window with no records.
+
+**Consumed by.**  WP1 as topside truth for the L0 models, and WP8 at V4 as the
+modern complement to the ISIS comparison.  DMSP bears on INS-01.
+
+**Known limitations.**  ISR sites are few and radars run on campaign days, so
+coverage is sparse and mid- or high-latitude except for Jicamarca.  DMSP flies
+at about 850 km in dawn-dusk and similar orbits, higher than a 500 km cubesat,
+so its density is an upper-altitude, fixed-local-time sample.  Error bars alone
+do not clean ISR topside data: the Millstone fixture's first profile has a point
+at 645 km three times its neighbours with a stated error of 2 %.  A plausibility
+check belongs in the study that uses the profiles.
+
+## GIRO DIDBase: scaled Digisonde characteristics
+
+Registered as **`giro_didbase`**.  Module `src/tss/data/giro.py`.
+
+**What it provides.**  Scaled characteristics from about 120 Digisondes:
+foF2, hmF2, B0, B1 and fmin by default, with the autoscaling confidence score
+(0 to 100, 999 for manual scaling) and a qualifying code per value.  Millstone
+Hill reports every 7.5 minutes.
+
+**What it is truth for.**  The F2 peak only.  A topside retrieval ends at hmF2
+and an ionosonde measures foF2 and hmF2 from below, so a satellite pass near a
+Digisonde checks the bottom of the retrieved profile independently.  Nothing
+above hmF2 is visible to an ionosonde.
+
+**Where.**  The GET service `https://lgdc.uml.edu/fastchar/getbest`, with
+`ursiCode`, a comma-separated `charName` list, `DMUF` and a UTC window as
+`fromDate`/`toDate` in `YYYY/MM/DD hh:mm:ss`.  It returns the plain-text table
+directly.  This is where the DIDBase web form
+(https://giro.uml.edu/didbase/scaled.php) redirects; calling it directly saves
+the redirect and uses characteristic names rather than the form's positional
+option indices, which would have broken silently had the form been reordered.
+Both routes return the same body (checked 2026-09-23).  The service spells the
+virtual heights with a backtick (`h`F2`) and uses `MUF(D)` and `M(D)`;
+`CHARACTERISTICS` also accepts `h'F2`, `MUFD` and `MD`.  `Type Es` is not
+supported: it is a classification, and the service drops it from the table.
+The older GET service `lgdc.uml.edu/common/DIDBGetValues`, used by most
+published scripts, answered 404 "resource not available" on 2026-09-23 and
+should not be reintroduced.
+
+**Licence and citation.**  Every response states that GIRO measurements are
+released under CC-BY-NC-SA 4.0, that the Lowell GIRO Data Center Rules of the
+Road apply, and that the data provider of each station used must be
+acknowledged.  Cite Reinisch and Galkin (2011), Earth Planets Space 63, 377,
+and name each station's provider.  The non-commercial clause is fine for the
+dissertation; confirm with the Lowell GIRO Data Center before using these data
+in Navy-sponsored work.
+
+**Cache.**  `data/external/giro_didbase/`, one file per 31-day chunk, keyed on
+the request URL.  The sidecar records that URL, exactly as sent, and the parameters.
+
+**Rate limits and etiquette.**  Three seconds between requests.  Windows longer
+than 31 days are split into chunks and each is cached, so a long collection
+resumes rather than restarts.
+
+**Privacy.**  The server writes the requester's public IP address into the
+response header.  Cached files keep it because raw bytes are never edited, and
+`data/external/` is not committed except for sidecars, which do not contain the
+body.  Fixtures have the line redacted.
+
+**Checked in versus downloaded.**  `tests/fixtures/giro/`: two hours at
+Millstone Hill on 2024-03-01, the no-data response, and the unknown-characteristic
+error response.
+
+**Consumed by.**  WP1 and WP8, for peak conjunctions.  `WESTERN_PACIFIC` lists
+the stations relevant to the bistatic side study (Guam, Kwajalein, Okinawa,
+Wake, Darwin, Townsville, Learmonth, Niue, Norfolk, Cocos).
+
+**Known limitations.**  Autoscaled values vary in quality and the confidence
+score is the only guard; `ScaledCharacteristics.good(min_cs)` applies it, and
+the threshold should be chosen and stated per study.  Station coverage is
+uneven and thin over oceans.
+
+## IRTAM: assimilative IRI coefficients
+
+Registered as **`irtam`**.  Module `src/tss/data/irtam.py`.
+
+**What it provides.**  The IRI-based Real-Time Assimilative Model assimilates
+the GIRO network into IRI every 15 minutes and publishes coefficients for foF2,
+hmF2, B0 and B1 that replace IRI's climatological maps for that instant.  That
+is event-driven L0 truth: the ionosphere of a real day rather than a monthly
+median.
+
+**Where.**  Two routes to the same files.  The static archive
+`https://ulcar.uml.edu/GAMBIT/GambitCoefficients/COEFFS_<YYYY>/<YYYY_MM_DD>/`
+holds 2000 through 2025, with B0 and B1 named `B0in` and `B1in`.  The servlet
+`https://lgdc.uml.edu/rix/gambit-coeffs?charName=<char>&time=<ISO>` computes the
+file on request and serves all four characteristics.  `fetch_coefficients`
+tries the archive first and falls back to the servlet on a 404 only.  On
+2026-09-23 the archive ended at 2025, the servlet served every 2026 epoch tried
+up to 2026-09-21 and answered HTTP 500 for 2026-09-22 and for "now".  The
+default `tss fetch irtam` therefore takes 12:00 UT three days ago, not
+yesterday.  The servlet also answered 429 after about a dozen requests in a few
+minutes, so a campaign should take the archive wherever it can and pace servlet
+requests at no less than the five-second minimum.
+
+**Coefficient layout.**  1064 numbers, declared as 14 temporal by 76 spatial
+Jones and Gallet terms.  The layout follows PyIRTAM (Forsythe et al. 2024,
+Space Weather, doi:10.1029/2024SW003965): the first 988 are 13 by 76 in Fortran
+order, and the last 76 are the linear-trend term inserted as temporal row 1.
+`IrtamCoefficients.matrix` reproduces PyIRTAM 0.0.7's `IRTAM_read_files`
+exactly on both fixtures.
+
+**Licence and citation.**  Distributed by the Lowell GIRO Data Center and
+derived from GIRO measurements, so the GIRO terms carry over.  Cite Galkin et
+al. (2012), Radio Science 47, RS0L07, doi:10.1029/2011RS004952, and Galkin et al.
+(2020), Space Weather, doi:10.1029/2020SW002463.
+
+**Cache.**  `data/external/irtam/`.  A past epoch never changes, so its file is
+never stale; a servlet file for an epoch within the last day is re-fetched
+after an hour, since late data may change it.  Every route's cache is checked
+before any network request.
+
+**Rate limits and etiquette.**  Five seconds between requests.  Prefer the
+archive, which is static files.  A malformed or truncated body is refused
+before it is cached.
+
+**Checked in versus downloaded.**  `tests/fixtures/irtam/`: one archive file
+(foF2, 2012-10-17 23:30 UT) and one servlet file (foF2, 2024-03-01 12:00 UT,
+IP redacted).
+
+**Consumed by.**  WP1, for event-driven L0.
+
+**Evaluation.**  `tss.l0_ionosphere.irtam_maps` evaluates the coefficients into
+foF2, hmF2, B0 and B1 at any points, with modip from IGRF.  It reproduces
+PyIRTAM to rounding error; verification and a first validation against GIRO
+are in `docs/irtam-validation.md`.
+
+**Known limitations.**  IRTAM gives the peak and the bottomside shape only; an
+L0 tier also needs a topside, which is not built yet.  IRTAM assimilates GIRO,
+so it is not an independent check on GIRO and must not be scored against GIRO
+stations it assimilated; each file's header lists them.
 
 ## Local model installations
 

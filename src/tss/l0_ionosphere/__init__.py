@@ -29,6 +29,10 @@ Module                  Status    Note
                                   a tilted centred dipole when it is not.
 ``base``                done      Shared helpers and the legacy profile to
                                   ``IonosphereState`` conversion.
+``irtam_maps``          done      Evaluates IRTAM coefficients into foF2,
+                                  hmF2, B0, B1 maps.  Not yet a tier: the
+                                  topside above hmF2 still has to come from
+                                  IRI or NeQuick.
 ``perturbations``       stub      Plasma bubble depletions, WP10, goal level.
 ======================  ========  ==========================================
 

@@ -1,0 +1,6 @@
+Jicamarca IS Radar,10,jro,-11.950000,283.130000,0.525000,Incoherent Scatter Radars,Danny Scipion,dscipion@igp.gob.pe
+Millstone Hill IS Radar,30,mlh,42.619000,288.510000,0.146000,Incoherent Scatter Radars,Phil Erickson,perickson@haystack.mit.edu
+Poker Flat IS Radar,61,pfa,65.130000,212.529000,0.215000,Incoherent Scatter Radars,Asti Bhatt,asti.bhatt@sri.com
+EISCAT Tromsø UHF IS radar,72,tro,69.583000,19.210000,0.030000,Incoherent Scatter Radars,Ingemar Häggström,ingemar@eiscat.se
+World-wide GNSS Receiver Network,8000,gps,0.000000,0.000000,0.000000,Distributed Ground Based Satellite Receivers,Anthea Coster,acoster@haystack.mit.edu
+Defense Meteorological Satellite Program,8100,dms,0.000000,0.000000,0.000000,Satellite Instruments,Keith Groves,keith.groves@bc.edu
