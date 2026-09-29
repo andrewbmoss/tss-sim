@@ -128,6 +128,12 @@ class BaselineSignalProcessing(SignalProcessingBase):
     max_jump_m
         Continuity limit for :func:`tss.l3_signal.trace_extract.connect_trace`.
         ``None`` disables the rule, which is the default.
+    chain_max_gap, chain_max_jump_m
+        Settings for :func:`tss.l3_signal.trace_extract.longest_connected_trace`,
+        which keeps the one continuous trace and rejects isolated detections
+        below the start of the trace and above penetration.  On by default,
+        with up to two empty columns bridged and 150 km of range change allowed
+        per column.  ``chain_max_gap=None`` disables it.
     """
 
     def __init__(
@@ -140,6 +146,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
         min_run: int = 2,
         exclude_below_m: float = 0.0,
         max_jump_m: float | None = None,
+        chain_max_gap: int | None = 2,
+        chain_max_jump_m: float = 1.5e5,
     ) -> None:
         super().__init__(window=window)
         if int(n_frequencies) < 1:
@@ -152,6 +160,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
         self.min_run = int(min_run)
         self.exclude_below_m = float(exclude_below_m)
         self.max_jump_m = None if max_jump_m is None else float(max_jump_m)
+        self.chain_max_gap = None if chain_max_gap is None else int(chain_max_gap)
+        self.chain_max_jump_m = float(chain_max_jump_m)
 
     # -- manifest -----------------------------------------------------------
 
@@ -164,6 +174,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "min_run": self.min_run,
             "exclude_below_m": self.exclude_below_m,
             "max_jump_m": self.max_jump_m,
+            "chain_max_gap": self.chain_max_gap,
+            "chain_max_jump_m": self.chain_max_jump_m,
             "mode_discrimination": False,
             "doppler_separation": False,
             "status": "partial",
@@ -237,6 +249,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
             min_run=self.min_run,
             exclude_below_m=self.exclude_below_m,
             max_jump_m=self.max_jump_m,
+            chain_max_gap=self.chain_max_gap,
+            chain_max_jump_m=self.chain_max_jump_m,
         )
 
     # -- hook: Doppler separation -------------------------------------------
@@ -295,6 +309,15 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "noise_bandwidth_hz": float(first.noise_bandwidth_hz),
             "unambiguous_range_m": float(first.unambiguous_range_m),
             "ionogram_period_s": float(signal.sweep.sweep_period_s),
+            # The band the transmitted sweep covered.  INS-01a and INS-01b are
+            # scored against these, not against the detected edges, which the
+            # ionosphere sets (the local plasma frequency and fxF2).
+            "sweep_min_frequency_hz": float(
+                min(signal.sweep.f_start_hz, signal.sweep.f_stop_hz)
+            ),
+            "sweep_max_frequency_hz": float(
+                max(signal.sweep.f_start_hz, signal.sweep.f_stop_hz)
+            ),
             "block_duration_s": float(block_duration_s),
             "window": str(first.window),
             "enbw_bins": float(first.enbw_bins),
@@ -312,6 +335,10 @@ class BaselineSignalProcessing(SignalProcessingBase):
             ),
             "n_frequencies": int(freq_hz.size),
             "n_detected": int(np.count_nonzero(detected)),
+            "n_rejected_disconnected": int(
+                sum(1 for s in samples if s.flags.get("rejected_disconnected"))
+            ),
+            "input_dechirped": bool(signal.flags.get("dechirped", False)),
             "record_truncated_to_one_sweep": bool(truncated),
         }
         if np.any(detected):

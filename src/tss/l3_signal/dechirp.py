@@ -171,6 +171,10 @@ def dechirp(
 ) -> Dechirped:
     """De-chirp a slice of a received record against its own sweep.
 
+    A record flagged ``flags["dechirped"]`` (see
+    :class:`tss.interfaces.ReceivedSignal`) is already at baseband and is
+    passed through, oriented, without a second mix.
+
     Parameters
     ----------
     signal
@@ -207,13 +211,22 @@ def dechirp(
         raise ValueError("ReceivedSignal.fs_hz must be positive")
 
     t = t0_s + (np.arange(int(start), stop_idx, dtype=float) / fs)
-    ref = reference_waveform(signal.sweep, t)
-
-    product = np.asarray(block, dtype=complex) * np.conj(ref)[None, :]
-
     direction = 1 if int(signal.sweep.direction) >= 0 else -1
-    if orient and direction > 0:
-        product = np.conj(product)
+
+    if bool(signal.flags.get("dechirped", False)):
+        # Already de-chirped in hardware (INS-21): an echo is a tone at
+        # ``direction * K_f * tau``.  Mixing it against the sweep again would
+        # turn every tone back into a chirp across the block and smear it over
+        # every range bin, which is the fault this branch exists to prevent.
+        # Orientation then only has to flip the down-sweep.
+        product = np.asarray(block, dtype=complex).copy()
+        if orient and direction < 0:
+            product = np.conj(product)
+    else:
+        ref = reference_waveform(signal.sweep, t)
+        product = np.asarray(block, dtype=complex) * np.conj(ref)[None, :]
+        if orient and direction > 0:
+            product = np.conj(product)
 
     centre = float(
         np.atleast_1d(instantaneous_frequency_hz(signal.sweep, float(np.mean(t))))[0]

@@ -373,6 +373,9 @@ class BaselineInstrument:
         )
 
         flags: dict[str, Any] = {
+            # The samples are de-chirped baseband (see the module docstring).
+            # L3 reads this and must not mix them against the sweep again.
+            "dechirped": True,
             "fs_hz": fs_hz,
             "n_samples": n_samples,
             "sweep_duration_s": duration_s,

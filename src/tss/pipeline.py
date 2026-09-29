@@ -15,6 +15,7 @@ realisation and a single configuration reruns identically.
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -79,10 +80,16 @@ class Pipeline:
         self.keep_intermediates = keep_intermediates
 
     def _rng(self, configuration: str) -> np.random.Generator:
-        """A generator unique to (seed, configuration) and stable across runs."""
+        """A generator unique to (seed, configuration) and stable across runs.
+
+        The configuration name is folded in with CRC-32 rather than the built-in
+        ``hash``, which Python salts per process (``PYTHONHASHSEED``).  With
+        ``hash`` the same seed drew different noise in every process, so no two
+        runs of a campaign were the same run.
+        """
         mixed = np.random.SeedSequence(
             entropy=self.seed,
-            spawn_key=(abs(hash(configuration)) % (2**31),),
+            spawn_key=(zlib.crc32(configuration.encode("utf-8")),),
         )
         return np.random.default_rng(mixed)
 

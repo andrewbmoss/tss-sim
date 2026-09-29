@@ -379,3 +379,134 @@ def test_motion_separated_tier_registers_but_refuses_to_run():
     assert tier.describe()["status"] == "stub"
     with pytest.raises(NotImplementedError, match="WP5"):
         tier.form_ionogram(_point_target(4.0e5))
+
+
+# ---------------------------------------------------------------------------
+# L2 output is already de-chirped: L3 must not mix it a second time
+# ---------------------------------------------------------------------------
+
+
+def _baseband_tone(range_m: float, direction: int, n: int = 4096) -> ReceivedSignal:
+    """What a hardware de-chirp delivers: a tone at ``direction * K_f * tau``."""
+    tau = 2.0 * range_m / C_LIGHT
+    t = np.arange(n) / FS
+    tone = np.exp(1j * 2.0 * np.pi * direction * K_F * tau * t)[None, :]
+    return ReceivedSignal(samples=tone, fs_hz=FS, sweep=_sweep(direction),
+                          flags={"dechirped": True})
+
+
+@pytest.mark.parametrize("direction", [1, -1])
+@pytest.mark.parametrize("range_m", [1.0e5, 4.0e5])
+def test_dechirped_input_is_passed_through_not_mixed_again(range_m, direction):
+    """A record flagged as de-chirped lands in the bin its range predicts.
+
+    Mixing it against the sweep a second time turns the tone into a chirp and
+    spreads it over every bin, which is the fault that hid the whole topside
+    trace from the smoke campaign.
+    """
+    n = 4096
+    spectrum = transform(dechirp(_baseband_tone(range_m, direction, n)), window="rect", n_fft=n)
+    peak = int(np.argmax(spectrum.power_db[0]))
+    assert abs(peak - float(range_bin_index(range_m, FS, n, K_F))) <= 0.5
+    # A clean tone keeps its energy in one bin: the peak stands far above the median.
+    assert spectrum.power_db[0].max() - np.median(spectrum.power_db[0]) > 60.0
+
+
+def test_l2_baseline_declares_its_output_dechirped():
+    """The flag is what L3 reads, so the tier that de-chirps must set it."""
+    from tss.interfaces import EchoSet
+    from tss.l2_instrument.baseline import BaselineInstrument
+
+    freq = np.linspace(3.0e6, 3.3e6, 3)
+    echoes = EchoSet(
+        freq_hz=freq,
+        group_delay_s=np.full(3, 2.0 * 2.0e5 / C_LIGHT),
+        amplitude_db=np.full(3, -80.0),
+        absorption_db=np.zeros(3),
+        mode=np.array(["O"] * 3),
+    )
+    sweep = SweepSchedule(f_start_hz=2.9e6, f_stop_hz=3.4e6, k_f_hz_per_s=K_F,
+                          sweep_period_s=0.5 / 5.6, direction=1)
+    signal = BaselineInstrument().receive(echoes, sweep, np.random.default_rng(0))
+    assert signal.flags.get("dechirped") is True
+
+
+def test_l2_to_l3_point_target_lands_at_its_range():
+    """End to end through L2 and L3: one echo, one peak, at the right range.
+
+    The unit tests above feed L3 synthetic samples.  This one feeds it what L2
+    actually produces, which is the joint the double de-chirp fault lived in.
+    """
+    from tss.interfaces import EchoSet
+    from tss.l2_instrument.baseline import BaselineInstrument
+
+    range_m = 2.0e5
+    freq = np.linspace(3.0e6, 6.0e6, 40)
+    echoes = EchoSet(
+        freq_hz=freq,
+        group_delay_s=np.full(freq.size, 2.0 * range_m / C_LIGHT),
+        amplitude_db=np.full(freq.size, -90.0),
+        absorption_db=np.zeros(freq.size),
+        mode=np.array(["O"] * freq.size),
+    )
+    sweep = SweepSchedule(f_start_hz=3.0e6, f_stop_hz=6.0e6, k_f_hz_per_s=K_F,
+                          sweep_period_s=3.0e6 / K_F, direction=1)
+    signal = BaselineInstrument().receive(echoes, sweep, np.random.default_rng(1))
+    ionogram = BaselineSignalProcessing(n_frequencies=8).form_ionogram(signal)
+    ranges = ionogram.virtual_range_m[:, 0]
+    assert np.count_nonzero(np.isfinite(ranges)) >= 6
+    # The leading edge sits at or a few cells before the echo: at high SNR the
+    # window skirt crosses threshold early.  Before the fix it landed tens to
+    # hundreds of kilometres away, or nowhere.
+    cell = float(ionogram.flags["range_resolution_m"])
+    good = ranges[np.isfinite(ranges)]
+    assert np.all(good <= range_m + cell)
+    assert np.all(range_m - good <= 5.0 * cell)
+    # Median rather than minimum: a block that only partly overlaps an echo
+    # row's dwell window in L2 comes out weaker, which is a separate effect.
+    assert np.nanmedian(ionogram.snr_db) > 30.0
+
+
+# ---------------------------------------------------------------------------
+# Continuity: keep the one trace, drop isolated detections
+# ---------------------------------------------------------------------------
+
+
+def _samples(ranges_m):
+    from tss.l3_signal.trace_extract import TraceSample
+
+    return [
+        TraceSample(freq_hz=1.0e6 + 1.0e5 * i, range_m=float(r), snr_db=20.0,
+                    peak_range_m=float(r), n_cells=2, noise_floor_db=-150.0, flags={})
+        for i, r in enumerate(ranges_m)
+    ]
+
+
+def test_longest_connected_trace_drops_spikes_below_and_above_the_trace():
+    from tss.l3_signal import longest_connected_trace
+
+    nan = np.nan
+    trace = [nan, 4.0e5, nan, nan, nan] + [1.0e4 * (i + 1) for i in range(10)] \
+        + [nan, nan, nan, 3.0e5, nan, 2.0e4]
+    kept = longest_connected_trace(_samples(trace))
+    got = np.array([s.range_m for s in kept])
+    assert np.count_nonzero(np.isfinite(got)) == 10
+    assert np.isnan(got[1]) and np.isnan(got[18]) and np.isnan(got[20])
+    assert kept[18].flags["rejected_disconnected"] is True
+
+
+def test_longest_connected_trace_bridges_a_short_gap():
+    from tss.l3_signal import longest_connected_trace
+
+    nan = np.nan
+    trace = [1.0e4, 2.0e4, 3.0e4, nan, nan, 6.0e4, 7.0e4]
+    kept = longest_connected_trace(_samples(trace), max_gap=2)
+    assert np.count_nonzero(np.isfinite([s.range_m for s in kept])) == 5
+
+
+def test_longest_connected_trace_can_be_disabled():
+    from tss.l3_signal import longest_connected_trace
+
+    trace = [1.0e4, np.nan, np.nan, np.nan, 9.0e5]
+    kept = longest_connected_trace(_samples(trace), max_gap=None)
+    assert np.count_nonzero(np.isfinite([s.range_m for s in kept])) == 2

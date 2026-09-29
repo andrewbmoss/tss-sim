@@ -177,8 +177,13 @@ def profile_metrics(
     """Density and height error metrics for one retrieval against its truth.
 
     Densities are compared on the retrieved altitude grid, restricted to the
-    altitudes the truth grid covers.  Heights are compared at matched density.
-    Every entry is ``None`` when it could not be computed.
+    topside the sounder can observe: from the truth density peak up to the
+    highest altitude both profiles cover, which is the scope SW-01 of
+    Requirements Rev G states.  Retrieved points below the peak are not
+    scored, because a topside sounder has no echo from there and any such
+    point is an artefact of the retrieval rather than a measurement.  Heights
+    are compared at matched density.  Every entry is ``None`` when it could not
+    be computed.
     """
     out: dict[str, Any] = {
         "ne_rms_fractional": None,
@@ -191,6 +196,7 @@ def profile_metrics(
         "n_height_points_compared": 0,
         "overlap_min_alt_m": None,
         "overlap_max_alt_m": None,
+        "n_points_below_peak": 0,
     }
 
     alt_r = np.asarray(retrieved.alt_m, dtype=float)
@@ -200,11 +206,16 @@ def profile_metrics(
     if alt_r.size == 0 or alt_t.size < 2:
         return out
 
-    lo = max(float(np.min(alt_r)), float(np.min(alt_t)))
-    hi = min(float(np.max(alt_r)), float(np.max(alt_t)))
+    finite_t = np.isfinite(ne_t)
+    if not np.any(finite_t):
+        return out
+    hm_t = float(alt_t[finite_t][int(np.argmax(ne_t[finite_t]))])
+    lo = max(float(np.nanmin(alt_r)), float(np.min(alt_t)), hm_t)
+    hi = min(float(np.nanmax(alt_r)), float(np.max(alt_t)))
     if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
         return out
 
+    out["n_points_below_peak"] = int(np.count_nonzero(np.isfinite(alt_r) & (alt_r < hm_t)))
     inside = np.isfinite(alt_r) & np.isfinite(ne_r) & (alt_r >= lo) & (alt_r <= hi)
     a, r = alt_r[inside], ne_r[inside]
     if a.size == 0:
@@ -268,7 +279,16 @@ def ionogram_metrics(
     """Achieved instrument numbers read off an ionogram and its flags.
 
     Anything the L3 tier did not record is ``None`` here and
-    ``not_evaluated`` downstream.  Nothing in this function invents a value
+    ``not_evaluated`` downstream.
+
+    Two pairs of band edges are reported and they mean different things.
+    ``sweep_min_frequency_hz`` and ``sweep_max_frequency_hz`` are the band the
+    transmitted sweep covered, which is the instrument capability INS-01a and
+    INS-01b ask for.  ``min_sounding_frequency_hz`` and
+    ``max_sounding_frequency_hz`` are the lowest and highest frequencies at
+    which an echo was detected, which the ionosphere sets: the plasma frequency
+    at the spacecraft and the X-mode penetration frequency.  The detected pair
+    is a diagnostic and must not be scored against INS-01a/b.  Nothing in this function invents a value
     from the campaign configuration; what is scored is what the processing
     achieved.
     """
@@ -286,6 +306,8 @@ def ionogram_metrics(
         "noise_bandwidth_hz": _as_float(flags.get("noise_bandwidth_hz")),
         "min_sounding_frequency_hz": None,
         "max_sounding_frequency_hz": None,
+        "sweep_min_frequency_hz": _as_float(flags.get("sweep_min_frequency_hz")),
+        "sweep_max_frequency_hz": _as_float(flags.get("sweep_max_frequency_hz")),
         "frequency_step_fraction_max": None,
         "snr_db_min": None,
         "snr_db_median": None,

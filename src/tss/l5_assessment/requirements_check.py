@@ -32,8 +32,8 @@ says who owns it or why it cannot be scored as written.
 ==========  ================================  ==========================================
 Requirement Metric                             Note
 ==========  ================================  ==========================================
-INS-01a     min_sounding_frequency_hz          Lowest usable frequency (sense max).
-INS-01b     max_sounding_frequency_hz          Highest usable frequency (sense min).
+INS-01a     sweep_min_frequency_hz             Lowest frequency swept (sense max).
+INS-01b     sweep_max_frequency_hz             Highest frequency swept (sense min).
 INS-02      frequency_step_fraction_max        df / min(f, 3 MHz), so the fractional
                                                rule and the 150 kHz cap are one number.
 INS-04      unambiguous_range_m                From the sample rate and the sweep rate.
@@ -73,10 +73,16 @@ sounder whose lowest usable frequency was 5 MHz would be scored ``goal`` on the
 band requirement, which is not what the requirement means.
 
 Up to Rev F, INS-01 was therefore left ``not_evaluated``.  Rev G splits it
-into two one-sided requirements: INS-01a, the lowest usable frequency with
-``sense: max``, scored from ``min_sounding_frequency_hz``; and INS-01b, the
-highest, with ``sense: min``, scored from ``max_sounding_frequency_hz``.  Both
-metrics are still carried in ``Assessment.errors`` as well.
+into two one-sided requirements: INS-01a, the lowest sounding frequency with
+``sense: max``, and INS-01b, the highest, with ``sense: min``.  Both are
+scored from the band the transmitted sweep covered, ``sweep_min_frequency_hz``
+and ``sweep_max_frequency_hz``, because INS-01 is a requirement on what the
+instrument can sweep.  The first Rev G mapping scored them from the lowest and
+highest *detected* frequencies instead.  Those are set by the ionosphere (the
+plasma frequency at the spacecraft and fxF2), so INS-01a failed in any
+ionosphere denser than 0.33 MHz at the spacecraft whatever the instrument
+could do.  The detected edges are still carried in ``Assessment.errors`` as
+diagnostics.
 
 INS-15
 ------
@@ -114,14 +120,15 @@ __all__ = [
 MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     (
         "INS-01a",
-        "min_sounding_frequency_hz",
-        "lowest usable sounding frequency, scored with sense max.  Rev G split "
-        "INS-01 so that each band edge can be scored on its own.",
+        "sweep_min_frequency_hz",
+        "lowest frequency the transmitted sweep covered, scored with sense max.  "
+        "Not the lowest detected echo, which the ionosphere sets.",
     ),
     (
         "INS-01b",
-        "max_sounding_frequency_hz",
-        "highest usable sounding frequency, scored with sense min.",
+        "sweep_max_frequency_hz",
+        "highest frequency the transmitted sweep covered, scored with sense min.  "
+        "Not the highest detected echo, which is fxF2.",
     ),
     (
         "INS-02",
@@ -237,6 +244,8 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "n_height_points_compared",
     "min_sounding_frequency_hz",
     "max_sounding_frequency_hz",
+    "sweep_min_frequency_hz",
+    "sweep_max_frequency_hz",
     "virtual_range_resolution_m",
     "unambiguous_range_m",
     "noise_bandwidth_hz",

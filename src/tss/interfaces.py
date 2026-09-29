@@ -173,6 +173,13 @@ class ReceivedSignal:
     noise_floor_dbm_hz
         The external noise density assumed, for traceability back to the
         Franklin and MacLean reference.
+    flags
+        Free-form record.  One key is part of the contract:
+        ``flags["dechirped"]`` is ``True`` when the samples are already
+        de-chirped baseband, as produced by a receiver that mixes against the
+        transmit reference in hardware.  :func:`tss.l3_signal.dechirp.dechirp`
+        then passes the samples through rather than mixing them a second time.
+        Absent or ``False`` means the samples still carry the received sweep.
     """
 
     samples: np.ndarray

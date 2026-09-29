@@ -95,6 +95,7 @@ from tss.l3_signal.trace_extract import (  # noqa: F401
     connect_trace,
     extract_trace,
     leading_edge,
+    longest_connected_trace,
     noise_floor_db,
     robust_trace_extract,
 )
@@ -143,6 +144,7 @@ __all__ = [
     "TraceSample",
     "leading_edge",
     "extract_trace",
+    "longest_connected_trace",
     "connect_trace",
     "noise_floor_db",
     "robust_trace_extract",

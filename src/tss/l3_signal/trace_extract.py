@@ -344,6 +344,75 @@ def connect_trace(
     return out
 
 
+def longest_connected_trace(
+    samples: list[TraceSample],
+    *,
+    max_gap: int | None = 2,
+    max_jump_m: float = 1.5e5,
+) -> list[TraceSample]:
+    """Keep the longest run of detections that forms one continuous trace.
+
+    A topside trace starts at the local plasma frequency, runs continuously in
+    frequency and stops where the wave penetrates the F2 peak.  Detections
+    outside that run are noise: below the start the wave is evanescent, and
+    above penetration there is nothing to reflect from.  A fixed threshold over
+    thousands of range cells per block still lets such false alarms through,
+    and the retrieval then treats the lowest one as the plasma frequency at the
+    spacecraft, which is the failure this function prevents.
+
+    Detections, in frequency order, are linked into chains.  A detection joins
+    the chain before it when no more than ``max_gap`` columns without a
+    detection separate them and its range differs from the chain's last range
+    by no more than ``max_jump_m`` times the number of columns crossed.  The
+    chain with the most detections is kept; every other detection is set to
+    NaN and flagged ``rejected_disconnected``, so the frequency axis stays the
+    axis the sweep visited.  Ties go to the lower-frequency chain.
+
+    ``max_gap`` of ``None`` disables the rule.  New objects are returned and the
+    input is not modified.
+    """
+    out = list(samples)
+    if max_gap is None or len(out) < 2:
+        return out
+
+    ranges = np.array([s.range_m for s in out], dtype=float)
+    detected = np.flatnonzero(np.isfinite(ranges))
+    if detected.size < 2:
+        return out
+
+    chains: list[list[int]] = []
+    for idx in detected:
+        if chains:
+            last = chains[-1][-1]
+            columns = int(idx - last)
+            if columns - 1 <= int(max_gap) and abs(ranges[idx] - ranges[last]) <= float(
+                max_jump_m
+            ) * columns:
+                chains[-1].append(int(idx))
+                continue
+        chains.append([int(idx)])
+
+    best = max(chains, key=len)
+    keep = set(best)
+    for idx in detected:
+        if int(idx) in keep:
+            continue
+        s = out[int(idx)]
+        flags = dict(s.flags)
+        flags["rejected_disconnected"] = True
+        flags["rejected_range_m"] = float(s.range_m)
+        out[int(idx)] = TraceSample(
+            freq_hz=s.freq_hz,
+            range_m=float("nan"),
+            snr_db=float("nan"),
+            peak_range_m=float("nan"),
+            n_cells=0,
+            noise_floor_db=s.noise_floor_db,
+            flags=flags,
+        )
+    return out
+
+
 def extract_trace(
     spectra: list[RangeSpectrum],
     *,
@@ -353,12 +422,16 @@ def extract_trace(
     exclude_below_m: float = 0.0,
     exclude_above_m: float | None = None,
     max_jump_m: float | None = None,
+    chain_max_gap: int | None = None,
+    chain_max_jump_m: float = 1.5e5,
 ) -> list[TraceSample]:
     """Leading-edge extraction across a stack of range spectra.
 
     One spectrum per sounding frequency, in sweep order.  Returns one
     :class:`TraceSample` per spectrum, in the same order, with NaN ranges where
-    nothing was detected.
+    nothing was detected.  ``chain_max_gap`` enables
+    :func:`longest_connected_trace`; ``None``, the default here, leaves every
+    detection in place.
 
     Valid for clean synthetic data.  See the module docstring for what it does
     not handle and :func:`robust_trace_extract` for where that work lives.
@@ -374,7 +447,10 @@ def extract_trace(
         )
         for s in spectra
     ]
-    return connect_trace(samples, max_jump_m=max_jump_m)
+    samples = connect_trace(samples, max_jump_m=max_jump_m)
+    return longest_connected_trace(
+        samples, max_gap=chain_max_gap, max_jump_m=chain_max_jump_m
+    )
 
 
 def robust_trace_extract(

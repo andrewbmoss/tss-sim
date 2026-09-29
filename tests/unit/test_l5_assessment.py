@@ -406,3 +406,54 @@ def test_summarise_keeps_zero_counts():
 def test_feasibility_is_a_stub_naming_wp7(call):
     with pytest.raises(NotImplementedError, match="WP7"):
         call()
+
+
+def test_profile_metrics_score_the_topside_only():
+    """Retrieved points below the truth peak are counted, not scored.
+
+    A topside sounder has no echo from below the F2 peak, so a retrieved point
+    there is an artefact.  SW-01 scopes the density and height errors to the
+    topside, and a single wild point below the peak must not dominate them.
+    """
+    alt = np.linspace(1.0e5, ALT_S, 400)
+    hm = 3.0e5
+    ne = 1.0e12 * np.exp(1.0 - (alt - hm) / SCALE_H - np.exp(-(alt - hm) / SCALE_H))
+    truth = IonosphereState(alt_m=alt, ne=ne, lat_deg=0.0, lon_deg=0.0,
+                            epoch="2026-01-01T00:00:00Z", source="Chapman layer")
+    top = np.linspace(3.2e5, ALT_S, 20)
+    good = DensityProfile(alt_m=top, ne=np.interp(top, alt, ne), flags={})
+    with_artefact = DensityProfile(
+        alt_m=np.concatenate(([1.8e5], top)),
+        ne=np.concatenate(([1.0e14], np.interp(top, alt, ne))),
+        flags={},
+    )
+    clean = profile_metrics(good, truth)
+    dirty = profile_metrics(with_artefact, truth)
+    assert dirty["ne_rms_fractional"] == pytest.approx(clean["ne_rms_fractional"], abs=1e-9)
+    assert dirty["n_points_below_peak"] == 1
+    assert dirty["overlap_min_alt_m"] >= hm - 2.0e3
+
+
+def test_band_edges_are_scored_from_the_sweep_not_the_detected_echoes():
+    """INS-01a/b ask what the instrument can sweep, not where echoes appeared.
+
+    The lowest detected echo is the plasma frequency at the spacecraft and the
+    highest is fxF2, both set by the ionosphere.  Scoring INS-01a against the
+    detected edge would fail a sounder that swept down to 0.33 MHz simply
+    because the local plasma frequency that day was 3 MHz.
+    """
+    ionogram = _ionogram(sweep_min_frequency_hz=3.3e5, sweep_max_frequency_hz=2.0e7)
+    metrics = compute_metrics(_retrieved(), _truth(), ionogram, platform=_platform())
+    # The detected edges of the fixture sit well inside the band.
+    assert metrics["min_sounding_frequency_hz"] > 3.3e5
+    assert metrics["max_sounding_frequency_hz"] < 2.0e7
+    records = check_requirements(metrics)
+    assert records["INS-01a"]["metric"] == "sweep_min_frequency_hz"
+    assert records["INS-01a"]["verdict"] == "threshold"
+    assert records["INS-01b"]["verdict"] in ("threshold", "goal")
+
+    narrow = _ionogram(sweep_min_frequency_hz=9.0e5, sweep_max_frequency_hz=2.0e7)
+    records = check_requirements(
+        compute_metrics(_retrieved(), _truth(), narrow, platform=_platform())
+    )
+    assert records["INS-01a"]["verdict"] == "fail"

@@ -68,7 +68,9 @@ requirements:
       declaring solar maximum only may use 0.90 MHz.  In the 61 solar-minimum
       ISIS-1 records four observations fall below 0.33 MHz where the models give
       about 0.6 MHz, so the threshold is not assumed conservative (Open Item 2).
-      Scored from the metric min_sounding_frequency_hz.
+      Scored from the metric sweep_min_frequency_hz, the lowest frequency the
+      transmitted sweep covered.  The lowest detected echo is set by the
+      ionosphere and is only a diagnostic.
 
   INS-01b:
     title: Highest sounding frequency
@@ -83,7 +85,8 @@ requirements:
     notes: >-
       Split from Rev F's INS-01.  Higher is better.  Stating the edge against a
       percentile of foF2 rather than the median is Open Item 5.  Scored from the
-      metric max_sounding_frequency_hz.
+      metric sweep_max_frequency_hz, the highest frequency the transmitted sweep
+      covered, not from the highest detected echo, which is fxF2.
 
   INS-02:
     title: Frequency step law
