@@ -2,7 +2,7 @@
 WP: WP0, WP7
 Claims: C1, C2, C3, C4, C5
 Status: implemented
-Requirements: INS-01, INS-02, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, SCI-09, SCI-23
+Requirements: INS-01a, INS-01b, INS-02, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, SCI-05, SCI-07, SCI-09, SCI-23
 
 Map computed metrics onto requirement IDs and score them.
 
@@ -32,7 +32,8 @@ says who owns it or why it cannot be scored as written.
 ==========  ================================  ==========================================
 Requirement Metric                             Note
 ==========  ================================  ==========================================
-INS-01      none                               Band coverage.  See "INS-01" below.
+INS-01a     min_sounding_frequency_hz          Lowest usable frequency (sense max).
+INS-01b     max_sounding_frequency_hz          Highest usable frequency (sense min).
 INS-02      frequency_step_fraction_max        df / min(f, 3 MHz), so the fractional
                                                rule and the 150 kHz cap are one number.
 INS-04      unambiguous_range_m                From the sample rate and the sweep rate.
@@ -54,14 +55,16 @@ INS-23      none                               Transmit to receive isolation, ow
                                                L2 and measured on the bench in WP9.
 INS-24      none                               Residual leakage floor, same owners.
 INS-26      none                               Oscillator stability, owned by L2.
+SCI-05      ne_rms_fractional                  Density error against truth (SW-01).
+SCI-07      height_error_rms_m                 Height error against truth (SW-01).
 SCI-09      along_track_sampling_m             Ionogram period times horizontal speed.
-SCI-23      drift_resolution_mps               Velocity resolution achieved.  None until
-                                               WP5 exists.
+SCI-23      drift_resolution_mps               Drift accuracy from a second look (Rev G).
+                                               None until WP5 exists; rename pending.
 ==========  ================================  ==========================================
 
-INS-01
-------
-INS-01 is the sounding band, carried with ``sense: range`` and a threshold of
+INS-01 (split into INS-01a and INS-01b in Rev G)
+-------------------------------------------------
+Up to Rev F, INS-01 was the sounding band, carried with ``sense: range`` and a threshold of
 [0.33, 20] MHz against a goal of [0.26, 20] MHz.  The ``range`` sense in
 :mod:`tss.requirements` compares one achieved value against those bounds, and
 the goal band contains the threshold band, so any achieved value inside the
@@ -69,20 +72,17 @@ threshold band is also inside the goal band and would be scored ``goal``.  A
 sounder whose lowest usable frequency was 5 MHz would be scored ``goal`` on the
 band requirement, which is not what the requirement means.
 
-Rather than feed it a value that scores meaninglessly, INS-01 is left
-``not_evaluated`` here with that reason recorded, and the achieved band edges
-are carried in ``Assessment.errors`` as ``min_sounding_frequency_hz`` and
-``max_sounding_frequency_hz`` so that nothing is lost.  The proper fix is in
-the requirement set and not in this module: band coverage wants two one-sided
-requirements, a lowest usable frequency with ``sense: max`` and a highest with
-``sense: min``, which is how the full Rev E set would have to express it.  That
-change is a ``config/requirements/requirements.yaml`` edit and it is recorded
-here rather than made silently.
+Up to Rev F, INS-01 was therefore left ``not_evaluated``.  Rev G splits it
+into two one-sided requirements: INS-01a, the lowest usable frequency with
+``sense: max``, scored from ``min_sounding_frequency_hz``; and INS-01b, the
+highest, with ``sense: min``, scored from ``max_sounding_frequency_hz``.  Both
+metrics are still carried in ``Assessment.errors`` as well.
 
 INS-15
 ------
-INS-15 asks for a coherent processing interval of 1 s at threshold and 2 s at
-goal.  It is mapped to ``coherent_interval_s``, which only a tier that performs
+INS-15 asks for a coherent processing interval of 0.5 s at threshold and 1 s
+at goal at 3 MHz (Rev G, from SCI-15).
+It is mapped to ``coherent_interval_s``, which only a tier that performs
 motion-compensated coherent integration reports.  The baseline tier's
 per-transform block duration is carried separately as ``block_duration_s`` and
 is deliberately not scored against INS-15.  Scoring it would report a failure
@@ -113,14 +113,15 @@ __all__ = [
 #: behaviour cannot drift apart.
 MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     (
-        "INS-01",
-        None,
-        "band coverage cannot be scored by the 'range' sense against a single "
-        "achieved value: the goal band contains the threshold band, so any value "
-        "inside the threshold band scores 'goal'.  The achieved band edges are "
-        "carried in Assessment.errors instead.  Fixing this means splitting INS-01 "
-        "into a lowest-usable-frequency (sense max) and a highest (sense min) in "
-        "config/requirements/requirements.yaml.",
+        "INS-01a",
+        "min_sounding_frequency_hz",
+        "lowest usable sounding frequency, scored with sense max.  Rev G split "
+        "INS-01 so that each band edge can be scored on its own.",
+    ),
+    (
+        "INS-01b",
+        "max_sounding_frequency_hz",
+        "highest usable sounding frequency, scored with sense min.",
     ),
     (
         "INS-02",
@@ -188,6 +189,17 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     ("INS-24", None, "residual leakage floor, same owners as INS-23."),
     ("INS-26", None, "oscillator Allan deviation is an L2 property, WP3."),
     (
+        "SCI-05",
+        "ne_rms_fractional",
+        "rms fractional density error of the L4 profile against its L0 truth, the "
+        "simulated form of SCI-05's absolute accuracy (SW-01).",
+    ),
+    (
+        "SCI-07",
+        "height_error_rms_m",
+        "rms height error of the L4 profile points against their L0 truth (SW-01).",
+    ),
+    (
         "SCI-09",
         "along_track_sampling_m",
         "ionogram period times the platform's horizontal speed.  Sampling, not "
@@ -196,7 +208,7 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     (
         "SCI-23",
         "drift_resolution_mps",
-        "achieved velocity resolution.  None until the coherent integration of WP5 "
+        "achieved drift accuracy from a second look (Rev G).  None until WP5 "
         "exists, so 'not_evaluated' rather than a failure.",
     ),
 )

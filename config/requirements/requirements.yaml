@@ -18,36 +18,72 @@
 #   derivation     required when source is `derived`; names the derivation
 #   notes          anything a reader needs in order to not misread the entry
 #
-# STATUS: this file currently carries the seventeen requirements of Table 3.1
-# of the proposal, which are those against which the five claims are scored.
-# The full Rev E set is twenty-seven measurement, twenty-six instrument and nine
-# mission requirements, held in TSS_Science_Requirements_RevE.docx and
-# TSS_SRM_RevE.xlsx.  scripts/import_srm.py exists to bring the remainder across
+# STATUS: this file carries the claim-bearing requirements of Table 3.1 of the
+# proposal, with INS-01 split into INS-01a and INS-01b, plus SCI-05 and SCI-07,
+# which Rev G scores in simulation against truth (SW-01).  The full Rev G set is
+# twenty-eight measurement, twenty-eight instrument, ten mission and four
+# software requirements, held in TSS_Science_Requirements_RevG.docx and
+# TSS_SRM_RevG.xlsx.  The software requirements SW-01..SW-04 apply to this
+# repository and are verified by its tests, not scored here.  SCI-28 is not
+# carried because its value is TBD (Open Item 14): an entry with no threshold
+# fails validation.
+#
+# Rev G (2026-09-28): INS-01 split so each edge can be scored; INS-02 cap scoped
+# above the X-mode cutoff; INS-09 given a frame and a Doppler mode; INS-11
+# stated at the digitiser input; INS-15 and INS-26 re-derived from SCI-15;
+# SCI-23 restated as a drift accuracy met by a second look; SCI-05 and SCI-07
+# added.  Requires the matching rows in l5_assessment/requirements_check.py.
+#
+# Rev F alignment (2026-09-27): every threshold and goal here now matches the
+# requirements document.  Six goals that the document does not state were set
+# to null (INS-10, INS-11, INS-14, INS-18, INS-24, INS-26); each entry's notes
+# record the value it used to carry.  With a null goal the best verdict is
+# "threshold", so scores on those entries can drop from "goal" to "threshold"
+# with no change in performance.  scripts/import_srm.py exists to bring the remainder across
 # as a diff review rather than a retype.  Until that is run, a campaign scored
 # against this file is scored against the claim-bearing subset and no more.
 
-revision: "E (partial import: Table 3.1 subset)"
-source_document: "TSS_Science_Requirements_RevE.docx"
-source_matrix: "TSS_SRM_RevE.xlsx"
+revision: "G (partial import: Table 3.1 subset plus SCI-05, SCI-07)"
+source_document: "TSS_Science_Requirements_RevG.docx"
+source_matrix: "TSS_SRM_RevG.xlsx"
 
 requirements:
 
-  INS-01:
-    title: Sounding band
-    sense: range
+  INS-01a:
+    title: Lowest sounding frequency
+    sense: max
     unit: Hz
-    threshold: [3.3e+5, 2.0e+7]
-    goal: [2.6e+5, 2.0e+7]
+    threshold: 3.3e+5
+    goal: 2.6e+5
     claims: [C1, C2]
     work_packages: [WP0, WP1, WP3, WP12]
     source: derived
-    derivation: "Band-edge study, 1.2e6 IRI-2020 profiles across 60 configurations; validated against 5118 hand-scaled ISIS-1 profiles"
+    derivation: "Requirements Rev G INS-01a, sec. 5.6 and 5.7: band-edge study, 1.2e6 IRI-2020 samples across 60 configurations, ensemble combined at the minimum of the per-model 5th percentiles; method checked against 5118 hand-scaled ISIS-1 profiles"
     notes: >-
-      The lower edge is the 95 per cent profile-coverage point over the full
-      mission envelope; the goal is the 99 per cent point.  An earlier revision
-      combined the model ensemble in the unsafe direction and delivered 53 per
-      cent coverage rather than the 95 per cent claimed.  That is why this entry
-      is traced to the archive comparison and not to the model ensemble alone.
+      Split from Rev F's INS-01 so the lower edge can be scored: lower is
+      better.  The lower edge is the 95 per cent profile-coverage point over the
+      full mission envelope (500 to 900 km, either orbit class, a complete solar
+      cycle); the goal is the 99 per cent point.  The governing case is O1 at
+      900 km at solar minimum.  Tolerance is one-sided, -20%/+0%.  A mission
+      declaring solar maximum only may use 0.90 MHz.  In the 61 solar-minimum
+      ISIS-1 records four observations fall below 0.33 MHz where the models give
+      about 0.6 MHz, so the threshold is not assumed conservative (Open Item 2).
+      Scored from the metric min_sounding_frequency_hz.
+
+  INS-01b:
+    title: Highest sounding frequency
+    sense: min
+    unit: Hz
+    threshold: 2.0e+7
+    goal: null
+    claims: [C1, C2]
+    work_packages: [WP0, WP1]
+    source: derived
+    derivation: "Requirements Rev G INS-01b: 20 MHz covers 5e12 m^-3 (SCI-03); median foF2 along track peaks at 10.19 MHz at solar maximum (Finding F11)"
+    notes: >-
+      Split from Rev F's INS-01.  Higher is better.  Stating the edge against a
+      percentile of foF2 rather than the median is Open Item 5.  Scored from the
+      metric max_sounding_frequency_hz.
 
   INS-02:
     title: Frequency step law
@@ -58,10 +94,14 @@ requirements:
     claims: [C2]
     work_packages: [WP0, WP4, WP7]
     source: derived
-    derivation: "dNe/Ne = 2 df/f with the density precision of SCI-02; crossover at 3 MHz"
+    derivation: "dNe/Ne = 2 df/f with the density precision of SCI-04; the 150 kHz cap from O/X separation (SCI-14, SCI-27); crossover at 3 MHz"
     notes: >-
-      Scored as df <= min(0.05 f, 150 kHz).  The 150 kHz cap is dropped in the
-      A2 observing mode, where polarization separates the O and X traces.
+      Scored as df <= min(0.05 f, 150 kHz).  Rev G applies the 150 kHz cap only
+      above the X-mode cutoff at the spacecraft, f_x = f_ce/2 + sqrt((f_ce/2)^2
+      + f_N^2), 0.62 to 1.53 MHz over 500 to 900 km at f_N = 0.33 MHz; below it
+      only the O mode exists.  This does not change the step count, since the
+      cap binds only above 3 MHz.  The cap is dropped in configuration A2,
+      where polarization separates the O and X traces.
 
   INS-04:
     title: Unambiguous range
@@ -72,7 +112,7 @@ requirements:
     claims: [C1, C2]
     work_packages: [WP3, WP4]
     source: derived
-    derivation: "Topside extent from the F2 peak to the plasmapause at the orbit altitudes of interest"
+    derivation: "SCI-08: apparent range at least 1.5 times the maximum true range so foF2 and fxF2 can be read (Franklin and MacLean 1969)"
 
   INS-05:
     title: Virtual range resolution
@@ -83,7 +123,7 @@ requirements:
     claims: [C2]
     work_packages: [WP4, WP6]
     source: derived
-    derivation: "Height resolution required by SCI-03 through the lamination inversion"
+    derivation: "SCI-06 vertical structure: virtual range resolution 10 km threshold, 5 km goal"
 
   INS-07:
     title: Ionogram period
@@ -94,7 +134,7 @@ requirements:
     claims: [C2]
     work_packages: [WP4, WP7]
     source: derived
-    derivation: "Along-track sampling of SCI-09 at orbital velocity"
+    derivation: "Along-track sampling of SCI-09 and SCI-22 at 7.5 km/s"
 
   INS-08:
     title: Mode discrimination
@@ -104,31 +144,35 @@ requirements:
     goal: null
     claims: [C5]
     work_packages: [WP11]
-    source: "Reinisch et al. 2001, Radio Plasma Imager on IMAGE"
+    source: "SCI-14; Reinisch et al. 2001, Radio Plasma Imager on IMAGE"
     notes: Detect and label the ordinary and extraordinary traces.
 
   INS-09:
     title: Doppler measurement
     sense: max
-    unit: m
+    unit: range cell
     threshold: 1.0
-    goal: 1.0
+    goal: null
     claims: [C3]
     work_packages: [WP5, WP6]
     source: derived
-    derivation: "dd = v f / K_f, bounded to one range cell of INS-05"
+    derivation: "SCI-15 and SCI-16; dd = v f / K_f, bounded to one range cell of INS-05 (Requirements Rev G sec. 5.4)"
     notes: >-
-      Scored as the residual apparent-range bias in units of range cells after
-      the motion-based separation of WP5.  The companion conditions, plus or
-      minus 1 km/s unambiguous and 100 m/s resolution, are carried as INS-09a
-      and INS-09b in the full set and are not yet imported.
+      Scored as the residual apparent-range bias in units of INS-05 range cells
+      after the WP5 processing, which is the ionogram-mode part of INS-09.  The
+      Doppler-mode part (plus or minus 1 km/s unambiguous and 100 m/s
+      resolution, in the Earth-fixed frame after the ephemeris-predicted
+      platform term is removed) is not scored by this entry; Rev G states that
+      the two modes need not run simultaneously.  The bias is set by the total
+      line-of-sight velocity: 475 m at 20 MHz for a one-degree tilt, but 2.4 km
+      for a five-degree tilt, which is several cells.
 
   INS-10:
     title: Sensitivity
     sense: min
     unit: dB
     threshold: 10.0
-    goal: 20.0
+    goal: null
     claims: [C1]
     work_packages: [WP3, WP12]
     source: derived
@@ -137,57 +181,80 @@ requirements:
       SNR per range cell at maximum range, across the band.  Resolved
       affirmative with large margin over the band where a measured noise
       reference exists.  Below 0.6 MHz the reference is an extrapolation, which
-      is what WP12 exists to close.
+      is what WP12 exists to close.  Rev G adds an availability clause: the
+      10 dB holds in the fraction of sweeps SCI-28 requires, outside declared
+      interference intervals.  SCI-28's value is TBD (Open Item 14), so only
+      the SNR is scored.  INS-10 states no goal in the requirement
+      document; the 20 dB previously carried here is SCI-19's goal, which
+      applies wherever phase or Doppler is measured, not to trace detection.
 
   INS-11:
-    title: Receiver dynamic range, instantaneous
+    title: Receiver dynamic range, instantaneous, at the digitiser input
     sense: min
     unit: dB
     threshold: 60.0
-    goal: 90.0
+    goal: null
     claims: [C4]
-    work_packages: [WP3, WP5]
-    source: derived
-    derivation: "Leakage-to-weakest-echo ratio admitted by INS-10 at the isolation of INS-23"
+    work_packages: [WP3, WP5, WP9]
+    source: "Reinisch et al. 2001 (RPI: 60 dB instantaneous plus 66 dB AGC); SCI-21"
+    notes: >-
+      Rev G states the reference point: the digitiser input, after analog
+      de-chirp and a high-pass filter that removes the de-chirped leakage before
+      digitisation.  The filter must reject the leakage carrier by the
+      leakage-over-echo ratio less 60 dB plus 10 dB of headroom, 32 dB at
+      INS-23's 40 dB isolation (Requirements Rev G sec. 5.9).  INS-11 also
+      requires 90 dB with gain control and survival at +120 dB (Franklin and
+      MacLean 1969); neither companion condition is scored by this entry.
 
   INS-14:
     title: Resource constraint, transmit power
     sense: max
     unit: W
     threshold: 1.0
-    goal: 0.5
+    goal: null
     claims: [C1, C2]
     work_packages: [WP3, WP7]
-    source: "Mission constraint, 6U bus power budget"
+    source: "TISC proposal baseline (programmatic, not science-derived)"
     notes: >-
-      The volume limit of 6U and the instrument power limit of 5 W are carried
-      as INS-14a and INS-14b in the full set.
+      INS-14 is a single constraint: 6U volume, transmit power at most 1 W and
+      total instrument power at most 5 W.  Only the transmit power is scored by
+      this entry.  The requirement document states no goal; the 0.5 W
+      previously carried here had no source.
 
   INS-15:
     title: Coherent processing interval
     sense: min
     unit: s
-    threshold: 1.0
-    goal: 2.0
+    threshold: 0.5
+    goal: 1.0
     claims: [C3]
     work_packages: [WP5]
     source: derived
-    derivation: "T >= c / (2 delta_v f) for the zonal drift resolution of SCI-23"
+    derivation: "T >= c / (2 delta_v f) at 3 MHz for the velocity resolution of SCI-15 (100 m/s threshold, 50 m/s goal); Requirements Rev G sec. 5.4 and 5.10"
     notes: >-
-      The product f*T is independent of sounding frequency, so this requirement
-      is one number rather than a curve.
+      Rev G re-derives this from SCI-15.  Rev F took 1.0 s and 2.0 s from
+      SCI-23, which Rev G meets from the displacement of a structure between
+      two looks rather than by Doppler.  The product f*T is 1.5e6 Hz s at
+      threshold and 3.0e6 at goal at every frequency, so the interval shortens
+      as 1/f above 3 MHz.  The requirement includes compensation for the change
+      in geometry over the interval.
 
   INS-18:
     title: Vector receive channel phase match
     sense: max
     unit: deg
     threshold: 2.0
-    goal: 1.0
+    goal: null
     claims: [C5]
     work_packages: [WP11]
     source: derived
-    derivation: "Arrival-angle error budget for the 2 degree goal of SCI-20"
-    notes: Three orthogonal antennas.  Goal level; no threshold requirement depends on it.
+    derivation: "Arrival-angle goal of SCI-27 (2 degrees); channels phase-matched to 2 degrees across the band, or calibratable to that level in flight"
+    notes: >-
+      Three mutually orthogonal receive antennas and three phase-coherent
+      channels; a mission may populate one.  Serves goal-level SCI-25 and
+      SCI-27; no threshold requirement depends on it.  The requirement document
+      states no goal; the 1 degree previously carried here was SCI-27's
+      arrival-angle figure at SNR of 40 dB or more, not a phase-match goal.
 
   INS-23:
     title: Transmit to receive isolation
@@ -198,39 +265,70 @@ requirements:
     claims: [C4]
     work_packages: [WP3, WP5, WP9]
     source: derived
-    derivation: "Leakage floor of INS-24 against the transmit power of INS-14"
+    derivation: "Allocation to the INS-24 leakage floor (Requirements Rev G sec. 5.9); a deployed-configuration property that trades against INS-22"
 
   INS-24:
     title: Residual leakage floor
     sense: min
     unit: dB
     threshold: 10.0
-    goal: 20.0
+    goal: null
     claims: [C4]
     work_packages: [WP3, WP5, WP9]
     source: derived
-    derivation: "Ten decibels below the weakest echo INS-10 admits"
+    derivation: "Ten decibels below the weakest echo INS-10 admits (Requirements Rev G sec. 5.9)"
     notes: >-
       Scored as the margin between the weakest admitted echo and the de-chirped
       leakage residual.  Technical Volume Chapter 5 shows this is less binding
       than earlier drafts asserted once range correlation is credited, but the
-      credit depends on the single-reference architecture of INS-21.
+      credit depends on the single-reference architecture of INS-21.  The
+      requirement document states no goal; the 20 dB previously carried here
+      had no source.
 
   INS-26:
     title: Oscillator stability
     sense: max
     unit: Allan deviation
-    threshold: 2.0e-9
-    goal: 5.0e-10
+    threshold: 7.4e-9
+    goal: 3.7e-9
     claims: [C3]
     work_packages: [WP3, WP5]
     source: derived
-    derivation: "sigma_phi = 2 pi (f T) sigma_y(T) at the coherent interval of INS-15"
+    derivation: "sigma_phi = 2 pi (f T) sigma_y(T) at the coherent interval of INS-15, f T = c / (2 delta_v) from SCI-15, sigma_phi = 4 degrees (Poole 1985); Requirements Rev G sec. 5.10"
     notes: >-
-      Scored at 1 s and 2 s.  Open item 12 is whether the range-correlation
-      credit of factor 24 to 48 applies here, which would relax this by more
-      than an order of magnitude.  Until that is settled the uncredited number
-      stands.
+      Scored at 0.5 s and 1 s.  Rev F's 2e-9 came from SCI-23 and is
+      withdrawn.  Open Item 12 is whether the range-correlation credit applies,
+      which would relax this by a factor of 12 to 24.  Until that is settled
+      the uncredited number stands.
+
+  SCI-05:
+    title: Absolute electron density accuracy
+    sense: max
+    unit: fraction
+    threshold: 0.15
+    goal: 0.10
+    claims: [C2, C5]
+    work_packages: [WP4, WP11]
+    source: "Requirements Rev G SCI-05; scored in simulation per SW-01"
+    notes: >-
+      Scored as the rms fractional density error of the L4 profile against its
+      L0 truth (metric ne_rms_fractional).  In simulation the truth is absolute,
+      so this is the simulated form of SCI-05.  The empirical checks (DMSP and
+      ISIS-1 in-situ comparison, mode-mislabel injection) are SW-02 and SW-03.
+
+  SCI-07:
+    title: Profile height accuracy
+    sense: max
+    unit: m
+    threshold: 2.0e+4
+    goal: 1.0e+4
+    claims: [C2]
+    work_packages: [WP4]
+    source: "Requirements Rev G SCI-07; scored in simulation per SW-01"
+    notes: >-
+      Scored as the rms height error of the L4 profile points against their L0
+      truth (metric height_error_rms_m).  Measured ionospheres used as truth
+      (SW-02) make this a check against observation as well as model.
 
   SCI-09:
     title: Along-track sampling
@@ -240,19 +338,24 @@ requirements:
     goal: 2.5e+4
     claims: [C2]
     work_packages: [WP4, WP7]
-    source: "Horizontal structure scale from GOLD, COSMIC-2 and Swarm depletion statistics"
+    source: "Plasma bubble depletion envelope of about 300 km (302 +/- 41 km measured; GOLD sees a few to 10 degrees of longitude); Requirements Rev G Finding F7 and sec. 5.5"
 
   SCI-23:
-    title: Zonal drift resolution
+    title: Zonal drift accuracy of a depletion
     sense: max
     unit: m/s
     threshold: 50.0
     goal: 25.0
     claims: [C3]
     work_packages: [WP5, WP10]
-    source: "Measured equatorial plasma bubble drift speeds, 75 to 250 m/s"
+    source: "Measured equatorial plasma bubble drifts, 75 to 250 m/s (Navas-Portella et al. 2025, J. Space Weather Space Clim. 15, 2, and studies compiled there)"
     notes: >-
-      This requirement is what sets the coherent interval of INS-15 and
-      therefore what makes the platform non-stationary within one velocity
-      estimate.  It is the reason C3 is not a routine application of a known
-      technique.
+      Rev G restates SCI-23 as the 1-sigma accuracy of the horizontal drift of
+      a structure, in orbit class O2 or O3, measured from its displacement
+      between a first and a second look (route two of Technical Volume Ch. 8):
+      sigma_u = sqrt(2) sigma_x / dt.  With the A1 sweep the threshold needs a
+      following node 4.4 to 10 minutes behind (MIS-10).  A nadir Doppler sees
+      horizontal drift only through a layer tilt, so this is not a Doppler
+      resolution, and INS-15 and INS-26 no longer derive from it.  The mapped
+      metric drift_resolution_mps should be renamed for accuracy when WP5
+      produces it.
