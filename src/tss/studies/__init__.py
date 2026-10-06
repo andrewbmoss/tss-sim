@@ -418,9 +418,12 @@ def _sweep_from_config(
 ) -> tuple[Any, dict[str, Any]]:
     """Build the :class:`~tss.interfaces.SweepSchedule` a campaign asks for.
 
-    The stored ``sweep`` block can be internally inconsistent, and the default one
-    is: sweeping 0.33 to 20 MHz at 5.6 MHz/s takes 3.5125 s against a stated
-    period of 3.3 s, which is the INS-07 goal rather than a sweep duration.
+    The default block is the A1 stepped sweep, whose duration follows from its
+    step law (159 steps of 26.8 ms, 4.26 s) and whose period of zero means that
+    duration.  A stated block can still be internally inconsistent: a uniform
+    sweep of 0.33 to 20 MHz at 5.6 MHz/s takes 3.5125 s, and the earlier default
+    stated a period of 3.3 s against it, which is the INS-07 goal rather than a
+    sweep duration.
     :func:`tss.l3_signal.base.sweep_duration_s` refuses such a schedule, because
     the alternative is a silently truncated sweep and a silently wrong range
     scale.
@@ -436,14 +439,28 @@ def _sweep_from_config(
     """
     from tss.interfaces import SweepSchedule
 
+    from tss import sweep_law
+
     block = dict(config.get("sweep", {}))
     f_start = float(block.get("f_start_hz", 3.3e5))
     f_stop = float(block.get("f_stop_hz", 2.0e7))
-    k_f = float(block.get("k_f_hz_per_s", 5.6e6))
-    period = float(block.get("sweep_period_s", 0.0))
-    required = abs(f_stop - f_start) / abs(k_f)
+    period = float(block.get("sweep_period_s", 0.0) or 0.0)
+    stepped = float(block.get("step_dwell_s", 0.0) or 0.0) > 0.0
+    if stepped:
+        # The A1 stepped law of Requirements Rev G.  Its rate is the peak step
+        # rate and its duration is n_steps * step_dwell_s; see tss.sweep_law.
+        from tss.l2_instrument.waveform import schedule_from_config
+
+        law = schedule_from_config({**block, "f_start_hz": f_start, "f_stop_hz": f_stop,
+                                    "sweep_period_s": 0.0})
+        k_f = float(law.k_f_hz_per_s)
+        required = sweep_law.active_duration_s(law)
+    else:
+        k_f = float(block.get("k_f_hz_per_s", 5.6e6))
+        required = abs(f_stop - f_start) / abs(k_f)
 
     notes: dict[str, Any] = {
+        "sweep_law": "stepped" if stepped else "uniform",
         "sweep_duration_s": required,
         "sweep_period_requested_s": period,
         "sweep_period_used_s": period,
@@ -460,6 +477,9 @@ def _sweep_from_config(
         notes["sweep_period_used_s"] = period
         notes["sweep_period_extended"] = True
 
+    if period <= 0.0:
+        period = required
+        notes["sweep_period_used_s"] = period
     schedule = SweepSchedule(
         f_start_hz=f_start,
         f_stop_hz=f_stop,
@@ -467,7 +487,13 @@ def _sweep_from_config(
         sweep_period_s=period,
         direction=int(block.get("direction", 1)),
         nonlinearity_ppm=float(block.get("nonlinearity_ppm", 0.0)),
+        step_dwell_s=float(block.get("step_dwell_s", 0.0) or 0.0) if stepped else 0.0,
+        step_fraction=float(block.get("step_fraction", 0.05)) if stepped else 0.0,
+        step_cap_hz=float(block.get("step_cap_hz", 150.0e3)) if stepped else 0.0,
     )
+    if stepped:
+        notes["n_steps"] = sweep_law.step_count(schedule)
+        notes["peak_rate_hz_per_s"] = k_f
     return schedule, notes
 
 
@@ -487,6 +513,19 @@ def _grids(config: Mapping[str, Any]) -> tuple[Any, Any]:
         float(grid.get("alt_step_m", 5.0e3)),
     )
     sweep = dict(config.get("sweep", {}))
+    if float(sweep.get("step_dwell_s", 0.0) or 0.0) > 0.0:
+        # A stepped sweep sounds one frequency per step, at the step centre,
+        # so the echo grid is the step centres and n_freq does not apply.
+        from tss import sweep_law
+        from tss.l2_instrument.waveform import schedule_from_config
+
+        law = schedule_from_config({
+            **sweep,
+            "f_start_hz": float(sweep.get("f_start_hz", 3.3e5)),
+            "f_stop_hz": float(sweep.get("f_stop_hz", 2.0e7)),
+            "sweep_period_s": 0.0,
+        })
+        return alt, sweep_law.step_centres_hz(law)
     freq = np.linspace(
         float(sweep.get("f_start_hz", 3.3e5)),
         float(sweep.get("f_stop_hz", 2.0e7)),

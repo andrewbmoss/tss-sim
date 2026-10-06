@@ -34,6 +34,41 @@ the magnitude is what lets an up/down pair be processed as a pair, which C3
 needs.  The last term is a constant phase and is the piece a first-order
 treatment drops.
 
+DISPERSION WITHIN A DWELL
+-------------------------
+The delay of an ionospheric echo depends on frequency, and the sweep moves
+through frequency while a step is being collected.  The delay therefore changes
+during the dwell: over a 5 per cent step in an exponential topside of scale
+height ``H`` the virtual range changes by about ``0.1 H / mu_sat``, which at
+3 MHz is ten to forty of the 1 km range cells, and near foF2 it is far more.  A
+tier that gives each step one delay produces a tone where the instrument would
+see a slide, and every resolution and sensitivity figure taken from it is the
+undispersed case.
+
+With ``in_dwell_dispersion`` on, which is the default, the rows of each
+magnetoionic mode are joined into a trace ``tau_g(f)``, piecewise linear through
+the rows and extended linearly past its ends, and the echo is built from that
+trace rather than from one delay per row.  The received sample at time ``t``
+left the antenna at ``t_e``, where
+
+    t = t_e + tau_g(f(t_e))
+
+and its phase is that of the transmitted law at ``t_e`` advanced along the phase
+path, so the de-chirped phase is
+
+    phi_b(t) = phi(t) - phi(t_e) - 2 pi f_e tau_g(f_e) + 2 pi int^f_e tau_g df
+
+with ``f_e = f(t_e)``.  This is the stationary-phase result for a signal whose
+frequency changes slowly against the dispersion.  Its derivative is
+``2 pi (f(t) - f_e)``, the beat against the frequency that is arriving, and for
+a constant delay the last two terms cancel and it reduces to the expression
+above.  ``t_e`` is found by fixed-point iteration, which converges quickly
+because ``d tau / d t`` is of order one per cent.
+
+A mode whose rows are not single valued in frequency, as a ray-traced tier with
+several rays per frequency would give, has no unique trace.  Its rows keep one
+delay each and the count is reported in ``flags["rows_without_trace"]``.
+
 WHEN AN ECHO IS PRESENT
 -----------------------
 An echo at sounding frequency ``f_k`` is only there while the sweep is near
@@ -72,6 +107,9 @@ from typing import Any
 
 import numpy as np
 
+from dataclasses import replace as _replace
+
+from tss import sweep_law
 from tss.constants import K_BOLTZ
 from tss.interfaces import EchoSet, ReceivedSignal, SweepSchedule
 from tss.l2_instrument.antenna import ShortDipole, antenna_noise_temperature_k
@@ -90,7 +128,71 @@ from tss.l2_instrument.waveform import (
 from tss.registry import register
 from tss.units import db, undb, w_to_dbm
 
-__all__ = ["BaselineInstrument", "DEFAULT_POLARIZATION_LOSS_DB"]
+__all__ = ["BaselineInstrument", "DEFAULT_POLARIZATION_LOSS_DB", "DelayTrace"]
+
+#: Fixed-point passes used to find the emission time of a dispersed echo.  The
+#: contraction factor is ``|d tau_g / d f| K``, about 0.005 for the A1 sweep in
+#: a 150 km scale height, so six passes are far more than double precision needs.
+_DISPERSION_ITERATIONS = 6
+
+
+class DelayTrace:
+    """Group delay against frequency along one echo trace, and its integral.
+
+    Piecewise linear through the knots and extended linearly beyond them with
+    the slope of the end segment, so that the delay and its frequency integral
+    are exact for the model and continuous everywhere.  A trace needs at least
+    two knots at distinct frequencies.
+    """
+
+    def __init__(self, freq_hz: np.ndarray, delay_s: np.ndarray) -> None:
+        f = np.asarray(freq_hz, dtype=float)
+        tau = np.asarray(delay_s, dtype=float)
+        order = np.argsort(f)
+        f, tau = f[order], tau[order]
+        if f.size < 2 or np.any(np.diff(f) <= 0.0):
+            raise ValueError("a delay trace needs two or more distinct frequencies")
+        self.freq_hz = f
+        self.tau_s = tau
+        self.slope_s_per_hz = np.diff(tau) / np.diff(f)
+        # Cycles of phase path at each knot, int tau df, anchored so that a
+        # constant delay gives f * tau exactly.
+        self.cycles = np.concatenate(
+            [[f[0] * tau[0]], f[0] * tau[0] + np.cumsum(0.5 * (tau[:-1] + tau[1:]) * np.diff(f))]
+        )
+
+    def _segment(self, f_hz: np.ndarray | float) -> tuple[np.ndarray, np.ndarray]:
+        f = np.asarray(f_hz, dtype=float)
+        j = np.clip(np.searchsorted(self.freq_hz, f, side="right") - 1, 0, self.freq_hz.size - 2)
+        return j, f - self.freq_hz[j]
+
+    def delay_s(self, f_hz: np.ndarray | float) -> np.ndarray:
+        """Group delay at ``f_hz``."""
+        j, d = self._segment(f_hz)
+        return self.tau_s[j] + self.slope_s_per_hz[j] * d
+
+    def phase_cycles(self, f_hz: np.ndarray | float) -> np.ndarray:
+        """``int tau_g df`` up to ``f_hz``, in cycles."""
+        j, d = self._segment(f_hz)
+        return self.cycles[j] + self.tau_s[j] * d + 0.5 * self.slope_s_per_hz[j] * d**2
+
+
+def _traces_by_mode(
+    freq: np.ndarray, delay: np.ndarray, mode: np.ndarray | None, usable: np.ndarray
+) -> dict[str, DelayTrace]:
+    """One trace per mode, for the modes whose usable rows define one."""
+    if mode is None or np.shape(mode) != np.shape(freq):
+        labels = np.array([""] * freq.size, dtype=object)
+    else:
+        labels = np.array([str(m) for m in np.asarray(mode, dtype=object).ravel()], dtype=object)
+    out: dict[str, DelayTrace] = {}
+    for label in sorted(set(labels[usable].tolist())):
+        sel = usable & (labels == label)
+        f = freq[sel]
+        if f.size < 2 or np.unique(f).size != f.size:
+            continue
+        out[label] = DelayTrace(f, delay[sel])
+    return out
 
 #: Polarization loss, dB.  -3 dB for the O and X split and -3 dB for an
 #: elliptically polarized wave received on a linear antenna.  The same figure
@@ -142,6 +244,11 @@ class BaselineInstrument:
     quantise
         Whether to run the quantiser.  Off is useful for isolating whether an
         effect is quantisation or something else.
+    in_dwell_dispersion
+        Whether the delay of an echo follows its trace through the dwell, as it
+        does in the ionosphere, or is held at one value per row.  On by default.
+        Off reproduces the undispersed samples this tier produced before
+        2026-10-05 and is there so the two can be compared.
     """
 
     def __init__(
@@ -159,6 +266,7 @@ class BaselineInstrument:
         max_samples: int = 1 << 20,
         sky_model: str = "franklin",
         quantise: bool = True,
+        in_dwell_dispersion: bool = True,
         isolation: Mapping[str, Any] | None = None,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
@@ -183,6 +291,7 @@ class BaselineInstrument:
         self.max_samples = int(max_samples)
         self.sky_model = str(sky_model)
         self.quantise = bool(quantise)
+        self.in_dwell_dispersion = bool(in_dwell_dispersion)
         self.isolation = dict(isolation or {})
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
@@ -209,6 +318,7 @@ class BaselineInstrument:
             receiver=Receiver.from_config(dict(cfg.get("receiver", {}))),
             oscillator=Oscillator.from_config(dict(cfg.get("oscillator", {}))),
             stated_efficiency_db=antenna_cfg.get("radiation_efficiency_db"),
+            in_dwell_dispersion=bool(cfg.get("in_dwell_dispersion", True)),
             isolation=dict(cfg.get("isolation", {})),
             resources=dict(cfg.get("resources", {})),
             configuration_name=str(cfg.get("name", "")),
@@ -282,30 +392,78 @@ class BaselineInstrument:
         modelled_s = n_samples / fs_hz
 
         t = np.arange(n_samples, dtype=float) / fs_hz
-        f_tx = f0 + direction * k * t
+        stepped = sweep_law.is_stepped(sweep)
+        if stepped:
+            # The A1 stepped law: each step has its own rate, so the beat of an
+            # echo depends on which step it was transmitted in and which step
+            # it is received in.  The ideal law is used, as it is for the
+            # uniform sweep below.
+            ideal = _replace(sweep, nonlinearity_ppm=0.0)
+            f_tx = sweep_law.frequency_hz(ideal, t)
+            phi_rx = sweep_law.phase_rad(ideal, t)
+
+            def tx_frequency(x: np.ndarray) -> np.ndarray:
+                return sweep_law.frequency_hz(ideal, x)
+
+            def tx_phase(x: np.ndarray) -> np.ndarray:
+                return sweep_law.phase_rad(ideal, x)
+        else:
+            f_tx = f0 + direction * k * t
+
+            def tx_frequency(x: np.ndarray) -> np.ndarray:
+                return f0 + direction * k * x
+
+            def tx_phase(x: np.ndarray) -> np.ndarray:
+                return 2.0 * np.pi * (f0 * x + direction * k * x**2 / 2.0)
+
+        traces = (
+            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable)
+            if self.in_dwell_dispersion
+            else {}
+        )
+        mode_in = getattr(echoes, "mode", None)
+        if mode_in is None or np.shape(mode_in) != freq.shape:
+            row_mode = np.array([""] * freq.size, dtype=object)
+        else:
+            row_mode = np.array([str(m) for m in np.asarray(mode_in, dtype=object).ravel()], dtype=object)
 
         # Per-row visit time and dwell window.  The spacing is taken from the
         # echo set itself, because that is the frequency step the sounding
         # actually used, and the dwell that follows from it is the dwell the
         # sounding actually got.
         unique_f = np.unique(freq[usable]) if np.any(usable) else np.array([], dtype=float)
-        if unique_f.size > 1:
+        if stepped:
+            # A stepped sweep fixes the dwell: each row is filed in the step
+            # that contains its frequency and fills that step.
+            dwell_s = float(sweep.step_dwell_s)
+        elif unique_f.size > 1:
             df = float(np.median(np.diff(unique_f)))
+            dwell_s = max(abs(df) / k, 2.0 / fs_hz)
         else:
             df = sweep_bandwidth_hz(sweep)
-        dwell_s = max(abs(df) / k, 2.0 / fs_hz)
+            dwell_s = max(abs(df) / k, 2.0 / fs_hz)
 
         samples = np.zeros(n_samples, dtype=complex)
         rows_used = 0
         rows_outside = 0
+        rows_dispersed = 0
+        max_delay_change_s = 0.0
         for row in np.nonzero(usable)[0]:
             f_k = float(freq[row])
-            t_k = direction * (f_k - f0) / k
+            if stepped:
+                t_k = float(sweep_law.time_at_frequency_s(sweep, f_k))
+            else:
+                t_k = direction * (f_k - f0) / k
             if not (0.0 <= t_k <= modelled_s):
                 rows_outside += 1
                 continue
-            lo = int(np.floor(max(t_k - dwell_s / 2.0, 0.0) * fs_hz))
-            hi = int(np.ceil(min(t_k + dwell_s / 2.0, modelled_s) * fs_hz))
+            if stepped:
+                i_step = int(sweep_law.step_index(sweep, t_k))
+                w_lo, w_hi = i_step * dwell_s, (i_step + 1) * dwell_s
+            else:
+                w_lo, w_hi = t_k - dwell_s / 2.0, t_k + dwell_s / 2.0
+            lo = int(np.floor(max(w_lo, 0.0) * fs_hz))
+            hi = int(np.ceil(min(w_hi, modelled_s) * fs_hz))
             if hi <= lo:
                 rows_outside += 1
                 continue
@@ -327,9 +485,51 @@ class BaselineInstrument:
             amplitude = np.sqrt(undb(power_dbw))
 
             tt = t[lo:hi]
-            phase = 2.0 * np.pi * (
-                f0 * tau + direction * k * tau * tt - direction * k * tau**2 / 2.0
-            )
+            trace = traces.get(str(row_mode[row]))
+            if trace is not None:
+                # The delay follows the trace through the dwell.  Find when each
+                # received sample left the antenna, t = t_e + tau_g(f(t_e)), and
+                # take the phase of the transmitted law there advanced along the
+                # phase path (module docstring, DISPERSION WITHIN A DWELL).  The
+                # step transition needs no separate case here either, because
+                # f(t_e) is read from the law whichever step t_e falls in.
+                t_e = tt - tau
+                for _ in range(_DISPERSION_ITERATIONS):
+                    t_e = tt - np.clip(trace.delay_s(tx_frequency(t_e)), 0.0, None)
+                f_e = tx_frequency(t_e)
+                tau_e = tt - t_e
+                phase = (
+                    tx_phase(tt)
+                    - tx_phase(t_e)
+                    - 2.0 * np.pi * f_e * tau_e
+                    + 2.0 * np.pi * trace.phase_cycles(f_e)
+                )
+                live = t_e >= 0.0
+                samples[lo:hi] += np.where(live, amplitude * np.exp(1j * phase), 0.0)
+                rows_used += 1
+                rows_dispersed += 1
+                if np.any(live):
+                    seen = tau_e[live]
+                    max_delay_change_s = max(max_delay_change_s, float(seen.max() - seen.min()))
+                continue
+            if stepped:
+                # The exact de-chirped phase, phi(t) - phi(t - tau), from the
+                # transmitted law itself.  Inside a step it is the uniform form
+                # below with that step's start frequency and rate.  In the first
+                # tau of a step the echo left the antenna during the previous
+                # step, and the beat ramps from K_(i-1) tau to K_i tau; the
+                # difference of the exact phases carries that transition with no
+                # separate case.  Nothing had been transmitted before the sweep
+                # started, so samples earlier than tau carry no echo.
+                phase = phi_rx[lo:hi] - sweep_law.phase_rad(ideal, tt - tau)
+                live = tt >= tau
+                samples[lo:hi] += np.where(live, amplitude * np.exp(1j * phase), 0.0)
+                rows_used += 1
+                continue
+            else:
+                phase = 2.0 * np.pi * (
+                    f0 * tau + direction * k * tau * tt - direction * k * tau**2 / 2.0
+                )
             samples[lo:hi] += amplitude * np.exp(1j * phase)
             rows_used += 1
 
@@ -379,6 +579,20 @@ class BaselineInstrument:
             "fs_hz": fs_hz,
             "n_samples": n_samples,
             "sweep_duration_s": duration_s,
+            "sweep_law": "stepped" if stepped else "uniform",
+            # For a stepped sweep the de-chirped phase is the exact difference
+            # phi(t) - phi(t - tau), so the transition in the first tau of each
+            # step is in the samples (Technical Volume, stepped-rate sweep).
+            "step_transition_modelled": bool(stepped),
+            # Whether the delay of each echo follows its trace through the dwell
+            # (Technical Volume, dispersion within a dwell).  rows_without_trace
+            # counts the rows that kept one delay because their mode had no
+            # single-valued trace; max_in_dwell_delay_change_s is the largest
+            # change of delay any one row saw inside its window.
+            "in_dwell_dispersion_modelled": bool(self.in_dwell_dispersion and rows_dispersed > 0),
+            "rows_dispersed": rows_dispersed,
+            "rows_without_trace": rows_used - rows_dispersed,
+            "max_in_dwell_delay_change_s": max_delay_change_s,
             "modelled_duration_s": modelled_s,
             "truncated": bool(truncated),
             "rows_in": int(freq.size),
@@ -439,6 +653,7 @@ class BaselineInstrument:
             "max_samples": self.max_samples,
             "sky_model": self.sky_model,
             "quantise": self.quantise,
+            "in_dwell_dispersion": self.in_dwell_dispersion,
             "efficiency_source": (
                 "configuration radiation_efficiency_db"
                 if self.stated_efficiency_db is not None

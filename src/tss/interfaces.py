@@ -198,6 +198,13 @@ class SweepSchedule:
     period ``sweep_period_s``.  ``direction`` is +1 for up-sweep and -1 for
     down-sweep; the up/down pairing of C3 needs both, so a campaign supplies a
     sequence of these rather than one.
+
+    A positive ``step_dwell_s`` makes the schedule stepped: the band is cut into
+    steps of width ``min(step_fraction * f, step_cap_hz)``, the INS-02 law, and
+    each step is swept linearly in ``step_dwell_s``.  ``k_f_hz_per_s`` is then
+    the peak step rate.  This is the A1 ionogram sweep of Requirements Rev G,
+    which replaced the uniform-rate sweep as the baseline; see
+    :mod:`tss.sweep_law`.  The default of zero keeps the uniform law.
     """
 
     f_start_hz: float
@@ -206,6 +213,9 @@ class SweepSchedule:
     sweep_period_s: float
     direction: int = 1
     nonlinearity_ppm: float = 0.0
+    step_dwell_s: float = 0.0
+    step_fraction: float = 0.0
+    step_cap_hz: float = 0.0
 
 
 @dataclass(frozen=True)

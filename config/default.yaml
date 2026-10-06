@@ -29,11 +29,20 @@ seed: 20260921
 
 instrument: instrument/baseline_6u
 
+# The A1 stepped ionogram sweep of Requirements Rev G (INS-02, INS-27): steps
+# of min(0.05 f, 150 kHz), each swept linearly in 26.8 ms.  159 steps over
+# 0.33 to 20 MHz, 4.26 s, peak rate 5.6 MHz/s above 3 MHz.  The uniform
+# 5.6 MHz/s sweep is withdrawn as an ionogram setting because its 78.4 kHz dwell
+# at INS-04's 1050 km breaks INS-02 below 1.57 MHz (decision-table row 9,
+# 2026-09-30).  k_f_hz_per_s is derived from the step law; a uniform sweep is
+# still available by giving k_f_hz_per_s and removing step_dwell_s.
 sweep:
   f_start_hz: 3.3e5
   f_stop_hz: 2.0e7
-  k_f_hz_per_s: 5.6e6
-  sweep_period_s: 3.3
+  step_dwell_s: 0.0268
+  step_fraction: 0.05
+  step_cap_hz: 1.5e5
+  sweep_period_s: 0.0      # 0 means the active duration, 4.26 s for A1
   direction: 1
   nonlinearity_ppm: 0.0
 

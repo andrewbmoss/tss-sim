@@ -299,6 +299,9 @@ def ionogram_metrics(
 
     out: dict[str, Any] = {
         "virtual_range_resolution_m": _as_float(flags.get("range_resolution_m")),
+        # Per column, for INS-05 stated per band.  None when the tier did not
+        # report one resolution per column.
+        "virtual_range_resolution_by_frequency": None,
         "unambiguous_range_m": _as_float(flags.get("unambiguous_range_m")),
         "ionogram_period_s": _as_float(flags.get("ionogram_period_s")),
         "coherent_interval_s": _as_float(flags.get("coherent_interval_s")),
@@ -321,6 +324,13 @@ def ionogram_metrics(
     if "mode_discrimination" in flags:
         out["mode_discrimination"] = bool(flags["mode_discrimination"])
 
+    by_column = flags.get("range_resolution_m_by_column")
+    if by_column is not None and len(by_column) == freq.size:
+        out["virtual_range_resolution_by_frequency"] = {
+            "freq_hz": [float(x) for x in freq],
+            "value": [float(x) for x in by_column],
+        }
+
     detected = np.isfinite(vr).any(axis=1) if vr.ndim == 2 else np.isfinite(vr)
     detected &= np.isfinite(freq)
     out["n_detected"] = int(np.count_nonzero(detected))
@@ -339,6 +349,9 @@ def ionogram_metrics(
         with np.errstate(divide="ignore", invalid="ignore"):
             fraction = steps / reference
         fraction = fraction[np.isfinite(fraction)]
+        # Round away floating-point residue.  The A1 stepped sweep is designed
+        # exactly on the 0.05 limit, and 0.05 + 2e-16 is not a violation.
+        fraction = np.round(fraction, 12)
         if fraction.size:
             out["frequency_step_fraction_max"] = float(np.max(fraction))
 

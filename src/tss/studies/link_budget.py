@@ -14,7 +14,7 @@ transmit power a 10 dB SNR would require.
 The headline is that four errors in the inherited analysis were worth more than
 twenty decibels in total, and all four ran in the favourable direction.  The
 largest single item is the sky noise reference.  The legacy model used 300 K,
-which is 24.8 dB optimistic at 5 MHz against the background Franklin and MacLean
+which is 36.2 dB optimistic at 5 MHz against the background Franklin and MacLean
 measured in orbit.  Correcting it moves the answer the other way, and the second
 correction, that receive antenna efficiency cancels from the SNR while the
 antenna temperature is sky-dominated, more than pays it back.  The attribution

@@ -14,7 +14,11 @@ configurations:
 sweep_over:
   antenna_length_m: [1.0, 2.0, 5.0, 10.0, 25.0]
   transmit_power_w: [0.1, 0.25, 0.5, 1.0]
-  k_f_hz_per_s: [1.0e6, 2.8e6, 5.6e6, 1.12e7]
+  # Dwell per step of the stepped sweep, s.  At the 150 kHz step cap these are
+  # peak rates of 1.0, 2.8, 5.6 and 11.2 MHz/s, the rates this axis used to
+  # sweep directly.  13.4 ms is shorter than the 14.0 ms round trip to INS-04's
+  # 1050 km and is kept as the edge of the space.
+  step_dwell_s: [0.15, 0.0536, 0.0268, 0.0134]
 run:
   strict_provenance: true
   keep_intermediates: false

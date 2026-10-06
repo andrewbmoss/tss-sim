@@ -49,6 +49,7 @@ from typing import Any
 import numpy as np
 
 from tss.constants import C_LIGHT, beat_frequency
+from tss import sweep_law
 from tss.interfaces import SweepSchedule
 
 __all__ = [
@@ -59,6 +60,7 @@ __all__ = [
     "sweep_phase_rad",
     "range_from_beat_hz",
     "beat_from_range_m",
+    "local_rate_hz_per_s",
 ]
 
 
@@ -78,7 +80,10 @@ def sweep_duration_s(sweep: SweepSchedule) -> float:
     k_f = abs(float(sweep.k_f_hz_per_s))
     if k_f <= 0.0:
         raise ValueError("SweepSchedule.k_f_hz_per_s must be non-zero")
-    duration = sweep_bandwidth_hz(sweep) / k_f
+    if sweep_law.is_stepped(sweep):
+        duration = sweep_law.active_duration_s(sweep)
+    else:
+        duration = sweep_bandwidth_hz(sweep) / k_f
     period = float(sweep.sweep_period_s)
     if period > 0.0 and duration > period * (1.0 + 1e-9):
         raise ValueError(
@@ -101,6 +106,8 @@ def instantaneous_frequency_hz(
     synthesiser leaves behind.
     """
     t = np.asarray(t_s, dtype=float)
+    if sweep_law.is_stepped(sweep):
+        return sweep_law.frequency_hz(sweep, t)
     k_f = abs(float(sweep.k_f_hz_per_s))
     direction = 1 if int(sweep.direction) >= 0 else -1
     f0 = float(sweep.f_start_hz) if direction > 0 else float(sweep.f_stop_hz)
@@ -133,6 +140,10 @@ def sweep_phase_rad(
     sample timebase is what the receiver actually has.
     """
     t = np.asarray(t_s, dtype=float)
+    if sweep_law.is_stepped(sweep):
+        # Exact per-step integral, so the processor's reference and the
+        # transmitter's waveform carry the same phase.
+        return sweep_law.phase_rad(sweep, t)
     k_f = abs(float(sweep.k_f_hz_per_s))
     direction = 1 if int(sweep.direction) >= 0 else -1
     f0 = float(sweep.f_start_hz) if direction > 0 else float(sweep.f_stop_hz)
@@ -176,6 +187,19 @@ def range_from_beat_hz(
     """
     f_b = np.asarray(beat_hz, dtype=float)
     return C_LIGHT * f_b / (2.0 * abs(float(k_f_hz_per_s)))
+
+
+def local_rate_hz_per_s(sweep: SweepSchedule, t_s: np.ndarray | float) -> np.ndarray:
+    """Sweep rate magnitude in use at time ``t_s``.
+
+    ``k_f_hz_per_s`` for a uniform sweep.  For a stepped sweep, the rate of the
+    step being transmitted, which is what converts a beat frequency in a block
+    from that step into range.
+    """
+    t = np.asarray(t_s, dtype=float)
+    if sweep_law.is_stepped(sweep):
+        return sweep_law.rate_hz_per_s(sweep, t)
+    return np.full_like(t, abs(float(sweep.k_f_hz_per_s)), dtype=float)
 
 
 class SignalProcessingBase:

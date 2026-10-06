@@ -84,6 +84,9 @@ from typing import Any
 import numpy as np
 
 from tss.interfaces import Ionogram, PlatformState, ReceivedSignal
+from dataclasses import replace as _replace
+
+from tss import sweep_law
 from tss.l3_signal.base import SignalProcessingBase, sweep_duration_s
 from tss.l3_signal.dechirp import dechirp
 from tss.l3_signal.trace_extract import TraceSample, extract_trace
@@ -112,6 +115,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
     n_frequencies
         How many blocks the sweep is cut into, and therefore how many columns
         the ionogram has.  The block length follows from the record length.
+        Ignored for a stepped sweep, which is cut one block per step so that
+        every block has a single sweep rate and so a single range scale.
     pad_factor
         Zero-padding factor for the transform.  Reduces the bin spacing without
         changing the range resolution, which reduces the straddling error on
@@ -217,14 +222,57 @@ class BaselineSignalProcessing(SignalProcessingBase):
             )
         return n_use, n_block, n_total > n_use
 
+    def _block_starts(self, signal: ReceivedSignal) -> tuple[list[int], int]:
+        """Start index of every block and the common block length.
+
+        A uniform sweep is cut into ``n_frequencies`` equal contiguous blocks.
+        A stepped sweep is cut at its step boundaries, one block per step.  Each
+        block starts on the first whole sample of its step and is one sample
+        shorter than the step, so that no block reaches into the next step and
+        picks up a second rate.  Steps that lie beyond the record, which happens
+        when L2 capped the record length, are left out.
+        """
+        if not sweep_law.is_stepped(signal.sweep):
+            _, n_block, _ = self._block_plan(signal)
+            return [b * n_block for b in range(self.n_frequencies)], n_block
+        samples = np.atleast_2d(np.asarray(signal.samples))
+        n_total = int(samples.shape[1])
+        fs = float(signal.fs_hz)
+        per_step = float(signal.sweep.step_dwell_s) * fs
+        n_block = int(np.floor(per_step)) - 1
+        if n_block < 2:
+            raise ValueError(
+                f"a {signal.sweep.step_dwell_s:g} s step at {fs:g} Hz gives "
+                f"{n_block} samples per block; a block needs at least two"
+            )
+        starts = []
+        for b in range(sweep_law.step_count(signal.sweep)):
+            start = int(np.ceil(b * per_step))
+            if start + n_block > n_total:
+                break
+            starts.append(start)
+        if not starts:
+            raise ValueError("the record is shorter than one step of the stepped sweep")
+        return starts, n_block
+
     def spectra(self, signal: ReceivedSignal) -> list[RangeSpectrum]:
         """De-chirp and transform the record, one block per ionogram column."""
-        _, n_block, _ = self._block_plan(signal)
+        starts, n_block = self._block_starts(signal)
+        stepped = sweep_law.is_stepped(signal.sweep)
+        if stepped:
+            # File each column at its step's nominal centre.  The sample-time
+            # centre of a block wanders by a fraction of a sample from step to
+            # step, and the A1 law sits exactly on INS-02's limit, so that
+            # wander alone would score as a step law violation.
+            centres = sweep_law.step_centres_hz(signal.sweep)
+            if int(signal.sweep.direction) < 0:
+                centres = centres[::-1]
 
         out: list[RangeSpectrum] = []
-        for b in range(self.n_frequencies):
-            start = b * n_block
+        for b, start in enumerate(starts):
             block = dechirp(signal, start=start, stop=start + n_block, t0_s=0.0, orient=True)
+            if stepped:
+                block = _replace(block, centre_frequency_hz=float(centres[b]))
             out.append(
                 transform(
                     block,
@@ -299,15 +347,29 @@ class BaselineSignalProcessing(SignalProcessingBase):
 
         detected = np.isfinite(virtual_range_m[:, 0])
         first = spectra[0]
-        _, n_block_samples, truncated = self._block_plan(signal)
+        stepped = sweep_law.is_stepped(signal.sweep)
+        if stepped:
+            _, n_block_samples = self._block_starts(signal)
+            n_sweep = int(round(sweep_duration_s(signal.sweep) * float(signal.fs_hz)))
+            truncated = int(np.atleast_2d(np.asarray(signal.samples)).shape[1]) > n_sweep
+        else:
+            _, n_block_samples, truncated = self._block_plan(signal)
         block_duration_s = n_block_samples / float(signal.fs_hz)
+        resolution_by_column = np.array([sp.range_resolution_m for sp in spectra], dtype=float)
+        unambiguous_by_column = np.array([sp.unambiguous_range_m for sp in spectra], dtype=float)
 
         flags: dict[str, Any] = {
-            # Instrument-side numbers L5 scores requirements against.
-            "range_resolution_m": float(first.range_resolution_m),
-            "bin_spacing_m": float(first.bin_spacing_m),
+            # Instrument-side numbers L5 scores requirements against.  For a
+            # uniform sweep every column has the same values.  For a stepped
+            # sweep they vary with the step rate, and the scored values are the
+            # worst column: the coarsest resolution (the bottom of the band)
+            # and the shortest unambiguous range (the fastest step).
+            "range_resolution_m": float(np.max(resolution_by_column)),
+            "bin_spacing_m": float(max(sp.bin_spacing_m for sp in spectra)),
             "noise_bandwidth_hz": float(first.noise_bandwidth_hz),
-            "unambiguous_range_m": float(first.unambiguous_range_m),
+            "unambiguous_range_m": float(np.min(unambiguous_by_column)),
+            "sweep_law": "stepped" if stepped else "uniform",
+            "range_resolution_m_by_column": resolution_by_column.tolist(),
             "ionogram_period_s": float(signal.sweep.sweep_period_s),
             # The band the transmitted sweep covered.  INS-01a and INS-01b are
             # scored against these, not against the detected edges, which the

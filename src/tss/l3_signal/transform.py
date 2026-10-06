@@ -334,7 +334,11 @@ def transform(
         )
 
     fs = float(block.fs_hz)
-    k_f = abs(float(block.sweep.k_f_hz_per_s))
+    # The block's own rate: for a stepped sweep the rate of its step, which
+    # differs by a factor of about nine across the A1 band.  Falls back to the
+    # schedule's rate for a block that does not carry one.
+    local = getattr(block, "k_f_hz_per_s", None)
+    k_f = abs(float(local if local is not None else block.sweep.k_f_hz_per_s))
     if k_f <= 0.0:
         raise ValueError("SweepSchedule.k_f_hz_per_s must be non-zero")
 

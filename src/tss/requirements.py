@@ -37,6 +37,16 @@ Verdict = Literal["goal", "threshold", "fail", "not_evaluated"]
 #: that is either demonstrated or not.
 SENSES = ("min", "max", "range", "bool")
 
+_RANK = {"fail": 0, "threshold": 1, "goal": 2}
+
+
+def _band_label(band: Mapping[str, Any]) -> str:
+    lo = band.get("f_min_hz")
+    hi = band.get("f_max_hz")
+    lo_s = "0" if lo is None else f"{float(lo) / 1e6:g}"
+    hi_s = "inf" if hi is None else f"{float(hi) / 1e6:g}"
+    return f"{lo_s}-{hi_s} MHz"
+
 
 @dataclass(frozen=True)
 class Requirement:
@@ -53,6 +63,70 @@ class Requirement:
     source: str = ""
     derivation: str = ""
     notes: str = ""
+    #: Frequency bands with their own threshold and goal, for a requirement
+    #: stated per band (INS-05 in Rev G, amended 2026-09-30).  Each band is a
+    #: mapping with ``f_min_hz`` (inclusive, absent = no lower edge),
+    #: ``f_max_hz`` (exclusive, absent = no upper edge), ``threshold`` and
+    #: ``goal``.  The top-level ``threshold`` and ``goal`` are then the
+    #: strictest band's, used when an achieved value carries no frequencies.
+    bands: tuple[Mapping[str, Any], ...] = ()
+
+    def _band_values(self, achieved: Mapping[str, Any]):
+        freq = [float(x) for x in achieved.get("freq_hz", [])]
+        vals = [float(x) for x in achieved.get("value", [])]
+        if len(freq) != len(vals):
+            raise ValueError(f"{self.id}: freq_hz and value must be parallel")
+        for band in self.bands:
+            lo = band.get("f_min_hz")
+            hi = band.get("f_max_hz")
+            sel = [
+                v for f, v in zip(freq, vals)
+                if (lo is None or f >= float(lo)) and (hi is None or f < float(hi))
+            ]
+            yield band, sel
+
+    def _evaluate_banded(self, achieved: Mapping[str, Any]) -> dict[str, Any]:
+        """Score a per-frequency achieved value band by band.
+
+        Each band is scored on its worst value (the largest for sense max, the
+        smallest for sense min).  The requirement's verdict is the worst band
+        verdict, and the record's ``achieved``, ``threshold`` and ``goal`` are
+        those of the governing band, the one with that verdict and the least
+        relative margin, so the one-line report stays readable.
+        """
+        per_band: list[dict[str, Any]] = []
+        for band, values in self._band_values(achieved):
+            if not values:
+                continue
+            worst = max(values) if self.sense == "max" else min(values)
+            sub = Requirement(
+                id=self.id, title=self.title, sense=self.sense, unit=self.unit,
+                threshold=band.get("threshold"), goal=band.get("goal"),
+            )
+            verdict, margin = sub._verdict(worst)
+            ref = band.get("threshold") or 1.0
+            per_band.append({
+                "band": _band_label(band),
+                "achieved": worst,
+                "threshold": band.get("threshold"),
+                "goal": band.get("goal"),
+                "verdict": verdict,
+                "margin": margin,
+                "relative_margin": None if margin is None else margin / abs(float(ref)),
+                "n_values": len(values),
+            })
+        record: dict[str, Any] = {
+            "id": self.id, "title": self.title, "unit": self.unit, "sense": self.sense,
+            "claims": list(self.claims), "source": self.source, "bands": per_band,
+        }
+        if not per_band:
+            record.update(achieved=None, threshold=self.threshold, goal=self.goal,
+                          verdict="not_evaluated", margin=None)
+            return record
+        gov = min(per_band, key=lambda b: (_RANK[b["verdict"]], b["relative_margin"]))
+        record.update(achieved=gov["achieved"], threshold=gov["threshold"], goal=gov["goal"],
+                      verdict=gov["verdict"], margin=gov["margin"], band=gov["band"])
+        return record
 
     def evaluate(self, achieved: Any) -> dict[str, Any]:
         """Score an achieved value and return a record for the Assessment."""
@@ -71,6 +145,9 @@ class Requirement:
             record["verdict"] = "not_evaluated"
             record["margin"] = None
             return record
+
+        if self.bands and isinstance(achieved, Mapping):
+            return self._evaluate_banded(achieved)
 
         verdict, margin = self._verdict(achieved)
         record["verdict"] = verdict
@@ -158,6 +235,13 @@ class RequirementSet(Mapping[str, Requirement]):
                 problems.append(f"{rid}: no source, so it cannot be used to score")
             if req.source == "derived" and not req.derivation:
                 problems.append(f"{rid}: source is 'derived' but no derivation is named")
+            for band in req.bands:
+                if not isinstance(band, Mapping) or band.get("threshold") is None:
+                    problems.append(f"{rid}: every band needs a threshold")
+                    continue
+                lo, hi = band.get("f_min_hz"), band.get("f_max_hz")
+                if lo is not None and hi is not None and float(hi) <= float(lo):
+                    problems.append(f"{rid}: band {_band_label(band)} is empty")
             if req.sense == "range":
                 for field_name in ("threshold", "goal"):
                     val = getattr(req, field_name)
@@ -184,6 +268,7 @@ def load_requirements(name: str | Path = "requirements/requirements") -> Require
             source=body.get("source", ""),
             derivation=body.get("derivation", ""),
             notes=body.get("notes", ""),
+            bands=tuple(body.get("bands", ()) or ()),
         )
         for rid, body in entries.items()
     ]

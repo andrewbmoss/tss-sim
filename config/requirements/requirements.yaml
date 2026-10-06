@@ -36,7 +36,8 @@
 #
 # Rev F alignment (2026-09-27): every threshold and goal here now matches the
 # requirements document.  Six goals that the document does not state were set
-# to null (INS-10, INS-11, INS-14, INS-18, INS-24, INS-26); each entry's notes
+# to null (INS-10, INS-11, INS-14, INS-18, INS-24, INS-26; INS-26's goal was
+# later restored at 3.7e-9 in Rev G); each entry's notes
 # record the value it used to carry.  With a null goal the best verdict is
 # "threshold", so scores on those entries can drop from "goal" to "threshold"
 # with no change in performance.  scripts/import_srm.py exists to bring the remainder across
@@ -110,23 +111,49 @@ requirements:
     title: Unambiguous range
     sense: min
     unit: m
-    threshold: 1.0e+6
+    threshold: 1.05e+6
     goal: 1.5e+6
     claims: [C1, C2]
     work_packages: [WP3, WP4]
     source: derived
-    derivation: "SCI-08: apparent range at least 1.5 times the maximum true range so foF2 and fxF2 can be read (Franklin and MacLean 1969)"
+    derivation: "SCI-08: apparent range at least 1.5 times the maximum true range so foF2 and fxF2 can be read (Franklin and MacLean 1969); 1.5 x (900 - 200) km over the MIS-01 envelope (Rev G, amended 2026-09-29)"
+    notes: >-
+      Raised from 1000 km, which served only spacecraft at or below 800 km, to
+      1050 km for the 900 km top of MIS-01 with hmF2 at 200 km.
 
   INS-05:
     title: Virtual range resolution
     sense: max
     unit: m
+    # Stated per band (Rev G, amended 2026-09-30).  The top-level values are
+    # the strictest band's and are used only when a run reports one resolution
+    # with no frequencies.
     threshold: 1.0e+4
     goal: 5.0e+3
+    bands:
+      - {f_max_hz: 5.0e+5, threshold: 1.5e+4, goal: 1.0e+4}
+      - {f_min_hz: 5.0e+5, f_max_hz: 7.0e+5, threshold: 1.0e+4, goal: 1.0e+4}
+      - {f_min_hz: 7.0e+5, threshold: 1.0e+4, goal: 5.0e+3}
     claims: [C2]
     work_packages: [WP4, WP6]
     source: derived
-    derivation: "SCI-06 vertical structure: virtual range resolution 10 km threshold, 5 km goal"
+    derivation: "SCI-06 vertical structure, per band: 10 km threshold at and above 0.5 MHz and 15 km below; 5 km goal at and above 0.7 MHz and 10 km below (Rev G section 5.2)"
+    notes: >-
+      The range cell of one dwell is c ENBW / (2 df), and INS-02's step of
+      0.05 f makes it about 3000 ENBW / f km below 3 MHz, with f at the step's
+      lower edge.  With a Hann window it is 13.6 km at 0.33 MHz and 9.0 km at
+      0.5 MHz; without a window it is 9.1 km at 0.33 MHz and 4.3 km at 0.7 MHz.  The band edges sit where each
+      value closes with margin: the threshold with Hann, the goal without a
+      window.  Frequencies below 0.45 MHz sound
+      only the lowest-density topside (solar minimum, 800 to 900 km, night,
+      high latitude: at most about 5 to 10 percent of profiles in the governing
+      cell), where the profile is smooth and scale heights are large (150 +/-
+      30 km at night, Meehan), so 15 km is H/10 and matches the 15 km of the
+      Alouette and ISIS record.  The loss is finer resolution of the borders of
+      the deepest depletions.  Declared conflict: under INS-02's goal step of
+      0.025 f the cell doubles below 6 MHz, so the INS-02 goal and INS-05 cannot
+      both be met at the bottom of the band (SCI-04 against SCI-06); a mission
+      chooses.
 
   INS-07:
     title: Ionogram period
@@ -159,10 +186,13 @@ requirements:
     claims: [C3]
     work_packages: [WP5, WP6]
     source: derived
-    derivation: "SCI-15 and SCI-16; dd = v f / K_f, bounded to one range cell of INS-05 (Requirements Rev G sec. 5.4)"
+    derivation: "SCI-15 and SCI-16; dd = v f / K_f, bounded to one range cell as defined in Requirements Rev G sec. 1 (amended 2026-09-29), sec. 5.4"
     notes: >-
-      Scored as the residual apparent-range bias in units of INS-05 range cells
-      after the WP5 processing, which is the ionogram-mode part of INS-09.  The
+      Scored as the residual apparent-range bias in range cells after the WP5
+      processing.  The range cell is the resolution of one analysis dwell,
+      c / (2 K_f T_dwell), which for the A1 stepped sweep is 1.0 km above 3 MHz
+      and 9.1 km at 0.33 MHz.  It is not the 10 km INS-05 threshold and not the
+      10 km bins of the INS-13 product.  This is the ionogram-mode part of INS-09.  The
       Doppler-mode part (plus or minus 1 km/s unambiguous and 100 m/s
       resolution, in the Earth-fixed frame after the ephemeris-predicted
       platform term is removed) is not scored by this entry; Rev G states that
@@ -228,19 +258,19 @@ requirements:
     title: Coherent processing interval
     sense: min
     unit: s
-    threshold: 0.5
+    threshold: 0.05
     goal: 1.0
     claims: [C3]
     work_packages: [WP5]
     source: derived
-    derivation: "T >= c / (2 delta_v f) at 3 MHz for the velocity resolution of SCI-15 (100 m/s threshold, 50 m/s goal); Requirements Rev G sec. 5.4 and 5.10"
+    derivation: "Threshold: the interval that gives the SCI-15 accuracy of 100 m/s (1 sigma) at 3 MHz, 10 dB per sub-sweep and 40 Hz, sigma_v = (c/2f) sqrt(6) / (2 pi T sqrt(rho F_r T)). Goal: T >= c / (2 delta_v f) at 3 MHz for the SCI-15 goal resolution of 50 m/s. Requirements Rev G sec. 5.4 and 5.10 (amended 2026-09-29)"
     notes: >-
-      Rev G re-derives this from SCI-15.  Rev F took 1.0 s and 2.0 s from
-      SCI-23, which Rev G meets from the displacement of a structure between
-      two looks rather than by Doppler.  The product f*T is 1.5e6 Hz s at
-      threshold and 3.0e6 at goal at every frequency, so the interval shortens
-      as 1/f above 3 MHz.  The requirement includes compensation for the change
-      in geometry over the interval.
+      Accuracy is the SCI-15 threshold and resolution its goal (Rev G amendment
+      of 2026-09-29).  The threshold interval scales as f^(-2/3); the goal
+      product f*T = 3.0e6 Hz s holds at every frequency.  Rev F took 1.0 s and
+      2.0 s from SCI-23, and Rev G first took 0.5 s from a threshold
+      resolution.  The requirement includes compensation for the change in
+      geometry over the interval.
 
   INS-18:
     title: Vector receive channel phase match
@@ -292,17 +322,17 @@ requirements:
     title: Oscillator stability
     sense: max
     unit: Allan deviation
-    threshold: 7.4e-9
+    threshold: 6.7e-8
     goal: 3.7e-9
     claims: [C3]
     work_packages: [WP3, WP5]
     source: derived
-    derivation: "sigma_phi = 2 pi (f T) sigma_y(T) at the coherent interval of INS-15, f T = c / (2 delta_v) from SCI-15, sigma_phi = 4 degrees (Poole 1985); Requirements Rev G sec. 5.10"
+    derivation: "Threshold: one tenth of the SCI-15 accuracy of 100 m/s allocated to the oscillator, sigma_v = c sigma_y / 2. Goal: sigma_phi = 2 pi (f T) sigma_y(T) with f T = c / (2 delta_v) at the SCI-15 goal resolution of 50 m/s, sigma_phi = 4 degrees (Poole 1985). Requirements Rev G sec. 5.4 and 5.10 (amended 2026-09-29)"
     notes: >-
-      Scored at 0.5 s and 1 s.  Rev F's 2e-9 came from SCI-23 and is
-      withdrawn.  Open Item 12 is whether the range-correlation credit applies,
-      which would relax this by a factor of 12 to 24.  Until that is settled
-      the uncredited number stands.
+      Scored at 0.05 s (threshold) and 1 s (goal).  Rev F's 2e-9 came from
+      SCI-23 and is withdrawn, and Rev G's first 7.4e-9 came from a threshold
+      resolution.  Open Item 12 is whether the range-correlation credit applies
+      to the goal, which would relax it by a factor of 12 to 24.
 
   SCI-05:
     title: Absolute electron density accuracy

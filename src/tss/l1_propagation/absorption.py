@@ -185,8 +185,11 @@ def reflection_altitude_m(
         Reflection altitude in metres, located by bisection to ``tol_m``.
     ``"evanescent"``
         The plasma frequency at the spacecraft already exceeds ``f_hz``, so the
-        wave cannot propagate away from the antenna.  This is the physical floor
-        on the sounding band and it is what INS-01's lower edge is set against.
+        O-mode wave cannot propagate away from the antenna.  This is the
+        physical floor on an O-mode profile and it is what INS-01's lower edge
+        is set against.  The Z and whistler modes do propagate below the local
+        plasma frequency in a magnetised plasma; this field-free model does not
+        represent them.
     ``"penetrating"``
         The wave passes the F2 peak.  There is no topside echo.
 

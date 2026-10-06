@@ -327,10 +327,22 @@ def doppler_geometry(
             platform.velocity_ecef_mps, los, reflector_velocity=reflector_velocity
         )
 
+    # For a stepped sweep the bias uses the rate of the step that sounds each
+    # frequency, which below 3 MHz is slower than the peak and so gives a larger
+    # bias per unit velocity than k_f_hz_per_s alone would.
+    from tss import sweep_law
+
+    if sweep_law.is_stepped(sweep):
+        k_by_f = np.atleast_1d(
+            sweep_law.rate_hz_per_s(sweep, sweep_law.time_at_frequency_s(sweep, freqs))
+        )
+    else:
+        k_by_f = np.full(freqs.shape, k_f)
+
     out: list[DopplerGeometry] = []
-    for f in freqs:
+    for f, k_here in zip(freqs, k_by_f):
         f_d = float(doppler_shift_hz(v_close, float(f)))
-        bias = float(apparent_range_bias_m(v_close, float(f), k_f, direction=direction))
+        bias = float(apparent_range_bias_m(v_close, float(f), float(k_here), direction=direction))
         out.append(
             DopplerGeometry(
                 freq_hz=float(f),

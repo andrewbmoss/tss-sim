@@ -181,10 +181,12 @@ def reflects(
 
     True where the sounding frequency is at or below the mode's cutoff.  For the
     O mode that is ``f <= f_p``.  For the X mode it is ``f <= f_x``, which
-    rearranges to ``f_p^2 >= f * (f - f_ce)``, so an X wave below the
-    gyrofrequency reflects at any density at all.  That last case is real and it
-    is one of the things that makes the bottom of the sounding band awkward to
-    reason about.
+    rearranges to ``f_p^2 >= f * (f - f_ce)``.  Below the gyrofrequency that
+    inequality holds at any density, but it does not mean an X wave reflects
+    there: ``f_x`` always exceeds ``f_ce``, so there is no X = 1 - Y cutoff
+    below it.  The branch that exists below the gyrofrequency is the whistler
+    mode, which propagates.  Callers should treat a True result for the X mode
+    at ``f < f_ce`` as "no X-mode echo", not as a reflection.
     """
     f = np.asarray(f_hz, dtype=float)
     return np.asarray(f <= cutoff_frequency(mode, f_p_hz, f_ce_hz))

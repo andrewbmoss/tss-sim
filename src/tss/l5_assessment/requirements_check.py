@@ -37,7 +37,9 @@ INS-01b     sweep_max_frequency_hz             Highest frequency swept (sense mi
 INS-02      frequency_step_fraction_max        df / min(f, 3 MHz), so the fractional
                                                rule and the 150 kHz cap are one number.
 INS-04      unambiguous_range_m                From the sample rate and the sweep rate.
-INS-05      virtual_range_resolution_m         Window ENBW over the coherent block.
+INS-05      virtual_range_resolution_by_       Window ENBW over the coherent block,
+            frequency (falls back to           per column, scored per band (Rev G,
+            virtual_range_resolution_m)        amended 2026-09-30).
 INS-07      ionogram_period_s                  The sweep period actually transmitted.
 INS-08      mode_discrimination                Boolean.  False from a scalar receiver,
                                                and False is a failure, not a silence.
@@ -86,8 +88,9 @@ diagnostics.
 
 INS-15
 ------
-INS-15 asks for a coherent processing interval of 0.5 s at threshold and 1 s
-at goal at 3 MHz (Rev G, from SCI-15).
+INS-15 asks for a coherent processing interval of 0.05 s at threshold, from
+the SCI-15 accuracy, and 1 s at goal, from the SCI-15 resolution, at 3 MHz
+(Rev G, amended 2026-09-29).
 It is mapped to ``coherent_interval_s``, which only a tier that performs
 motion-compensated coherent integration reports.  The baseline tier's
 per-transform block duration is carried separately as ``block_duration_s`` and
@@ -139,9 +142,11 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     ("INS-04", "unambiguous_range_m", "c fs / (4 K_f), from the record and the sweep."),
     (
         "INS-05",
-        "virtual_range_resolution_m",
+        "virtual_range_resolution_by_frequency",
         "window equivalent noise bandwidth over the coherent block duration, not the "
-        "Fourier bin spacing, which zero padding would otherwise flatter.",
+        "Fourier bin spacing, which zero padding would otherwise flatter.  Scored per "
+        "band: <=15 km below 0.5 MHz and <=10 km at and above at threshold.  A tier that "
+        "reports only one resolution is scored on it against the strictest band.",
     ),
     ("INS-07", "ionogram_period_s", "the sweep period the instrument actually transmitted."),
     (
@@ -225,6 +230,11 @@ METRIC_FOR_REQUIREMENT: dict[str, str] = {
     rid: metric for rid, metric, _ in MAPPING_TABLE if metric is not None
 }
 
+#: A metric to use when the mapped one was not computed.  INS-05 is mapped to
+#: the per-column resolution; a tier that reports only the scalar is scored on
+#: that against the strictest band.
+FALLBACK_METRIC: dict[str, str] = {"INS-05": "virtual_range_resolution_m"}
+
 #: Requirement ID to the reason it is not scored here, for the rows that do not.
 NOT_SCORED_HERE: dict[str, str] = {
     rid: note for rid, metric, note in MAPPING_TABLE if metric is None
@@ -268,6 +278,8 @@ def achieved_from_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
     achieved: dict[str, Any] = {}
     for rid, metric in METRIC_FOR_REQUIREMENT.items():
         value = metrics.get(metric)
+        if value is None and rid in FALLBACK_METRIC:
+            value = metrics.get(FALLBACK_METRIC[rid])
         if value is None:
             continue
         achieved[rid] = value
@@ -316,6 +328,9 @@ def check_requirements(
 
     for rid, record in scored.items():
         metric = METRIC_FOR_REQUIREMENT.get(rid)
+        if metric is not None and metrics.get(metric) is None and rid in FALLBACK_METRIC:
+            if metrics.get(FALLBACK_METRIC[rid]) is not None:
+                metric = FALLBACK_METRIC[rid]
         record["metric"] = metric
         if record.get("verdict") != "not_evaluated":
             continue

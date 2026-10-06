@@ -84,7 +84,11 @@ import numpy as np
 
 from tss.constants import C_LIGHT
 from tss.interfaces import ReceivedSignal, SweepSchedule
-from tss.l3_signal.base import instantaneous_frequency_hz, sweep_phase_rad
+from tss.l3_signal.base import (
+    instantaneous_frequency_hz,
+    local_rate_hz_per_s,
+    sweep_phase_rad,
+)
 
 __all__ = [
     "Dechirped",
@@ -120,6 +124,15 @@ class Dechirped:
     centre_frequency_hz
         Instantaneous transmitted frequency at the centre of the block.  This
         is the frequency the resulting ionogram column is filed under.
+    k_f_hz_per_s
+        Sweep rate magnitude at the centre of the block, the rate that converts
+        this block's beat frequencies to range.  For a uniform sweep it is the
+        schedule's rate.  For a stepped sweep it is the rate of the step the
+        block sits in.  ``None`` means use the schedule's rate, which keeps
+        blocks built by hand before this field existed working unchanged.
+    rate_uniform
+        False when the block spans samples from steps with different rates, in
+        which case a single range scale is only approximate for it.
     """
 
     samples: np.ndarray
@@ -128,6 +141,8 @@ class Dechirped:
     sweep: SweepSchedule
     oriented: bool
     centre_frequency_hz: float
+    k_f_hz_per_s: float | None = None
+    rate_uniform: bool = True
 
     def describe(self) -> Mapping[str, Any]:
         """Small record of the block, for diagnostics and manifests."""
@@ -137,6 +152,8 @@ class Dechirped:
             "fs_hz": float(self.fs_hz),
             "oriented": bool(self.oriented),
             "centre_frequency_hz": float(self.centre_frequency_hz),
+            "k_f_hz_per_s": None if self.k_f_hz_per_s is None else float(self.k_f_hz_per_s),
+            "rate_uniform": bool(self.rate_uniform),
         }
 
 
@@ -228,9 +245,11 @@ def dechirp(
         if orient and direction > 0:
             product = np.conj(product)
 
-    centre = float(
-        np.atleast_1d(instantaneous_frequency_hz(signal.sweep, float(np.mean(t))))[0]
-    )
+    t_mid = float(np.mean(t))
+    centre = float(np.atleast_1d(instantaneous_frequency_hz(signal.sweep, t_mid))[0])
+    rates = np.atleast_1d(local_rate_hz_per_s(signal.sweep, np.array([t[0], t_mid, t[-1]])))
+    k_centre = float(rates[1])
+    uniform = bool(np.all(np.abs(rates - k_centre) <= 1e-9 * max(k_centre, 1.0)))
 
     return Dechirped(
         samples=product,
@@ -239,6 +258,8 @@ def dechirp(
         sweep=signal.sweep,
         oriented=bool(orient),
         centre_frequency_hz=centre,
+        k_f_hz_per_s=k_centre,
+        rate_uniform=uniform,
     )
 
 

@@ -68,6 +68,7 @@ from typing import Any
 
 import numpy as np
 
+from tss import sweep_law
 from tss.interfaces import SweepSchedule
 
 __all__ = [
@@ -101,6 +102,8 @@ def validate_schedule(sweep: SweepSchedule) -> None:
         raise ValueError(f"direction must be +1 or -1, got {sweep.direction!r}")
     if sweep.sweep_period_s <= 0.0:
         raise ValueError("sweep_period_s must be positive")
+    if sweep_law.is_stepped(sweep):
+        sweep_law.validate_stepped(sweep)
 
 
 def sweep_bandwidth_hz(sweep: SweepSchedule) -> float:
@@ -115,7 +118,11 @@ def sweep_duration_s(sweep: SweepSchedule) -> float:
     ``sweep_period_s``, which includes whatever retrace or dead time the
     schedule allows.  The duration used for synthesis is this one, because
     transmitting during retrace is not what the instrument does.
+
+    For a stepped schedule it is ``n_steps * step_dwell_s``.
     """
+    if sweep_law.is_stepped(sweep):
+        return sweep_law.active_duration_s(sweep)
     return sweep_bandwidth_hz(sweep) / float(sweep.k_f_hz_per_s)
 
 
@@ -173,6 +180,13 @@ def sweep_frequency_hz(
     """
     validate_schedule(sweep)
     tt = np.asarray(t, dtype=float)
+    if sweep_law.is_stepped(sweep):
+        if departure_hz is not None:
+            base = sweep_law.frequency_hz(
+                sweep if sweep.nonlinearity_ppm == 0.0 else _without_nonlinearity(sweep), tt
+            )
+            return base + np.asarray(departure_hz(tt), dtype=float)
+        return sweep_law.frequency_hz(sweep, tt)
     duration = sweep_duration_s(sweep)
     k = float(sweep.k_f_hz_per_s)
     direction = int(sweep.direction)
@@ -200,6 +214,11 @@ def sweep_phase_rad(
     """
     validate_schedule(sweep)
     tt = np.asarray(t, dtype=float)
+    if sweep_law.is_stepped(sweep):
+        if departure_phase_rad is not None:
+            base = sweep_law.phase_rad(_without_nonlinearity(sweep), tt)
+            return base + np.asarray(departure_phase_rad(tt), dtype=float)
+        return sweep_law.phase_rad(sweep, tt)
     duration = sweep_duration_s(sweep)
     k = float(sweep.k_f_hz_per_s)
     direction = int(sweep.direction)
@@ -253,6 +272,13 @@ def generate_sweep(
     return t, float(amplitude) * np.exp(1j * phase)
 
 
+def _without_nonlinearity(sweep: SweepSchedule) -> SweepSchedule:
+    """The same schedule with the built-in departure switched off."""
+    from dataclasses import replace
+
+    return replace(sweep, nonlinearity_ppm=0.0)
+
+
 def beat_frequency_hz(group_delay_s: np.ndarray | float, sweep: SweepSchedule) -> np.ndarray:
     """De-chirped beat frequency for a two-way group delay, Hz.
 
@@ -261,6 +287,10 @@ def beat_frequency_hz(group_delay_s: np.ndarray | float, sweep: SweepSchedule) -
     because an echo carries a delay and a link budget carries a range, and
     converting one to the other at the call site is how a factor of two gets
     lost.
+
+    For a stepped schedule this uses ``k_f_hz_per_s``, the peak rate, and so
+    gives the largest beat any step produces.  The beat within a given step is
+    ``K_i * tau`` with ``K_i`` from :func:`tss.sweep_law.rate_hz_per_s`.
     """
     return float(sweep.k_f_hz_per_s) * np.asarray(group_delay_s, dtype=float)
 
@@ -271,7 +301,35 @@ def schedule_from_config(cfg: Mapping[str, Any]) -> SweepSchedule:
     The keys are the ones ``config/default.yaml`` uses and there is no
     translation layer, deliberately: a configuration key that does not match the
     field it sets is a key that will eventually be set to the wrong thing.
+
+    A block with ``step_dwell_s`` builds the stepped A1 law, and its
+    ``k_f_hz_per_s`` is the peak step rate computed from that law.  A stated
+    ``k_f_hz_per_s`` is checked against it to 1%, which admits the rounded
+    5.6 MHz/s of Rev G and refuses a real disagreement.  A ``sweep_period_s`` of zero or
+    absent means the active duration.
     """
+    if float(cfg.get("step_dwell_s", 0.0) or 0.0) > 0.0:
+        schedule = sweep_law.stepped_schedule(
+            float(cfg["f_start_hz"]),
+            float(cfg["f_stop_hz"]),
+            float(cfg["step_dwell_s"]),
+            step_fraction=float(cfg.get("step_fraction", 0.05)),
+            step_cap_hz=float(cfg.get("step_cap_hz", 150.0e3)),
+            sweep_period_s=float(cfg.get("sweep_period_s", 0.0) or 0.0),
+            direction=int(cfg.get("direction", 1)),
+            nonlinearity_ppm=float(cfg.get("nonlinearity_ppm", 0.0)),
+        )
+        stated = cfg.get("k_f_hz_per_s")
+        if stated is not None and abs(float(stated) - schedule.k_f_hz_per_s) > (
+            0.01 * schedule.k_f_hz_per_s
+        ):
+            raise ValueError(
+                f"sweep block states k_f_hz_per_s={float(stated):.6g} but its step law "
+                f"peaks at {schedule.k_f_hz_per_s:.6g} Hz/s; omit k_f_hz_per_s for a "
+                "stepped sweep or make the two agree"
+            )
+        validate_schedule(schedule)
+        return schedule
     schedule = SweepSchedule(
         f_start_hz=float(cfg["f_start_hz"]),
         f_stop_hz=float(cfg["f_stop_hz"]),
