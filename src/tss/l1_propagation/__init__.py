@@ -68,6 +68,7 @@ from tss.l1_propagation.doppler import (  # noqa: F401
     coherent_interval_for_velocity_resolution_s,
     doppler_geometry,
     doppler_shift_hz,
+    refractive_index_at_platform,
     residual_bias_second_order_m,
     velocity_from_doppler_mps,
 )
@@ -104,6 +105,7 @@ __all__ = [
     # doppler
     "DopplerGeometry",
     "doppler_shift_hz",
+    "refractive_index_at_platform",
     "velocity_from_doppler_mps",
     "apparent_range_bias_m",
     "residual_bias_second_order_m",

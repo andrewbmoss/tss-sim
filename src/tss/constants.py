@@ -109,7 +109,10 @@ def range_cell_noise_bandwidth(range_resolution_m, k_f_hz_per_s):
 def doppler_range_bias(velocity_mps, f_hz, k_f_hz_per_s):
     """Apparent-range bias produced by a Doppler shift in a linear sweep.
 
-    ``dd = v * f / K_f``.  It is independent of range and grows linearly with
+    ``dd = v * f / K_f``.  This is the free-space value.  Inside the plasma it
+    is multiplied by the refractive index at the platform, which
+    :func:`tss.l1_propagation.doppler.apparent_range_bias_m` applies.  It is
+    independent of range and grows linearly with
     sounding frequency, so it is worst at the top of the band.  Removing it
     from a single transmit and receive pair is claim C3, the principal
     contribution proposed.

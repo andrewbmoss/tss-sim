@@ -60,8 +60,8 @@ replace it.  A campaign that cares about the X trace shape should use the
 ray-traced tier.
 
 **Doppler** from :mod:`tss.l1_propagation.doppler`, which is the forward model
-C3 must invert.  The tier reports the two-way shift in ``EchoSet.doppler_hz``
-and leaves the apparent-range bias to the layers that know the sweep rate,
+C3 must invert.  The tier reports the two-way shift in ``EchoSet.doppler_hz``,
+carrying the field-free refractive index at the spacecraft, and leaves the apparent-range bias to the layers that know the sweep rate,
 because :class:`~tss.interfaces.EchoSet` has no sweep to refer to.
 
 Band edges are results, not errors.  Below the local plasma frequency at the
@@ -90,6 +90,7 @@ from tss.l1_propagation.base import PropagationBase, plasma_frequency_at
 from tss.l1_propagation.doppler import (
     closing_velocity_mps,
     doppler_shift_hz,
+    refractive_index_at_platform,
     vertical_line_of_sight,
 )
 from tss.registry import register
@@ -219,6 +220,7 @@ class AnalyticPropagation(PropagationBase):
             "default_b_tesla": self.default_b_tesla,
             "geometry": "vertical incidence, no ray bending",
             "group_index": "field-free, collisionless",
+            "doppler_index": "field-free refractive index at the platform",
         }
 
     # -- the protocol -------------------------------------------------------
@@ -241,6 +243,7 @@ class AnalyticPropagation(PropagationBase):
         freqs = np.atleast_1d(np.asarray(freq_hz, dtype=float))
         h_sat = float(platform.alt_m)
         v_close = self._closing_velocity(platform)
+        f_n_sat = float(self.plasma_frequency_at(state, h_sat))
 
         n_rows = freqs.size * len(self.modes)
         out_freq = np.empty(n_rows, dtype=float)
@@ -258,7 +261,10 @@ class AnalyticPropagation(PropagationBase):
                 f = float(f)
                 out_freq[row] = f
                 out_mode[row] = mode
-                out_dopp[row] = float(doppler_shift_hz(v_close, f))
+                # NaN below the plasma frequency at the spacecraft, where the
+                # row is evanescent and there is no echo to carry a shift.
+                mu_sat = float(refractive_index_at_platform(f, f_n_sat))
+                out_dopp[row] = float(doppler_shift_hz(v_close, f, mu_sat=mu_sat))
 
                 h_refl, flag = self._reflection(state, f, h_sat, mode)
                 if isinstance(h_refl, str):

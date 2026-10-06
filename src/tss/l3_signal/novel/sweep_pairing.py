@@ -38,14 +38,16 @@ Why the half-sum cancels the bias to first order
 -------------------------------------------------
 In a linear sweep of rate ``K_f`` the de-chirped beat frequency for a one-way
 group range ``R`` is ``f_R = 2 K_f R / c``.  Motion adds the two-way Doppler
-shift ``f_d = 2 v_close f / c`` to the received instantaneous frequency, and the
+shift ``f_d = 2 mu_sat v_close f / c`` to the received instantaneous frequency,
+with ``mu_sat`` the refractive index at the platform, and the
 processor, having no way to tell the two contributions apart within one sweep,
 converts the sum back to range.  Writing it with the range rate
 ``Rdot = -v_close``, the apparent range on a sweep of direction ``d`` is
 
-    R_app(d) = R + d * Rdot * f / K_f
+    R_app(d) = R + d * mu_sat * Rdot * f / K_f
 
-where ``dd = Rdot * f / K_f`` is :func:`tss.constants.doppler_range_bias` and
+where ``dd = mu_sat * Rdot * f / K_f``, the free-space part of which is
+:func:`tss.constants.doppler_range_bias`, and
 ``d`` is +1 for an up-sweep and -1 for a down-sweep.  The derivation and the
 sign are in :mod:`tss.l1_propagation.doppler`; that module is the forward model
 this one has to invert, and it is deliberately complete so that the inversion

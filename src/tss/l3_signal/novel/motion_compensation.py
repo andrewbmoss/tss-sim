@@ -36,7 +36,9 @@ the sounding sits.  For the 50 m/s threshold of SCI-23 the product is about
 25 m/s goal it is twice that.  The relation is implemented in
 :func:`tss.l1_propagation.doppler.coherent_interval_for_velocity_resolution_s`
 and INS-15 takes its 1 s threshold and 2 s goal from it, evaluated at the low
-end of the band where the demand is hardest.
+end of the band where the demand is hardest.  That is the free-space relation.
+Inside the plasma the interval lengthens by ``1 / mu_sat``, the reciprocal of
+the refractive index at the platform, which the function takes as a keyword.
 
 Why that interval is the difficulty rather than the specification
 -------------------------------------------------------------------
