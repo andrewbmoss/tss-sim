@@ -62,12 +62,14 @@ all that stands between this and GitHub.
 
 ## Four things needing your judgement, not more code
 
-1. **The 5 m antenna's 0.5 dB sky-dominance margin does not reproduce.**
-   Recomputing from `small_antenna.py`'s own defaults (radius 5 mm, coil Q 150)
-   gives about +10 dB at 0.6 MHz and +5.7 dB at 0.33 MHz.  Reconciling needs
-   roughly 3x lower coil Q or about 5 dB more matching-network loss.  The
-   `antenna_scale` study reports both with the assumption each rests on.  Which
-   is right changes how much margin the small-antenna argument has.
+1. **The 5 m antenna does not hold sky dominance at the band edge.**  (Updated
+   2026-10-05.)  The short-dipole reactance in `antenna.py` was corrected to the
+   Balanis form; the model inherited from `small_antenna.py` used twice the
+   terminal capacitance and was 3 dB optimistic.  At radius 5 mm and coil Q 150
+   the 5 m margin at 0.33 MHz is now +0.5 dB against 2.6e7 K and -2.5 dB against
+   1.3e7 K, and about +7 dB at 0.6 MHz.  The old *0.5 dB against +10 dB*
+   disagreement was one model quoted at different frequencies and skies.  What
+   needs judgement is whether 5 m stays a candidate or 10 m becomes the floor.
 2. **Possible 20 dB double count in `config/instrument/baseline_6u.yaml`.**
    `transmit.efficiency_db: -20.0` is commented as matching-network dominated,
    but a matching-coil loss is already inside

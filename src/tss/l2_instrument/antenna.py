@@ -19,9 +19,18 @@ compared with a wavelength, fed through a series matching inductor.
 
     radiation resistance     R_r = 20 pi^2 (L/lambda)^2      (triangular current)
     conductor loss           R_c = L R_s / (6 pi a),  R_s = sqrt(pi f mu0 / sigma)
-    terminal capacitance     C_a = pi eps0 L / (ln(L/2a) - 1)
-    matching coil loss       R_m = |X_a| / Q,  X_a = -1/(omega C_a)
+    terminal reactance       X_a = -120 (ln(L/2a) - 1) / tan(pi L/lambda)
+    matching coil loss       R_m = |X_a| / Q
     radiation efficiency     eta = R_r / (R_r + R_c + R_m)
+
+The reactance is the short-dipole form in Balanis, Antenna Theory, written for
+the tip-to-tip length.  Well below resonance it is that of a terminal
+capacitance C_a = pi eps0 (L/2) / (ln(L/2a) - 1): the half-length, not the full
+length, multiplies pi eps0.  Until 2026-10-05 this module carried the full
+length there, which doubled the capacitance, halved the reactance and the coil
+loss, and made the band-edge efficiency 3.0 dB optimistic.  At and above
+half-wave resonance (L/lambda >= 0.5) the short-dipole forms do not apply; the
+reactance is set to zero there and the result is outside the model's range.
 
 Two things this deliberately does not model: the mutual impedance of a deployed
 structure against a small conducting bus, and the plasma sheath, which at these
@@ -75,21 +84,21 @@ band, that stops being true and the receiver sets the floor;
 
 THE 5 m CANDIDATE
 -----------------
-The author's reported result is that the 5 m candidate clears the sky-dominance
-threshold by only 0.5 dB on the measured sky, that is at the bottom of the band
-where the measurement exists.  That is a thin margin and it should be read as
-one: half a decibel is inside the +/- 2 dB the Franklin and MacLean reference
-itself carries, so on that number sky dominance at the band bottom is asserted
-rather than demonstrated.
+At this module's defaults (5 mm conductor radius, matching-coil Q of 150) the
+5 m candidate has an efficiency of -46.1 dB at the 0.33 MHz band edge.  Against
+the two sky temperatures the requirement set brackets the band edge with, that
+is a sky-dominance margin of +0.5 dB on 2.6e7 K and -2.5 dB on 1.3e7 K.  The
+5 m antenna is marginal on the first and fails on the second, so the
+receive-efficiency cancellation cannot be assumed for it at the band bottom.
+Half a decibel is inside the +/- 2 dB the Franklin and MacLean reference itself
+carries.  At 0.6 MHz, the lowest frequency that reference measured (2e7 K), the
+margin is about 7 dB.  The 10 m antenna clears the band edge by 6 to 9 dB.
 
-Recomputing it here with :func:`short_dipole_efficiency` at its default
-conductor radius of 5 mm and matching-coil Q of 150 gives a larger margin, about
-10 dB at 0.6 MHz and about 6 dB at the 0.33 MHz band edge.  The two are
-reconcilable only with a more pessimistic antenna than this module's defaults,
-roughly a factor of three lower coil Q or about 5 dB of additional
-matching-network loss.  Which of those the reported figure assumed is not
-recorded in the source this module was migrated from, and it is flagged here
-rather than quietly resolved in favour of the more comfortable number.  Use
+These figures are 3 dB lower than the ones this module produced before the
+reactance was corrected on 2026-10-05.  The requirement document's earlier
+0.5 dB (0.33 MHz, 1.3e7 K) and this module's earlier 'about 10 dB' (0.6 MHz,
+2e7 K) were once carried as an unexplained disagreement.  They were the same
+model quoted at different frequencies and skies.  Use
 :func:`sky_dominance_margin_db` to recompute the margin for whatever antenna a
 configuration actually specifies.
 """
@@ -101,7 +110,7 @@ from typing import Any
 
 import numpy as np
 
-from tss.constants import C_LIGHT, EPS0, MU0, T0_K
+from tss.constants import C_LIGHT, MU0, T0_K
 from tss.units import db, undb
 
 __all__ = [
@@ -134,14 +143,15 @@ def short_dipole_efficiency(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Radiation efficiency of a short dipole, as a ratio, with its terms.
 
-    Migrated from ``ISISValidation/small_antenna.py`` with the arithmetic
-    unchanged.  The second return value carries ``r_rad``, ``r_cond``,
-    ``r_match`` and ``lam`` so that a trade study can see which loss dominates
+    Migrated from ``ISISValidation/small_antenna.py``.  The terminal reactance
+    was corrected on 2026-10-05 to the Balanis short-dipole form; the original
+    used twice the terminal capacitance.  The second return value carries
+    ``r_rad``, ``r_cond``, ``r_match``, ``x_a`` and ``lam`` so that a trade study can see which loss dominates
     rather than only the total, which matters because the conductor loss and the
     matching-coil loss respond to completely different design choices.
 
-    The ``max(ln(L/2a) - 1, 0.1)`` floor in the terminal capacitance is kept
-    from the original.  It stops the capacitance running away for a fat, short
+    The ``max(ln(L/2a) - 1, 0.1)`` floor in the terminal reactance is kept
+    from the original.  It stops the reactance vanishing for a fat, short
     conductor where the thin-wire expression has stopped being valid; it is a
     guard, not a model, and a configuration that reaches it is outside the
     model's range.
@@ -156,14 +166,21 @@ def short_dipole_efficiency(
     r_c = length * r_s / (6.0 * np.pi * radius)
 
     if include_match:
-        c_a = np.pi * EPS0 * length / max(np.log(length / (2.0 * radius)) - 1.0, 0.1)
-        x_a = 1.0 / (2.0 * np.pi * f * c_a)   # magnitude of the capacitive reactance
+        # Balanis short dipole: |X| = 120 (ln(L/2a) - 1) / tan(k L/2), with
+        # k L/2 = pi L/lambda.  Its low-frequency limit is 1/(omega C_a) with
+        # C_a = pi eps0 (L/2) / (ln(L/2a) - 1).  Zero at and above half-wave
+        # resonance, where the short-dipole form no longer applies.
+        ln_term = max(np.log(length / (2.0 * radius)) - 1.0, 0.1)
+        half_kl = np.pi * length / lam
+        below = half_kl < 0.5 * np.pi
+        x_a = np.where(below, 120.0 * ln_term / np.tan(np.where(below, half_kl, 1.0)), 0.0)
         r_m = x_a / coil_q
     else:
+        x_a = np.zeros_like(f)
         r_m = np.zeros_like(f)
 
     eta = r_rad / (r_rad + r_c + r_m)
-    return eta, {"r_rad": r_rad, "r_cond": r_c, "r_match": r_m, "lam": lam}
+    return eta, {"r_rad": r_rad, "r_cond": r_c, "r_match": r_m, "x_a": x_a, "lam": lam}
 
 
 def resonant_length_m(f_hz: np.ndarray | float) -> np.ndarray:
