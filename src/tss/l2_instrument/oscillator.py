@@ -29,8 +29,10 @@ with ``f`` the carrier, ``tau`` the interval over which the jitter is asked
 about, and ``sigma_y`` the fractional frequency Allan deviation at that
 interval.  This is the bridge between the way an oscillator is specified,
 which is an Allan deviation, and the way it hurts, which is phase.  INS-26's
-threshold of 2e-9 at 1 s and at 2 s comes out of this relation applied to the
-coherent processing interval.
+goal of 3.2e-9 at 1.15 s comes out of this relation applied to the coherent
+processing interval of INS-15.  Its threshold of 5.8e-8 at 0.05 s comes from
+the velocity accuracy instead, through ``sigma_v = c sigma_y / (2 mu_sat)``
+(Requirements Rev G, amended 2026-10-06).
 
 **Sideband level from a phase departure.**
 
@@ -97,11 +99,29 @@ __all__ = [
     "range_correlation_credit_db",
     "correlation_crossover_hz",
     "INS26_ALLAN_THRESHOLD",
+    "INS26_THRESHOLD_INTERVAL_S",
+    "INS26_ALLAN_GOAL",
+    "INS26_GOAL_INTERVAL_S",
+    "BASELINE_PART_ALLAN",
     "OPEN_ITEM_12_CREDIT_RANGE",
 ]
 
-#: INS-26 threshold, fractional frequency Allan deviation at 1 s and at 2 s.
-INS26_ALLAN_THRESHOLD = 2.0e-9
+#: INS-26 threshold and the interval it is written at.  Requirements Rev G as
+#: amended 2026-10-06: one tenth of the SCI-15 accuracy, at a refractive index
+#: at the spacecraft of 0.87.
+INS26_ALLAN_THRESHOLD = 5.8e-8
+INS26_THRESHOLD_INTERVAL_S = 0.05
+
+#: INS-26 goal and its interval, from the SCI-15 goal resolution with no
+#: range-correlation credit.
+INS26_ALLAN_GOAL = 3.2e-9
+INS26_GOAL_INTERVAL_S = 1.15
+
+#: Allan deviation of the part the baseline instrument assumes, at 1 s and at
+#: 2 s.  It is a property of the part and not a requirement.  It meets the
+#: INS-26 goal.  It was the Rev F requirement, which is where the number came
+#: from.
+BASELINE_PART_ALLAN = 2.0e-9
 
 #: The disputed range-correlation credit, as a power factor.  14 to 17 dB.
 OPEN_ITEM_12_CREDIT_RANGE = (24.0, 48.0)
@@ -175,8 +195,10 @@ class Oscillator:
     ----------
     allan_deviation
         Mapping from averaging interval in seconds to fractional frequency Allan
-        deviation.  The baseline instrument configuration states 1 s and 2 s,
-        which are the intervals INS-26 is written at.  Intermediate intervals are
+        deviation.  The baseline instrument configuration states 1 s and 2 s
+        for the part it assumes.  INS-26 is written at 0.05 s and 1.15 s, so a
+        score at the threshold interval is flagged as outside the table.
+        Intermediate intervals are
         interpolated in log-log, which is right for a power-law noise type and
         wrong across a noise-type boundary; a caller asking far outside the
         tabulated intervals gets a warning flag in :meth:`describe` rather than a
@@ -194,7 +216,7 @@ class Oscillator:
         *,
         single_reference: bool = True,
     ) -> None:
-        table = dict(allan_deviation or {1.0: INS26_ALLAN_THRESHOLD, 2.0: INS26_ALLAN_THRESHOLD})
+        table = dict(allan_deviation or {1.0: BASELINE_PART_ALLAN, 2.0: BASELINE_PART_ALLAN})
         if not table:
             raise ValueError("allan_deviation needs at least one interval")
         if any(t <= 0.0 for t in table) or any(v <= 0.0 for v in table.values()):
@@ -274,6 +296,10 @@ class Oscillator:
     ) -> dict[str, Any]:
         """Score the oscillator against INS-26, both ways.
 
+        ``threshold`` defaults to the INS-26 threshold, which is written at
+        0.05 s.  To score the goal, pass :data:`INS26_ALLAN_GOAL` with a
+        coherent interval of :data:`INS26_GOAL_INTERVAL_S`.
+
         The verdict is taken on the UNCREDITED figure.  The credited figure is
         reported beside it as a note, together with the credit that would apply
         and the statement that open item 12 has not settled whether it may be
@@ -315,6 +341,9 @@ class Oscillator:
             "allan_deviation": dict(self.allan_deviation),
             "single_reference": self.single_reference,
             "ins26_threshold": INS26_ALLAN_THRESHOLD,
+            "ins26_threshold_interval_s": INS26_THRESHOLD_INTERVAL_S,
+            "ins26_goal": INS26_ALLAN_GOAL,
+            "ins26_goal_interval_s": INS26_GOAL_INTERVAL_S,
             "range_correlation_credit": "not applied by default, open item 12",
             "open_item_12_credit_range": list(OPEN_ITEM_12_CREDIT_RANGE),
         }

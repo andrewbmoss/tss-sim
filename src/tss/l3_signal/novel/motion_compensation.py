@@ -31,14 +31,16 @@ The consequence worth stating is that the product is frequency independent:
     f * T = c / (2 * delta_v)
 
 so the demand is on the velocity resolution alone and not on where in the band
-the sounding sits.  For the 50 m/s threshold of SCI-23 the product is about
-3.0e6, which is 3.0 s at 1 MHz, 0.30 s at 10 MHz and 0.15 s at 20 MHz.  For the
-25 m/s goal it is twice that.  The relation is implemented in
-:func:`tss.l1_propagation.doppler.coherent_interval_for_velocity_resolution_s`
-and INS-15 takes its 1 s threshold and 2 s goal from it, evaluated at the low
-end of the band where the demand is hardest.  That is the free-space relation.
-Inside the plasma the interval lengthens by ``1 / mu_sat``, the reciprocal of
-the refractive index at the platform, which the function takes as a keyword.
+the sounding sits.  For the 50 m/s goal resolution of SCI-15 the product is
+about 3.0e6, which is 1.0 s at 3 MHz, 0.30 s at 10 MHz and 0.15 s at 20 MHz.
+The relation is implemented in
+:func:`tss.l1_propagation.doppler.coherent_interval_for_velocity_resolution_s`.
+That is the free-space relation.  Inside the plasma the interval lengthens by
+``1 / mu_sat``, the reciprocal of the refractive index at the platform, which
+the function takes as a keyword.  INS-15 takes its goal from it at ``mu_sat``
+of 0.87, which is 1.15 s at 3 MHz.  Its threshold, 0.05 s at 3 MHz, comes from
+the SCI-15 accuracy and not from this relation (Requirements Rev G, amended
+2026-10-06).
 
 Why that interval is the difficulty rather than the specification
 -------------------------------------------------------------------
@@ -74,9 +76,10 @@ bounds how much of the interval is usable.
 
 Oscillator stability enters here
 ---------------------------------
-Coherent integration over 1 to 2 s requires the reference to stay coherent over
-1 to 2 s.  INS-26 takes its Allan deviation threshold from
-``sigma_phi = 2 pi (f T) sigma_y(T)`` evaluated at this interval, so the
+Coherent integration over the 1.15 s goal interval of INS-15 requires the
+reference to stay coherent over it.  INS-26 takes its Allan deviation goal,
+3.2e-9, from ``sigma_phi = 2 pi (f T) sigma_y(T)`` evaluated at that interval,
+and its threshold, 5.8e-8 at 0.05 s, from the velocity accuracy, so the
 coherent interval chosen here sets an oscillator requirement directly.  Whether
 the range-correlation credit described in :mod:`tss.l3_signal.dechirp` applies
 to it is open item 12 in the proposal and it would relax INS-26 by more than an
@@ -123,8 +126,8 @@ _MESSAGE = (
     "WP5: motion-compensated coherent integration is not implemented.  The "
     "required interval follows from T >= c / (2 delta_v f), which is implemented "
     "in tss.l1_propagation.doppler.coherent_interval_for_velocity_resolution_s, "
-    "but the compensation itself is unstarted: over the 1 to 2 s interval INS-15 "
-    "demands, the spacecraft moves 7.6 to 15 km and the geometry changes "
+    "but the compensation itself is unstarted: over the 1.15 s goal interval of "
+    "INS-15 the spacecraft moves 8.8 km and the geometry changes "
     "materially within one velocity estimate, so the platform cannot be treated "
     "as quasi-stationary.  See docs/work-packages.md row WP5.  Claim C3."
 )
@@ -166,7 +169,7 @@ def phase_history_rad(
     Intended to integrate ``2 pi f_d(t)`` over the coherent interval using the
     ephemeris, with the line of sight recomputed at each step rather than held
     fixed, because holding it fixed is exactly the quasi-stationary assumption
-    that does not hold over 1 to 2 s.
+    that does not hold over a second or more.
 
     Raises
     ------
@@ -202,11 +205,11 @@ def integrate_coherently(
     signals: Sequence[ReceivedSignal],
     platform: Sequence[PlatformState],
     *,
-    interval_s: float = 1.0,
+    interval_s: float = 1.15,
 ) -> ReceivedSignal:
     """Coherently integrate several sweeps after compensation.  Not implemented.
 
-    ``interval_s`` defaults to the INS-15 threshold of 1 s.  How much of the
+    ``interval_s`` defaults to the INS-15 goal of 1.15 s at 3 MHz.  How much of the
     interval is usable depends on the coherence time of the topside echo, which
     is open question 1 in the module docstring and has no measured answer.
 

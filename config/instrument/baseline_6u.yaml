@@ -24,7 +24,7 @@ isolation:
   coupling_delay_s: 3.0e-9    # open item 13, deployed geometry not yet fixed
 
 oscillator:
-  allan_deviation_1s: 2.0e-9  # INS-26 threshold
+  allan_deviation_1s: 2.0e-9  # the assumed part; INS-26 asks 5.8e-8 at 0.05 s and 3.2e-9 at 1.15 s
   allan_deviation_2s: 2.0e-9
   single_reference: true      # INS-21; this is what earns the range-correlation credit
 

@@ -715,6 +715,7 @@ from tss.studies import (  # noqa: E402,F401
     isis_validation,
     link_budget,
     min_frequency,
+    route_one,
     sky_noise,
     trade_space,
     transcription,

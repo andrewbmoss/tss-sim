@@ -37,7 +37,7 @@
 # Rev F alignment (2026-09-27): every threshold and goal here now matches the
 # requirements document.  Six goals that the document does not state were set
 # to null (INS-10, INS-11, INS-14, INS-18, INS-24, INS-26; INS-26's goal was
-# later restored at 3.7e-9 in Rev G); each entry's notes
+# later restored at 3.7e-9 in Rev G, 3.2e-9 after 2026-10-06); each entry's notes
 # record the value it used to carry.  With a null goal the best verdict is
 # "threshold", so scores on those entries can drop from "goal" to "threshold"
 # with no change in performance.  scripts/import_srm.py exists to bring the remainder across
@@ -186,7 +186,7 @@ requirements:
     claims: [C3]
     work_packages: [WP5, WP6]
     source: derived
-    derivation: "SCI-15 and SCI-16; dd = v f / K_f, bounded to one range cell as defined in Requirements Rev G sec. 1 (amended 2026-09-29), sec. 5.4"
+    derivation: "SCI-15 and SCI-16; dd = mu_sat v f / K_f, evaluated at its upper bound mu_sat = 1, bounded to one range cell as defined in Requirements Rev G sec. 1 (amended 2026-09-29), sec. 5.4"
     notes: >-
       Scored as the residual apparent-range bias in range cells after the WP5
       processing.  The range cell is the resolution of one analysis dwell,
@@ -259,15 +259,18 @@ requirements:
     sense: min
     unit: s
     threshold: 0.05
-    goal: 1.0
+    goal: 1.15
     claims: [C3]
     work_packages: [WP5]
     source: derived
-    derivation: "Threshold: the interval that gives the SCI-15 accuracy of 100 m/s (1 sigma) at 3 MHz, 10 dB per sub-sweep and 40 Hz, sigma_v = (c/2f) sqrt(6) / (2 pi T sqrt(rho F_r T)). Goal: T >= c / (2 delta_v f) at 3 MHz for the SCI-15 goal resolution of 50 m/s. Requirements Rev G sec. 5.4 and 5.10 (amended 2026-09-29)"
+    derivation: "Threshold: the interval that gives the SCI-15 accuracy of 100 m/s (1 sigma) at 3 MHz, 10 dB per sub-sweep and 40 Hz, sigma_v = (c / 2 f mu_sat) sqrt(6) / (2 pi T sqrt(rho F_r T)). Goal: T >= c / (2 delta_v f mu_sat) at 3 MHz for the SCI-15 goal resolution of 50 m/s. Both at mu_sat = 0.87, the refractive index at the spacecraft at twice the local plasma frequency. Requirements Rev G sec. 5.4 and 5.10 (amended 2026-10-06)"
     notes: >-
       Accuracy is the SCI-15 threshold and resolution its goal (Rev G amendment
-      of 2026-09-29).  The threshold interval scales as f^(-2/3); the goal
-      product f*T = 3.0e6 Hz s holds at every frequency.  Rev F took 1.0 s and
+      of 2026-09-29).  The threshold interval scales as (f mu_sat)^(-2/3); the
+      goal product f*T*mu_sat = 3.0e6 Hz s holds at every frequency.  The
+      Doppler relations carry mu_sat, the refractive index at the spacecraft
+      (amendment of 2026-10-06), and the values are sized at twice the plasma
+      frequency at the spacecraft; the goal was 1.0 s in free space.  Rev F took 1.0 s and
       2.0 s from SCI-23, and Rev G first took 0.5 s from a threshold
       resolution.  The requirement includes compensation for the change in
       geometry over the interval.
@@ -322,17 +325,19 @@ requirements:
     title: Oscillator stability
     sense: max
     unit: Allan deviation
-    threshold: 6.7e-8
-    goal: 3.7e-9
+    threshold: 5.8e-8
+    goal: 3.2e-9
     claims: [C3]
     work_packages: [WP3, WP5]
     source: derived
-    derivation: "Threshold: one tenth of the SCI-15 accuracy of 100 m/s allocated to the oscillator, sigma_v = c sigma_y / 2. Goal: sigma_phi = 2 pi (f T) sigma_y(T) with f T = c / (2 delta_v) at the SCI-15 goal resolution of 50 m/s, sigma_phi = 4 degrees (Poole 1985). Requirements Rev G sec. 5.4 and 5.10 (amended 2026-09-29)"
+    derivation: "Threshold: one tenth of the SCI-15 accuracy of 100 m/s allocated to the oscillator, sigma_v = c sigma_y / (2 mu_sat). Goal: sigma_phi = 2 pi (f T) sigma_y(T) with f T = c / (2 delta_v mu_sat) at the SCI-15 goal resolution of 50 m/s, sigma_phi = 4 degrees (Poole 1985). Both at mu_sat = 0.87, the refractive index at the spacecraft at twice the local plasma frequency. Requirements Rev G sec. 5.4 and 5.10 (amended 2026-10-06)"
     notes: >-
-      Scored at 0.05 s (threshold) and 1 s (goal).  Rev F's 2e-9 came from
+      Scored at 0.05 s (threshold) and 1.15 s (goal).  The free-space values
+      were 6.7e-8 and 3.7e-9 before the 2026-10-06 amendment carried the
+      refractive index at the spacecraft.  Rev F's 2e-9 came from
       SCI-23 and is withdrawn, and Rev G's first 7.4e-9 came from a threshold
       resolution.  Open Item 12 is whether the range-correlation credit applies
-      to the goal, which would relax it by a factor of 12 to 24.
+      to the goal, which would relax it by a factor of about 26.
 
   SCI-05:
     title: Absolute electron density accuracy

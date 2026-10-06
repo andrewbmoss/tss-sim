@@ -102,7 +102,7 @@ Included: platform velocity projected on the line of sight, and a reflector
 velocity along the same line so that a vertical plasma drift can be modelled.
 Not included: the second-order term from the geometry changing during the
 sweep, and the along-track term from flying into a horizontally varying
-ionosphere.  Neither is negligible for a 1 to 2 s coherent interval.  The first
+ionosphere.  Neither is negligible for a coherent interval of a second.  The first
 is quantified in :func:`residual_bias_second_order_m` so that it can at least be
 bounded; the second needs a ray-traced tier and a horizontally structured L0
 state, and there is no honest way to put a number on it here.

@@ -30,8 +30,8 @@ order they should be attempted:
 2.  Motion-compensated coherent integration over the known ephemeris.
 3.  Along-track aperture synthesis, as an exploratory extension.
 
-What makes this more than routine application.  SCI-23 demands a coherent
-interval of one to two seconds, which is long enough that the geometry changes
+What makes this more than routine application.  The SCI-15 goal
+resolution demands a coherent interval of about a second, which is long enough that the geometry changes
 materially within a single velocity estimate.  The platform therefore cannot be
 treated as quasi-stationary, which is the assumption every ground-based
 treatment makes.

@@ -20,7 +20,7 @@ Module                  WP      Claim  What it would do
                                        down sweep pair, radial velocity from the
                                        half-difference.  Principal contribution.
 ``motion_compensation`` WP5     C3     Coherent integration over the known ephemeris
-                                       across the 1 to 2 s interval INS-15 demands.
+                                       across the interval INS-15 demands.
 ``aperture_synthesis``  WP5     C2     Along-track aperture from the orbital motion.
                                        Exploratory extension, not a claim.
 ``leakage_cancel``      WP5     C4     Adaptive cancellation of transmit-to-receive

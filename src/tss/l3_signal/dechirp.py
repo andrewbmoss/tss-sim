@@ -67,8 +67,8 @@ tens of decibels stronger than the echo.  The hard problem moved; it did not go
 away.  :mod:`tss.l3_signal.novel.leakage_cancel` is where it sits now.
 
 One caveat on the suppression factor.  It is derived for a two-way delay that
-is constant across the coherent interval.  Over the 1 to 2 s interval SCI-23
-asks for, the delay changes, and the suppression is then an average over the
+is constant across the coherent interval.  Over the 1.15 s goal interval of
+INS-15, the delay changes, and the suppression is then an average over the
 delays visited rather than the value at one of them.  For a topside sounding the
 delay changes by a few per cent at most, so the correction is small, but it is a
 correction and not zero.

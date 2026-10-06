@@ -89,8 +89,9 @@ diagnostics.
 INS-15
 ------
 INS-15 asks for a coherent processing interval of 0.05 s at threshold, from
-the SCI-15 accuracy, and 1 s at goal, from the SCI-15 resolution, at 3 MHz
-(Rev G, amended 2026-09-29).
+the SCI-15 accuracy, and 1.15 s at goal, from the SCI-15 resolution, at 3 MHz
+and at twice the plasma frequency at the spacecraft (Rev G, amended
+2026-10-06 for the refractive index at the spacecraft).
 It is mapped to ``coherent_interval_s``, which only a tier that performs
 motion-compensated coherent integration reports.  The baseline tier's
 per-transform block duration is carried separately as ``block_duration_s`` and

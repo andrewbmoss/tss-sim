@@ -8,8 +8,8 @@ Along-track aperture synthesis.  Not implemented.  Exploratory extension, WP5.
 
 The idea
 --------
-The spacecraft moves 7.6 to 15 km during the 1 to 2 s coherent interval INS-15
-asks for.  That motion is a synthetic aperture whether or not it is used as
+The spacecraft moves 8.8 km during the 1.15 s coherent interval INS-15 asks
+for at goal.  That motion is a synthetic aperture whether or not it is used as
 one.  If the returns from successive sweeps stay coherent over that path, the
 phase history across the path carries along-track information, and processing
 it coherently would give an along-track resolution finer than the footprint of

@@ -12,9 +12,10 @@ deliberate and it is worth saying why rather than leaving it to be discovered.
 
 The campaign exists before the algorithm on purpose.  The shape of the answer
 C3 has to produce is fixed by the requirement set: a residual apparent-range
-bias under one INS-05 range cell, a velocity resolution of 50 m/s at threshold
-and 25 m/s at goal from SCI-23, and a coherent interval of 1 to 2 s from
-INS-15, scored per configuration.  Writing the campaign first fixes what the
+bias under one range cell, a line-of-sight velocity accuracy of 100 m/s at
+threshold and a resolution of 50 m/s at goal from SCI-15, and a coherent
+interval of 0.05 s at threshold and 1.15 s at goal, at 3 MHz, from INS-15,
+scored per configuration.  Writing the campaign first fixes what the
 result must look like before there is a result, which is the first governing
 principle of Section 3.1 applied to the author's own work: the number a result
 is scored against has to exist before the result does, and that discipline is
@@ -89,8 +90,8 @@ class MotionSeparatedSignalProcessing(SignalProcessingBase):
         Taper for the underlying transforms, passed through to the baseline
         chain.
     coherent_interval_s
-        Coherent processing interval.  INS-15 asks for 1 s at threshold and 2 s
-        at goal, and the default is the threshold.
+        Coherent processing interval.  INS-15 asks for 0.05 s at threshold and
+        1.15 s at goal, at 3 MHz, and the default is the goal.
     sweep_pairs
         How up-sweeps and down-sweeps are paired.  ``"up_down"`` is the
         alternating schedule ``config/campaigns/c3_doppler.yaml`` names.
@@ -104,7 +105,7 @@ class MotionSeparatedSignalProcessing(SignalProcessingBase):
         self,
         *,
         window: str = "hann",
-        coherent_interval_s: float = 1.0,
+        coherent_interval_s: float = 1.15,
         sweep_pairs: str = "up_down",
         leakage_cancellation: bool = True,
     ) -> None:
