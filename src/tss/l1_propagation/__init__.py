@@ -19,9 +19,11 @@ Module                  Status    Note
 ``absorption``          done      Deviative and non-deviative absorption,
                                   reimplemented from the author's tested link
                                   budget module.
-``magnetoionic``        partial   Cutoffs and reflection conditions are real
-                                  algebra.  Full Appleton-Hartree with
-                                  collisions raises.
+``magnetoionic``        done      Cutoffs, the collisionless Appleton-Hartree
+                                  index and its group index (Budden 12.8), the
+                                  field-aware group range, and the index with
+                                  collisions.  The X = 1 + Y branch below the
+                                  gyrofrequency is not generated.
 ``doppler``             done      The forward model C3 has to invert.
 ``analytic``            done      Vertical-incidence tier, registered as
                                   ``l1/analytic``.
@@ -75,8 +77,11 @@ from tss.l1_propagation.doppler import (  # noqa: F401
 from tss.l1_propagation.magnetoionic import (  # noqa: F401
     appleton_hartree,
     cutoff_frequency,
+    field_at,
+    group_index,
     gyrofrequency_at,
     o_mode_cutoff,
+    refractive_index_squared,
     trace_separation_hz,
     x_mode_cutoff,
     z_mode_cutoff,
@@ -102,6 +107,9 @@ __all__ = [
     "gyrofrequency_at",
     "trace_separation_hz",
     "appleton_hartree",
+    "refractive_index_squared",
+    "group_index",
+    "field_at",
     # doppler
     "DopplerGeometry",
     "doppler_shift_hz",

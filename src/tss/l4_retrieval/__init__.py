@@ -19,10 +19,10 @@ Module            Status    Note
 ================  ========  ==================================================
 ``base``          done      Trace reading, the starting-value policy and the
                             reflection-density relation.
-``lamination``    partial   Registered as ``l4/lamination``.  The classical
-                            no-field case is complete.  The magnetoionic
-                            correction is not written and is the largest
-                            known bias in the tier.
+``lamination``    done      ``l4/lamination`` is the classical no-field case.
+                            ``l4/lamination_magnetoionic`` inverts the
+                            ordinary trace with the magnetoionic group index
+                            and is the tier a profile is scored from.
 ``error_budget``  stub      Propagated uncertainty, WP6.  Until it exists,
                             ``ne_sigma`` and ``alt_sigma_m`` stay ``None``
                             and no retrieval accuracy can be quoted.
@@ -54,19 +54,31 @@ from tss.l4_retrieval.base import (  # noqa: F401
 from tss.l4_retrieval.error_budget import with_uncertainty  # noqa: F401
 from tss.l4_retrieval.lamination import (  # noqa: F401
     LaminationRetrieval,
+    MagnetoionicLaminationRetrieval,
+    constant_field,
+    geomagnetic_field_model,
     lamina_thicknesses_m,
+    lamina_thicknesses_magnetoionic_m,
     lamination_matrix,
+    magnetoionic_lamination_row,
     virtual_range_from_laminae_m,
+    virtual_range_from_laminae_magnetoionic_m,
 )
 
 __all__ = [
     # tiers
     "LaminationRetrieval",
+    "MagnetoionicLaminationRetrieval",
     "RetrievalBase",
     # lamination algebra
     "lamination_matrix",
     "lamina_thicknesses_m",
     "virtual_range_from_laminae_m",
+    "magnetoionic_lamination_row",
+    "lamina_thicknesses_magnetoionic_m",
+    "virtual_range_from_laminae_magnetoionic_m",
+    "constant_field",
+    "geomagnetic_field_model",
     # helpers
     "trace_points",
     "starting_plasma_frequency_hz",

@@ -86,6 +86,7 @@ __all__ = [
     "ionogram_metrics",
     "height_error_at_matched_density_m",
     "along_track_sampling_m",
+    "profile_scoring_basis",
 ]
 
 #: Frequency at which the INS-02 step law changes from the fractional rule to
@@ -170,6 +171,43 @@ def height_error_at_matched_density_m(
     return alt_r[inside] - alt_truth_at
 
 
+def profile_scoring_basis(retrieved: DensityProfile) -> tuple[bool, str]:
+    """Whether a retrieved profile may be scored against SCI-05 and SCI-07.
+
+    Returns ``(scorable, reason)``.  The magnetic field changes the group path
+    of the ordinary wave by enough to move a topside profile tens of
+    kilometres, so a profile is evidence about the instrument only when the
+    echoes were made with the magnetoionic group index and the inversion
+    corrected for it.  Three cases are refused:
+
+    * the inversion was field-free, whatever made the echoes.  If the echoes
+      were field-free as well the pair is self-consistent and still says
+      nothing about a real ionosphere;
+    * the inversion was magnetoionic and the echoes were field-free, which
+      corrects for a field that was not there.
+
+    A profile that says nothing about how it was made is scored.  That keeps a
+    profile from outside the pipeline, such as a measured one, scorable, and
+    every tier in this package does say.
+    """
+    flags: Mapping[str, Any] = retrieved.flags or {}
+    inversion = flags.get("magnetoionic")
+    forward = flags.get("forward_group_index")
+    if inversion is False:
+        return False, (
+            "the inversion was field-free.  SCI-05 and SCI-07 are scored only from "
+            "a magnetoionic inversion of echoes made with the magnetoionic group "
+            "index (Requirements Rev G, SW-01)"
+        )
+    if inversion is True and forward == "field_free":
+        return False, (
+            "the inversion was magnetoionic and the echoes were made with the "
+            "field-free group index, so the inversion corrected for a field the "
+            "forward model did not have"
+        )
+    return True, ""
+
+
 def profile_metrics(
     retrieved: DensityProfile,
     truth: IonosphereState,
@@ -197,7 +235,19 @@ def profile_metrics(
         "overlap_min_alt_m": None,
         "overlap_max_alt_m": None,
         "n_points_below_peak": 0,
+        "profile_scorable": None,
+        "profile_not_scorable_reason": None,
+        "inversion_magnetoionic": None,
+        "forward_group_index": None,
     }
+    scorable, why = profile_scoring_basis(retrieved)
+    out["profile_scorable"] = bool(scorable)
+    out["profile_not_scorable_reason"] = why or None
+    r_flags: Mapping[str, Any] = retrieved.flags or {}
+    if "magnetoionic" in r_flags:
+        out["inversion_magnetoionic"] = bool(r_flags["magnetoionic"])
+    if r_flags.get("forward_group_index") is not None:
+        out["forward_group_index"] = str(r_flags["forward_group_index"])
 
     alt_r = np.asarray(retrieved.alt_m, dtype=float)
     ne_r = np.asarray(retrieved.ne, dtype=float)

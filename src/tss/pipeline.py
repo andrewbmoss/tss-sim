@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import zlib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -131,6 +131,17 @@ class Pipeline:
         t0 = time.perf_counter()
         retrieved = self.tiers["l4"].invert(ionogram, platform)
         t["l4"] = time.perf_counter() - t0
+
+        # L5 scores a profile against SCI-05 and SCI-07 only when the echoes
+        # and the inversion treat the magnetic field the same way.  The
+        # retrieval cannot know how its echoes were made, so that is recorded
+        # here, where both tiers are in hand.  This is bookkeeping, not physics.
+        forward = getattr(self.tiers["l1"], "group_index_used", None)
+        if forward is not None:
+            retrieved = replace(
+                retrieved,
+                flags={**dict(retrieved.flags or {}), "forward_group_index": str(forward)},
+            )
 
         t0 = time.perf_counter()
         assessment = self.tiers["l5"].score(retrieved, truth, ionogram, configuration)

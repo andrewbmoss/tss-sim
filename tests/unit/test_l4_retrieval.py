@@ -259,12 +259,13 @@ def test_density_from_frequency_round_trips():
 # ---------------------------------------------------------------------------
 
 
-def test_magnetoionic_lamination_is_a_stub_naming_wp6():
-    """Asking for the field-corrected inversion refuses rather than pretending."""
-    with pytest.raises(NotImplementedError, match="WP6"):
-        LaminationRetrieval(magnetoionic=True).invert(
-            _ionogram(*_exponential_case(10)[:2]), _platform()
-        )
+def test_magnetoionic_lamination_is_no_longer_a_stub():
+    """The field-corrected inversion runs.  Its own tests are in test_magnetoionic.py."""
+    profile = LaminationRetrieval(
+        magnetoionic=True, geomagnetic_model="dipole"
+    ).invert(_ionogram(*_exponential_case(10)[:2]), _platform())
+    assert profile.flags["magnetoionic"] is True
+    assert profile.flags["field_model"]["model"] == "centred dipole"
 
 
 @pytest.mark.parametrize(

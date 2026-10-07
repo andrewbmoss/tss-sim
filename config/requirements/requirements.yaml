@@ -353,6 +353,9 @@ requirements:
       L0 truth (metric ne_rms_fractional).  In simulation the truth is absolute,
       so this is the simulated form of SCI-05.  The empirical checks (DMSP and
       ISIS-1 in-situ comparison, mode-mislabel injection) are SW-02 and SW-03.
+      Scored only when the echoes were made with the magnetoionic group index
+      and the inversion corrected for it (Rev G SW-01, amended 2026-10-06);
+      otherwise not evaluated, with the reason recorded.
 
   SCI-07:
     title: Profile height accuracy
@@ -367,6 +370,10 @@ requirements:
       Scored as the rms height error of the L4 profile points against their L0
       truth (metric height_error_rms_m).  Measured ionospheres used as truth
       (SW-02) make this a check against observation as well as model.
+      Scored only when the echoes were made with the magnetoionic group index
+      and the inversion corrected for it (Rev G SW-01, amended 2026-10-06).  A
+      field-free inversion is in error by 14 to 34 km at mid and high magnetic
+      latitude, which is the size of this requirement.
 
   SCI-09:
     title: Along-track sampling

@@ -712,6 +712,7 @@ def run_campaign(
 from tss.studies import (  # noqa: E402,F401
     antenna_scale,
     doppler_separation,
+    field_inversion,
     isis_validation,
     link_budget,
     min_frequency,

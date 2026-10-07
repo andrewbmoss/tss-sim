@@ -58,7 +58,10 @@ INS-23      none                               Transmit to receive isolation, ow
 INS-24      none                               Residual leakage floor, same owners.
 INS-26      none                               Oscillator stability, owned by L2.
 SCI-05      ne_rms_fractional                  Density error against truth (SW-01).
+                                               Scored only when the field is treated
+                                               consistently; see "SCI-05 and SCI-07".
 SCI-07      height_error_rms_m                 Height error against truth (SW-01).
+                                               Same condition.
 SCI-09      along_track_sampling_m             Ionogram period times horizontal speed.
 SCI-23      drift_resolution_mps               Drift accuracy from a second look (Rev G).
                                                None until WP5 exists; rename pending.
@@ -86,6 +89,20 @@ ionosphere denser than 0.33 MHz at the spacecraft whatever the instrument
 could do.  The detected edges are still carried in ``Assessment.errors`` as
 diagnostics.
 
+SCI-05 and SCI-07
+-----------------
+Both are scored from the L4 profile against its L0 truth, and both carry a
+precondition: the echoes must have been made with the magnetoionic group index
+and the inversion must have corrected for it.  The field changes the group
+path of the ordinary wave by enough to move a topside profile by 14 to 34 km
+at mid and high magnetic latitude, against the 20 km of SCI-07, so a field-free
+inversion fails for a reason that is known and is not the instrument's, and a
+field-free inversion of field-free echoes passes for a reason that says nothing
+about a real ionosphere.  In either case the verdict is ``not_evaluated`` with
+the reason attached, and the error metrics are still carried in
+``Assessment.errors``.  :func:`tss.l5_assessment.scoring.profile_scoring_basis`
+is the rule.
+
 INS-15
 ------
 INS-15 asks for a coherent processing interval of 0.05 s at threshold, from
@@ -111,6 +128,7 @@ from tss.requirements import RequirementSet, load_requirements
 
 __all__ = [
     "MAPPING_TABLE",
+    "FIELD_CONSISTENT_ONLY",
     "METRIC_FOR_REQUIREMENT",
     "NOT_SCORED_HERE",
     "CARRY_IN_ERRORS",
@@ -231,6 +249,10 @@ METRIC_FOR_REQUIREMENT: dict[str, str] = {
     rid: metric for rid, metric, _ in MAPPING_TABLE if metric is not None
 }
 
+#: Requirements scored from the retrieved profile, which need the field
+#: treated consistently by the echoes and the inversion.
+FIELD_CONSISTENT_ONLY: tuple[str, ...] = ("SCI-05", "SCI-07")
+
 #: A metric to use when the mapped one was not computed.  INS-05 is mapped to
 #: the per-column resolution; a tier that reports only the scalar is scored on
 #: that against the strictest band.
@@ -251,6 +273,8 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "ne_bias_absolute",
     "height_error_rms_m",
     "height_error_bias_m",
+    "inversion_magnetoionic",
+    "forward_group_index",
     "n_points_compared",
     "n_height_points_compared",
     "min_sounding_frequency_hz",
@@ -278,6 +302,8 @@ def achieved_from_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
     """
     achieved: dict[str, Any] = {}
     for rid, metric in METRIC_FOR_REQUIREMENT.items():
+        if rid in FIELD_CONSISTENT_ONLY and metrics.get("profile_scorable") is False:
+            continue
         value = metrics.get(metric)
         if value is None and rid in FALLBACK_METRIC:
             value = metrics.get(FALLBACK_METRIC[rid])
@@ -335,7 +361,12 @@ def check_requirements(
         record["metric"] = metric
         if record.get("verdict") != "not_evaluated":
             continue
-        if metric is None:
+        if rid in FIELD_CONSISTENT_ONLY and metrics.get("profile_scorable") is False:
+            record["reason"] = str(
+                metrics.get("profile_not_scorable_reason")
+                or "the magnetic field was not treated consistently"
+            )
+        elif metric is None:
             record["reason"] = NOT_SCORED_HERE.get(
                 rid,
                 "no metric is mapped to this requirement in "

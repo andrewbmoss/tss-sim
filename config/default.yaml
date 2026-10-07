@@ -17,7 +17,7 @@ tiers:
   l1: analytic
   l2: baseline
   l3: baseline
-  l4: lamination
+  l4: lamination_magnetoionic
   l5: standard
 
 # The requirement set L5 scores against.  Resolved by tss.config.resolve_path.

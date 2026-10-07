@@ -1,8 +1,8 @@
 """Layer: L4
 WP: WP6
 Claims: C2
-Status: partial
-Requirements: INS-05
+Status: implemented
+Requirements: INS-05, SCI-05, SCI-07
 
 Virtual height to true height inversion by lamination.
 
@@ -14,9 +14,13 @@ forward substitution.  This is the method Jackson used for the Alouette and
 ISIS topside ionograms and it is the standard against which anything else has
 to be measured.
 
-What is not implemented is the magnetoionic correction.  See "Limits" below.
-That is why the status is partial rather than implemented, and it is stated
-here rather than in a footnote because the size of the correction is not small.
+Two forms are here.  The field-free form is the classical closed-form
+lamination.  The magnetoionic form uses the same laminae and the same forward
+substitution with the ordinary-wave group index of the magnetised plasma in
+place of the field-free one, which is the construction of Budden (1961),
+section 12.13.  The magnetoionic form is the one a profile is scored from,
+because the field-free form places a topside profile tens of kilometres wrong
+where the field is steep.  See "The magnetoionic form" below.
 
 The geometry
 ------------
@@ -28,8 +32,8 @@ and reflects.  What the instrument measures is the group range
     R'(f) = integral from h_r(f) to h_s of mu'(f, h) dh
 
 where ``mu' = 1 / sqrt(1 - f_N(h)^2 / f^2)`` is the group refractive index in
-the absence of a magnetic field.  The integrand is 1 at the spacecraft and
-diverges at the reflection point, which is why the integral needs a closed form
+the absence of a magnetic field.  The integrand is ``1 / mu`` at the
+spacecraft, where ``mu`` is the refractive index there, and diverges at the reflection point, which is why the integral needs a closed form
 inside each lamina rather than a quadrature rule.
 
 The lamination
@@ -77,20 +81,52 @@ Three properties of this system are worth holding on to.
   wrong displaces the whole profile.  :mod:`tss.l4_retrieval.base` states the
   three ways of obtaining it and why they are not interchangeable.
 
+The magnetoionic form
+---------------------
+With a magnetic field the ordinary wave still reflects where ``f_N = f``, so
+the laminae and their boundaries are unchanged.  What changes is the group
+index, which becomes ``mu'(f, f_N, f_H, theta)`` of
+:func:`tss.l1_propagation.magnetoionic.group_index`, with ``theta`` the angle
+between the field and the vertical.  The coefficient is then
+
+    G[k, j] = 1 / (f_j - f_{j-1}) * integral from f_{j-1} to f_j of
+              mu'(f_k, f_N, f_H_j, theta_j) df_N
+
+which is Budden's equation 12.46 with his 12.54.  It has no closed form.  The
+substitution ``f_N = f_k sin(phi)`` removes the singularity at the reflection
+level, where ``mu'`` goes as ``cosec(theta) / cos(phi)``, and the integral is
+taken by Gauss-Legendre quadrature in ``phi``.  With no field the integrand is
+``f_k`` and the coefficient reduces to the arcsine form above.
+
+The gyrofrequency and the angle belong to the lamina, so they are taken at its
+mid height from a field model evaluated at the spacecraft's position.  The
+height of a lamina is not known until its thickness is, so the diagonal
+coefficient is computed with the field at the top of the lamina and corrected
+once.  The field varies by about one per cent in 20 km, so one correction is
+enough.
+
+The field model is the International Geomagnetic Reference Field through
+:mod:`tss.l0_ionosphere.geomag`, which is what an instrument would use.  In the
+simulator it is the same model the truth was built with, so the retrieval is
+handed a field with no error.  The error of a real field model is a few tenths
+of a per cent in magnitude and is not in this budget.
+
+The size of what this corrects: for an exponential topside with 1 MHz at the
+spacecraft and a 150 km scale height, the field-free form is in error by up to
+34 km when the field is 10 degrees from the vertical, 26 km at 30 degrees and
+14 km at 50 degrees.  SCI-07 asks for 20 km.  The error is largest at high
+magnetic latitude, where ``theta`` is small.
+
 Limits
 ------
-**The magnetic field is ignored.**  The group refractive index used is the
-no-field form.  In the real topside the ordinary and extraordinary waves have
-different group indices and reflect at different levels, and the correction to
-the O-mode group path from the field is not negligible at the low end of the
-band, where the gyrofrequency is a substantial fraction of the sounding
-frequency.  The proper treatment uses the magnetoionic group index and needs
-the field direction along the ray, which means it needs
-:mod:`tss.l1_propagation.magnetoionic` to expose a group index and the L0 state
-to carry ``b_field_t``.  Until then this tier inverts as though the field were
-absent and records ``flags["magnetoionic"] = False`` so that no result from it
-is read as a field-corrected retrieval.  The correction is WP6 and it is the
-single largest known bias in this module.
+**The field-free form ignores the magnetic field.**  It records
+``flags["magnetoionic"] = False`` so that no result from it is read as a
+field-corrected retrieval, and L5 does not score SCI-05 or SCI-07 from it.
+
+**The magnetoionic form inverts the ordinary trace only.**  The extraordinary
+trace reflects at a different density for the same frequency and needs the
+variable of Budden's section 12.17.  A column labelled as the extraordinary
+mode is refused.
 
 **Monotonicity is assumed.**  Every lamina thickness is assumed positive, which
 is the statement that density increases downward all the way from the
@@ -115,6 +151,7 @@ are outside a topside sounding by construction.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -130,19 +167,222 @@ from tss.registry import register
 
 __all__ = [
     "LaminationRetrieval",
+    "MagnetoionicLaminationRetrieval",
+    "FieldModel",
+    "constant_field",
+    "geomagnetic_field_model",
     "lamination_matrix",
     "lamina_thicknesses_m",
     "virtual_range_from_laminae_m",
+    "magnetoionic_lamination_row",
+    "lamina_thicknesses_magnetoionic_m",
+    "virtual_range_from_laminae_magnetoionic_m",
 ]
 
-_MAGNETOIONIC_MESSAGE = (
-    "WP6: the magnetoionic lamination is not implemented.  This tier inverts with "
-    "the no-field group refractive index and records flags['magnetoionic'] = False.  "
-    "The field-corrected inversion needs a magnetoionic group index from "
-    "tss.l1_propagation.magnetoionic and the field direction along the ray from the "
-    "L0 state, neither of which is available yet.  See the 'Limits' section of the "
-    "module docstring of tss.l4_retrieval.lamination and docs/work-packages.md row WP6."
-)
+#: Gyrofrequency in Hz and the angle between the field and the vertical in
+#: radians, as functions of altitude in metres.
+FieldModel = Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]]
+
+_GL_CACHE: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+
+
+def _gauss_legendre(n: int) -> tuple[np.ndarray, np.ndarray]:
+    if n not in _GL_CACHE:
+        _GL_CACHE[n] = np.polynomial.legendre.leggauss(n)
+    return _GL_CACHE[n]
+
+
+def constant_field(f_h_hz: float, theta_rad: float) -> FieldModel:
+    """A field model with the same gyrofrequency and angle at every height."""
+
+    def model(alt_m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        alt = np.asarray(alt_m, dtype=float)
+        return np.full(alt.shape, float(f_h_hz)), np.full(alt.shape, float(theta_rad))
+
+    return model
+
+
+def geomagnetic_field_model(
+    lat_deg: float,
+    lon_deg: float,
+    epoch: str,
+    alt_max_m: float,
+    *,
+    prefer: str = "auto",
+    alt_step_m: float = 1.0e4,
+) -> tuple[FieldModel, dict[str, Any]]:
+    """Field model along the vertical below a spacecraft, with its provenance.
+
+    Evaluates :func:`tss.l0_ionosphere.geomag.field_ned_t` on a grid from 80 km
+    to ``alt_max_m`` and interpolates the gyrofrequency and the cosine of the
+    angle between the field and the vertical.  ``prefer`` is passed through:
+    ``"auto"`` tries IGRF and falls back to the centred dipole, and the
+    provenance says which answered.
+    """
+    from tss.constants import gyrofrequency
+    from tss.l0_ionosphere import geomag
+
+    top = max(float(alt_max_m), 9.0e4)
+    grid = np.arange(8.0e4, top + float(alt_step_m), float(alt_step_m))
+    b, provenance = geomag.field_ned_t(lat_deg, lon_deg, grid, epoch, prefer=prefer)
+    magnitude = np.sqrt(np.sum(b**2, axis=0))
+    f_h_grid = gyrofrequency(magnitude)
+    cos_grid = np.abs(b[2]) / magnitude
+
+    def model(alt_m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        alt = np.asarray(alt_m, dtype=float)
+        f_h = np.interp(alt, grid, f_h_grid)
+        theta = np.arccos(np.clip(np.interp(alt, grid, cos_grid), 0.0, 1.0))
+        return f_h, theta
+
+    return model, dict(provenance)
+
+
+def magnetoionic_lamination_row(
+    f_k_hz: float,
+    lower_hz: np.ndarray,
+    upper_hz: np.ndarray,
+    f_h_hz: np.ndarray,
+    theta_rad: np.ndarray,
+    *,
+    n_nodes: int = 24,
+    n_nodes_reflection: int = 64,
+) -> np.ndarray:
+    """Group-path coefficients of the laminae a sounding at ``f_k_hz`` crosses.
+
+    ``lower_hz`` and ``upper_hz`` are the plasma frequencies at the top and the
+    bottom of each lamina, with the last ``upper_hz`` equal to ``f_k_hz``, the
+    reflection level.  ``f_h_hz`` and ``theta_rad`` are the gyrofrequency and
+    the angle between the field and the vertical in each lamina.  Returns one
+    coefficient per lamina, dimensionless: the group path a lamina of unit
+    thickness contributes.
+
+    The last lamina holds the reflection level, where the integrand has its
+    structure, and gets ``n_nodes_reflection`` quadrature nodes.  The others
+    get ``n_nodes``.
+    """
+    from tss.l1_propagation.magnetoionic import group_index
+
+    f_k = float(f_k_hz)
+    lower = np.asarray(lower_hz, dtype=float)
+    upper = np.asarray(upper_hz, dtype=float)
+    f_h = np.asarray(f_h_hz, dtype=float)
+    theta = np.asarray(theta_rad, dtype=float)
+    out = np.empty(lower.size, dtype=float)
+
+    def integrate(sel: slice, n: int) -> None:
+        lo, hi = lower[sel], upper[sel]
+        if lo.size == 0:
+            return
+        phi_lo = np.arcsin(np.clip(lo / f_k, -1.0, 1.0))
+        phi_hi = np.arcsin(np.clip(hi / f_k, -1.0, 1.0))
+        nodes, weights = _gauss_legendre(n)
+        half = 0.5 * (phi_hi - phi_lo)[:, None]
+        phi = 0.5 * (phi_hi + phi_lo)[:, None] + half * nodes[None, :]
+        x = np.sin(phi) ** 2
+        mu_g = group_index(x, (f_h[sel] / f_k)[:, None], theta[sel][:, None], "O")
+        integrand = mu_g * f_k * np.cos(phi)
+        out[sel] = np.sum(integrand * weights[None, :], axis=1) * half[:, 0] / (hi - lo)
+
+    integrate(slice(0, lower.size - 1), int(n_nodes))
+    integrate(slice(lower.size - 1, lower.size), int(n_nodes_reflection))
+    return out
+
+
+def _checked_grid(freq_hz: np.ndarray, f_start_hz: float) -> tuple[np.ndarray, np.ndarray]:
+    f = np.asarray(freq_hz, dtype=float)
+    f0 = float(f_start_hz)
+    if f.ndim != 1 or f.size == 0:
+        raise ValueError(f"freq_hz must be a non-empty 1-D array; got shape {f.shape}")
+    if not np.all(np.diff(f) > 0.0):
+        raise ValueError("freq_hz must be strictly increasing")
+    if f[0] <= f0:
+        raise ValueError(
+            f"lowest sounding frequency {f[0]:.6g} Hz is at or below the plasma "
+            f"frequency at the spacecraft {f0:.6g} Hz; that wave is evanescent and "
+            "cannot have produced an echo"
+        )
+    return f, np.concatenate(([f0], f))
+
+
+def lamina_thicknesses_magnetoionic_m(
+    virtual_range_m: np.ndarray,
+    freq_hz: np.ndarray,
+    f_start_hz: float,
+    h_sat_m: float,
+    field: FieldModel,
+) -> np.ndarray:
+    """Lamina thicknesses from an ordinary-mode trace, with the field, metres.
+
+    Forward substitution as in :func:`lamina_thicknesses_m`, with the
+    coefficients of :func:`magnetoionic_lamination_row`.  The field of each
+    lamina is taken at its mid height.  For the lamina being solved that height
+    is not yet known, so its coefficient is formed with the field at its top
+    and corrected once with the field at the mid height that results.
+
+    No clamping, for the reason given in :func:`lamina_thicknesses_m`.
+    """
+    r = np.asarray(virtual_range_m, dtype=float)
+    f, edges = _checked_grid(freq_hz, f_start_hz)
+    n = f.size
+    if r.shape != (n,):
+        raise ValueError(f"virtual_range_m must have {n} entries; got {r.shape}")
+    lower, upper = edges[:-1], edges[1:]
+    h_s = float(h_sat_m)
+
+    t = np.zeros(n, dtype=float)
+    f_h = np.zeros(n, dtype=float)
+    theta = np.zeros(n, dtype=float)
+    top = h_s
+    for k in range(n):
+        f_h[k], theta[k] = (float(np.ravel(v)[0]) for v in field(np.array([top])))
+        for _ in range(2):
+            row = magnetoionic_lamination_row(
+                f[k], lower[: k + 1], upper[: k + 1], f_h[: k + 1], theta[: k + 1]
+            )
+            diagonal = float(row[k])
+            if not np.isfinite(diagonal) or diagonal <= 0.0:
+                raise ValueError(
+                    f"lamina {k} has a non-positive or undefined diagonal coefficient "
+                    f"{diagonal!r}; the frequency grid or the field model is degenerate"
+                )
+            accumulated = float(row[:k] @ t[:k]) if k else 0.0
+            t[k] = (float(r[k]) - accumulated) / diagonal
+            f_h[k], theta[k] = (
+                float(np.ravel(v)[0]) for v in field(np.array([top - 0.5 * t[k]]))
+            )
+        top -= t[k]
+    return t
+
+
+def virtual_range_from_laminae_magnetoionic_m(
+    thickness_m: np.ndarray,
+    freq_hz: np.ndarray,
+    f_start_hz: float,
+    h_sat_m: float,
+    field: FieldModel,
+) -> np.ndarray:
+    """Forward operator of the magnetoionic lamination.
+
+    The group range each sounding frequency would show for a profile made of
+    these laminae, with the field of each lamina taken at its mid height.  A
+    round trip through this and :func:`lamina_thicknesses_magnetoionic_m`
+    returns the thicknesses to the accuracy of the one field correction.
+    """
+    t = np.asarray(thickness_m, dtype=float)
+    f, edges = _checked_grid(freq_hz, f_start_hz)
+    if t.shape != (f.size,):
+        raise ValueError(f"thickness_m must have {f.size} entries; got {t.shape}")
+    lower, upper = edges[:-1], edges[1:]
+    mid = float(h_sat_m) - (np.cumsum(t) - 0.5 * t)
+    f_h, theta = field(mid)
+    out = np.empty(f.size, dtype=float)
+    for k in range(f.size):
+        row = magnetoionic_lamination_row(
+            f[k], lower[: k + 1], upper[: k + 1], f_h[: k + 1], theta[: k + 1]
+        )
+        out[k] = float(row @ t[: k + 1])
+    return out
 
 
 def lamination_matrix(freq_hz: np.ndarray, f_start_hz: float) -> np.ndarray:
@@ -247,7 +487,7 @@ def lamina_thicknesses_m(
 
 @register("l4", "lamination")
 class LaminationRetrieval(RetrievalBase):
-    """Classical laminar topside inversion, no-field group index.
+    """Laminar topside inversion, field-free or magnetoionic.
 
     Parameters
     ----------
@@ -266,9 +506,18 @@ class LaminationRetrieval(RetrievalBase):
         profile that omits it hides the initial condition the rest of it was
         measured from.
     magnetoionic
-        Reserved.  Setting it True raises :class:`NotImplementedError` naming
-        WP6.  The field-corrected inversion is the largest known bias in this
-        module and it is not written.
+        False inverts with the field-free group index.  True inverts the
+        ordinary trace with the magnetoionic group index, which is what a scored
+        profile needs.  The registered tier ``lamination_magnetoionic`` is this
+        class with it set.
+    geomagnetic_model
+        Where the magnetoionic form gets its field: ``"auto"``, ``"igrf"`` or
+        ``"dipole"``, passed to :func:`geomagnetic_field_model` at the
+        platform's position and epoch.
+    field
+        A field model to use instead, as a callable from altitude to
+        gyrofrequency and angle.  For tests and for a field known some other
+        way.
     """
 
     def __init__(
@@ -278,10 +527,18 @@ class LaminationRetrieval(RetrievalBase):
         start_plasma_hz: float | None = None,
         include_spacecraft_point: bool = True,
         magnetoionic: bool = False,
+        geomagnetic_model: str = "auto",
+        field: FieldModel | None = None,
     ) -> None:
         super().__init__(mode_index=mode_index, start_plasma_hz=start_plasma_hz)
         self.include_spacecraft_point = bool(include_spacecraft_point)
         self.magnetoionic = bool(magnetoionic)
+        if geomagnetic_model not in ("auto", "igrf", "dipole"):
+            raise ValueError(
+                f"unknown geomagnetic_model {geomagnetic_model!r}, expected auto, igrf or dipole"
+            )
+        self.geomagnetic_model = geomagnetic_model
+        self.field = field
 
     def _settings(self) -> dict[str, Any]:
         return {
@@ -289,8 +546,10 @@ class LaminationRetrieval(RetrievalBase):
             "start_plasma_hz": self.start_plasma_hz,
             "include_spacecraft_point": self.include_spacecraft_point,
             "magnetoionic": self.magnetoionic,
+            "geomagnetic_model": self.geomagnetic_model if self.magnetoionic else None,
+            "field_supplied": self.field is not None,
             "lamina_law": "plasma frequency linear in height",
-            "status": "partial",
+            "status": "implemented",
         }
 
     def invert(
@@ -309,8 +568,13 @@ class LaminationRetrieval(RetrievalBase):
         evanescent across the whole band or penetrated across the whole band,
         and contract rule 3 in :mod:`tss.interfaces` says a tier reports it.
         """
-        if self.magnetoionic:
-            raise NotImplementedError(_MAGNETOIONIC_MESSAGE)
+        mode_label = str(tuple(ionogram.modes)[self.mode_index])
+        if self.magnetoionic and mode_label.upper() == "X":
+            raise ValueError(
+                "the magnetoionic lamination inverts the ordinary trace; this column "
+                "is labelled as the extraordinary mode, which reflects at a different "
+                "density and needs the treatment of Budden (1961) section 12.17"
+            )
 
         freq_hz, virtual_range_m, _ = trace_points(ionogram, mode_index=self.mode_index)
         h_s = float(platform.alt_m)
@@ -324,7 +588,7 @@ class LaminationRetrieval(RetrievalBase):
                     "reason": "the ionogram carries no detected trace point in this mode column",
                     "spacecraft_alt_m": h_s,
                     "mode": str(tuple(ionogram.modes)[self.mode_index]),
-                    "magnetoionic": False,
+                    "magnetoionic": self.magnetoionic,
                 },
                 source=f"tss.l4_retrieval.lamination.{type(self).__name__}",
             )
@@ -358,12 +622,34 @@ class LaminationRetrieval(RetrievalBase):
                     "starting_value": start_source,
                     "start_plasma_hz": float(f0),
                     "spacecraft_alt_m": h_s,
-                    "magnetoionic": False,
+                    "magnetoionic": self.magnetoionic,
                 },
                 source=f"tss.l4_retrieval.lamination.{type(self).__name__}",
             )
 
-        thickness_m = lamina_thicknesses_m(virtual_range_m, freq_hz, f0)
+        field_record: dict[str, Any] = {}
+        if self.magnetoionic:
+            if self.field is not None:
+                field = self.field
+                field_record = {"model": "supplied by the caller"}
+            else:
+                field, field_record = geomagnetic_field_model(
+                    platform.lat_deg,
+                    platform.lon_deg,
+                    platform.epoch,
+                    h_s,
+                    prefer=self.geomagnetic_model,
+                )
+            thickness_m = lamina_thicknesses_magnetoionic_m(
+                virtual_range_m, freq_hz, f0, h_s, field
+            )
+            f_h_top, theta_top = field(np.array([h_s]))
+            field_record["gyrofrequency_at_spacecraft_hz"] = float(np.ravel(f_h_top)[0])
+            field_record["field_angle_from_vertical_deg"] = float(
+                np.degrees(np.ravel(theta_top)[0])
+            )
+        else:
+            thickness_m = lamina_thicknesses_m(virtual_range_m, freq_hz, f0)
         depth_m = np.cumsum(thickness_m)
         alt_m = h_s - depth_m
         ne = density_from_trace(freq_hz)
@@ -386,13 +672,19 @@ class LaminationRetrieval(RetrievalBase):
             "dropped_below_start": dropped,
             "lowest_retrieved_alt_m": float(np.min(alt_m)),
             "lamina_law": "plasma frequency linear in height",
-            "magnetoionic": False,
+            "magnetoionic": self.magnetoionic,
             "magnetoionic_note": (
-                "inverted with the no-field group refractive index; the field "
-                "correction is WP6 and is the largest known bias in this tier"
+                "inverted with the magnetoionic ordinary-wave group index "
+                "(Budden 1961, section 12.13)"
+                if self.magnetoionic
+                else "inverted with the no-field group refractive index, which places "
+                "a profile tens of kilometres wrong where the field is steep; not "
+                "scored against SCI-05 or SCI-07"
             ),
             "vertical_incidence_assumed": True,
         }
+        if self.magnetoionic:
+            flags["field_model"] = field_record
         if n_nonpositive:
             flags["monotonicity_warning"] = (
                 f"{n_nonpositive} lamina thickness(es) came out non-positive, so the "
@@ -408,3 +700,16 @@ class LaminationRetrieval(RetrievalBase):
             flags=flags,
             source=f"tss.l4_retrieval.lamination.{type(self).__name__}",
         )
+
+
+@register("l4", "lamination_magnetoionic")
+class MagnetoionicLaminationRetrieval(LaminationRetrieval):
+    """:class:`LaminationRetrieval` with the magnetoionic group index.
+
+    This is the tier a scored campaign names.  It differs from the field-free
+    tier only in its default, so the two cannot drift apart.
+    """
+
+    def __init__(self, *, magnetoionic: bool = True, **kwargs: Any) -> None:
+        super().__init__(magnetoionic=magnetoionic, **kwargs)
+

@@ -7,7 +7,7 @@ tiers:
   l1: analytic
   l2: baseline
   l3: baseline
-  l4: lamination
+  l4: lamination_magnetoionic
   l5: standard
 configurations: [leo_500km_single]
 grid:

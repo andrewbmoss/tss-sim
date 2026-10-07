@@ -31,18 +31,39 @@ Alouette and ISIS records this work validates against.  Nothing in the current
 pipeline generates Z echoes; the function is here so that a study can ask where
 they would fall.
 
-What is **not** here is the full Appleton-Hartree refractive index with
-collisions.  That is :func:`appleton_hartree`, and it raises.  The reason it is
-a stub rather than a half-implementation is that the quantity the sounder
-actually measures is the group path, and the group path for the X mode near its
-cutoff is governed by the derivative of the Appleton-Hartree index with respect
-to frequency, including the collision term and the angle between the ray and the
-field.  A field-free group index dressed up with an X-mode cutoff altitude would
-produce an X trace of about the right shape and entirely the wrong retardation
-near the cutoff, and a plausible wrong number is worse here than an absent one.
-The analytic tier is explicit about this: it computes the X reflection altitude
-from the cutoff, computes the group delay with the field-free group index, and
-flags every X row it emits so that no result quietly depends on it.
+The refractive index and the group index
+----------------------------------------
+:func:`refractive_index_squared` is the collisionless Appleton-Hartree index
+for a wave normal at an angle ``theta`` to the field, and :func:`group_index`
+is its group index ``d(f mu)/df`` in closed form.  Both follow Budden (1961):
+the index is his equations 12.2 and 12.3, which are 6.1 with collisions
+removed, and the group index is his 12.8.  The upper sign of the square root is
+the ordinary wave.  The closed form matters because what the sounder measures
+is the group path, and a finite difference of ``f mu`` is ill-conditioned near
+reflection, exactly where the answer matters most.
+
+For a vertical sounding the wave normal is vertical, so ``theta`` is the angle
+between the field and the vertical, and the virtual range is the integral of
+the group index over height (Budden's 12.21).  That holds although the ray
+itself is deviated in the magnetic meridian (his section 13.13): the lateral
+deviation moves the reflection point by tens of kilometres and does not change
+the virtual range.  :func:`group_range_m` evaluates the integral and
+:func:`field_at` supplies the gyrofrequency and the angle from the state.
+
+Near its reflection level the ordinary group index goes as
+``cosec(theta) / sqrt(1 - X)`` (Budden 12.12), against ``1 / sqrt(1 - X)`` with
+no field.  That factor is why a field-free inversion places a topside profile
+tens of kilometres wrong where the field is steep, and it is what
+:mod:`tss.l4_retrieval.lamination` now corrects for.
+
+:func:`appleton_hartree` is the same index with collisions, for absorption
+studies.  It takes the principal square root, which is the right branch away
+from the coupling region near ``X = 1`` at small ``theta`` and is not
+guaranteed inside it.
+
+What is still not here: the branch below the gyrofrequency that reflects at
+``X = 1 + Y``, which topside ionograms show as the Z trace, and oblique wave
+normals.
 """
 
 from __future__ import annotations
@@ -72,6 +93,11 @@ __all__ = [
     "reflection_altitude_m",
     "trace_separation_hz",
     "appleton_hartree",
+    "refractive_index_squared",
+    "refractive_index",
+    "group_index",
+    "field_at",
+    "group_range_m",
 ]
 
 Mode = Literal["O", "X"]
@@ -257,6 +283,189 @@ def trace_separation_hz(
     return x_mode_cutoff(f_p, f_ce_hz) - f_p
 
 
+def _mode_sign(mode: str) -> float:
+    key = str(mode).upper()
+    if key == "O":
+        return 1.0
+    if key == "X":
+        return -1.0
+    raise ValueError(f"unknown magnetoionic mode {mode!r}, expected 'O' or 'X'")
+
+
+def _denominator(x: np.ndarray, y: np.ndarray, theta: np.ndarray, sign: float):
+    """Budden's ``D`` of equation 12.3, and the square root inside it.
+
+    ``D = (1 - X) - Y_T^2/2 + sign * sqrt(Y_T^4/4 + Y_L^2 (1 - X)^2)``.  For
+    the ordinary wave the two last terms nearly cancel as ``X -> 1``, so the
+    difference is formed as ``b^2 / (root + a)`` instead of ``root - a``.
+    """
+    a = 0.5 * (y * np.sin(theta)) ** 2
+    b = y * np.cos(theta) * (1.0 - x)
+    root = np.sqrt(a * a + b * b)
+    if sign > 0.0:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            tail = np.where(root + a > 0.0, b * b / (root + a), 0.0)
+        return (1.0 - x) + tail, root
+    return (1.0 - x) - a - root, root
+
+
+def refractive_index_squared(
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    theta_rad: np.ndarray | float,
+    mode: str = "O",
+) -> np.ndarray:
+    """Collisionless Appleton-Hartree ``mu^2`` (Budden 1961, eq. 12.2).
+
+    ``x = (f_N / f)^2``, ``y = f_H / f`` and ``theta_rad`` is the angle between
+    the wave normal and the field.  ``mu^2 = 1 - X (1 - X) / D``.  The ordinary
+    wave has its zero at ``X = 1`` and the extraordinary wave, for ``y < 1``,
+    at ``X = 1 - Y``.  A negative value means the wave is evanescent there.
+    At ``X = 1`` exactly the ordinary value is returned as 0.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    theta = np.asarray(theta_rad, dtype=float)
+    sign = _mode_sign(mode)
+    d, _ = _denominator(x, y, theta, sign)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = 1.0 - x * (1.0 - x) / d
+    if sign > 0.0:
+        out = np.where(x == 1.0, 0.0, out)
+    return out
+
+
+def refractive_index(
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    theta_rad: np.ndarray | float,
+    mode: str = "O",
+) -> np.ndarray:
+    """``mu``, the positive root of :func:`refractive_index_squared`.
+
+    NaN where the wave is evanescent.
+    """
+    m2 = refractive_index_squared(x, y, theta_rad, mode)
+    with np.errstate(invalid="ignore"):
+        return np.where(m2 >= 0.0, np.sqrt(np.abs(m2)), np.nan)
+
+
+def group_index(
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    theta_rad: np.ndarray | float,
+    mode: str = "O",
+) -> np.ndarray:
+    """Collisionless group index ``mu' = d(f mu)/df`` (Budden 1961, eq. 12.8).
+
+    Closed form, with the plasma frequency and the gyrofrequency held fixed
+    while the wave frequency varies:
+
+        ``mu mu' D = 1 - X - mu^2
+                     + sign * Y_L^2 (1 - X^2)(1 - mu^2)
+                       / (2 sqrt(Y_L^2 (1 - X)^2 + Y_T^4 / 4)) + mu^2 D``
+
+    which is Budden's expression with ``D`` moved across.  With no field it
+    reduces to ``1 / mu``.  NaN where the wave is evanescent.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    theta = np.asarray(theta_rad, dtype=float)
+    sign = _mode_sign(mode)
+    d, root = _denominator(x, y, theta, sign)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        m2 = 1.0 - x * (1.0 - x) / d
+        y_l2 = (y * np.cos(theta)) ** 2
+        extra = np.where(root > 0.0, 0.5 * y_l2 * (1.0 - x * x) * (1.0 - m2) / root, 0.0)
+        rhs = 1.0 - x - m2 + sign * extra
+        out = (rhs / d + 1.0) / np.sqrt(m2)
+    return np.where(m2 > 0.0, out, np.nan)
+
+
+def field_at(
+    state: IonosphereState,
+    alt_m: np.ndarray | float,
+    *,
+    default_b_tesla: float | None = None,
+    default_theta_rad: float | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Gyrofrequency in Hz and the angle between the field and the vertical.
+
+    The angle is what a vertical wave normal makes with the field, in radians
+    between 0 and ``pi/2``: 0 over a magnetic pole, ``pi/2`` at the magnetic
+    equator.  It is the complement of the magnitude of the dip angle.
+
+    A ``(3, N)`` field in north-east-down components gives both.  A ``(N,)``
+    magnitude gives the gyrofrequency and no direction, and then
+    ``default_theta_rad`` is required.  So is it, with ``default_b_tesla``, when
+    the state carries no field at all.  A direction is never invented.
+    """
+    f_h = gyrofrequency_at(state, alt_m, default_b_tesla=default_b_tesla)
+    query = np.asarray(alt_m, dtype=float)
+    b = None if state.b_field_t is None else np.asarray(state.b_field_t, dtype=float)
+    if b is not None and b.ndim == 2:
+        alt = np.asarray(state.alt_m, dtype=float)
+        magnitude = np.sqrt(np.sum(b**2, axis=0))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            cos_theta = np.where(magnitude > 0.0, np.abs(b[2]) / magnitude, 1.0)
+        theta = np.arccos(np.clip(np.interp(query, alt, cos_theta), 0.0, 1.0))
+        return f_h, theta
+    if default_theta_rad is None:
+        raise ValueError(
+            "the state carries no field direction, so the angle between the field "
+            "and the vertical is unknown.  Supply b_field_t as (3, N) north-east-down "
+            "components or pass default_theta_rad explicitly."
+        )
+    return f_h, np.full(query.shape, float(default_theta_rad))
+
+
+def group_range_m(
+    state: IonosphereState,
+    f_hz: float,
+    h_refl_m: float,
+    h_sat_m: float,
+    mode: str = "O",
+    *,
+    n_steps: int = 2000,
+    interp: str = "linear",
+    default_b_tesla: float | None = None,
+    default_theta_rad: float | None = None,
+) -> float:
+    """Virtual range from the reflection altitude to the spacecraft, metres.
+
+    The integral of :func:`group_index` over the vertical path, with the
+    gyrofrequency and the field direction taken from the state at each height.
+    The substitution ``h = h_refl + (h_sat - h_refl) s^2`` and the midpoint
+    rule in ``s`` are the same as in the field-free
+    :func:`tss.l1_propagation.analytic.group_range_m`, and for the same reason:
+    the group index goes as the inverse square root of the height above the
+    reflection level for both modes, and the substitution removes that.
+
+    Samples that interpolation puts marginally inside the reflecting region
+    are given the group index of the nearest propagating sample rather than a
+    NaN, as the field-free version clips ``1 - X``.
+    """
+    h_refl = float(h_refl_m)
+    h_sat = float(h_sat_m)
+    if h_sat <= h_refl:
+        return 0.0
+    n = int(n_steps)
+    s = (np.arange(n, dtype=float) + 0.5) / n
+    h = h_refl + (h_sat - h_refl) * s**2
+    f_p = plasma_frequency_at(state, h, interp=interp)
+    f_h, theta = field_at(
+        state, h, default_b_tesla=default_b_tesla, default_theta_rad=default_theta_rad
+    )
+    mu_g = group_index((f_p / float(f_hz)) ** 2, f_h / float(f_hz), theta, mode)
+    bad = ~np.isfinite(mu_g)
+    if np.all(bad):
+        return float("nan")
+    if np.any(bad):
+        good = np.flatnonzero(~bad)
+        mu_g = mu_g[good[np.searchsorted(good, np.arange(n)).clip(0, good.size - 1)]]
+    return float(np.sum(mu_g * 2.0 * (h_sat - h_refl) * s) / n)
+
+
 def appleton_hartree(
     f_hz: np.ndarray | float,
     f_p_hz: np.ndarray | float,
@@ -265,54 +474,36 @@ def appleton_hartree(
     nu_per_s: np.ndarray | float,
     mode: str = "O",
 ) -> np.ndarray:
-    """Full Appleton-Hartree complex refractive index with collisions.
+    """Complex Appleton-Hartree refractive index with collisions.
 
-    Not implemented.
+    Budden (1961) equation 6.1:
 
-    Approach
-    --------
-    The index is
+        ``n^2 = 1 - X / (U - Y_T^2 / (2 (U - X))
+                         +/- sqrt(Y_T^4 / (4 (U - X)^2) + Y_L^2))``
 
-        n^2 = 1 - X / (1 - iZ - Y_T^2 / (2 (1 - X - iZ))
-                       -/+ sqrt( Y_T^4 / (4 (1 - X - iZ)^2) + Y_L^2 ))
+    with ``U = 1 - iZ``, ``Z = nu / omega``, and the upper sign the ordinary
+    wave.  The root returned has a non-negative real part, and with the
+    ``exp(i omega t)`` convention its imaginary part is non-positive, so
+    ``-Im(n)`` is the attenuation.
 
-    with ``X = (f_p/f)^2``, ``Y = f_ce/f``, ``Y_L = Y cos(theta)``,
-    ``Y_T = Y sin(theta)`` and ``Z = nu / omega``, the upper sign giving the
-    ordinary mode.  Writing that expression down is not the work.  Three things
-    are:
-
-    1.  Branch selection.  The square root has two branches and the correct one
-        swaps across the quasi-longitudinal to quasi-transverse transition.  A
-        naive principal-branch evaluation produces a discontinuity in the middle
-        of the band that looks like a physical feature.
-    2.  The group index.  What the sounder measures is the group path, which is
-        ``d(f n)/df``.  Near the X cutoff that derivative is large and the
-        finite-difference evaluation of it is ill-conditioned exactly where the
-        answer matters most.  An analytic derivative of the full expression is
-        the defensible route and it is algebra that has to be checked against
-        something.
-    3.  Verification.  The check is PHaRLAP through the MATLAB bridge and the
-        author's independent three-dimensional Haselgrove raytracer from the
-        Chartier reproduction.  Until that comparison exists there is no way to
-        tell a sign error from a physical effect.
-
-    The open question this function will answer is how much of the O-X trace
-    separation, and of the differential absorption between the modes, survives
-    at the bottom of the sounding band where ``f`` is comparable with ``f_ce``
-    and the quasi-longitudinal approximation fails.  That matters for INS-08 and
-    for C5, because polarization labelling of the two traces is only useful over
-    the band where the two traces are actually separable.
-
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP2, docs/architecture.md section "L1 Propagation".
+    The principal square root is taken.  Without collisions that is the right
+    branch everywhere.  With collisions it is right away from ``X = 1``, and
+    inside the coupling region near ``X = 1`` at small ``theta`` the two waves
+    exchange identity and no single-valued choice is correct (Budden chapter
+    19).  The collisionless :func:`refractive_index_squared` and
+    :func:`group_index` are what the group-delay calculation uses, and they do
+    not have that problem.
     """
-    del f_hz, f_p_hz, f_ce_hz, theta_rad, nu_per_s, mode
-    raise NotImplementedError(
-        "WP2: the full Appleton-Hartree index with collisions is not implemented. "
-        "See docs/architecture.md section 'L1 Propagation' and the notes in "
-        "tss.l1_propagation.magnetoionic.  The analytic tier uses the field-free "
-        "group index and flags every X-mode row it emits; it does not silently "
-        "substitute for this function."
-    )
+    f = np.asarray(f_hz, dtype=float)
+    x = (np.asarray(f_p_hz, dtype=float) / f) ** 2
+    y = np.asarray(f_ce_hz, dtype=float) / f
+    theta = np.asarray(theta_rad, dtype=float)
+    u = 1.0 - 1j * np.asarray(nu_per_s, dtype=float) / (2.0 * np.pi * f)
+    sign = _mode_sign(mode)
+    y_t2 = (y * np.sin(theta)) ** 2
+    y_l2 = (y * np.cos(theta)) ** 2
+    with np.errstate(invalid="ignore", divide="ignore"):
+        half = y_t2 / (2.0 * (u - x))
+        n2 = 1.0 - x / (u - half + sign * np.sqrt(half * half + y_l2))
+    n = np.sqrt(n2)
+    return np.where(n.real < 0.0, -n, n)

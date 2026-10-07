@@ -48,20 +48,27 @@ close to the critical frequency where the retardation runs away.  Pass
 seam is deliberate and it is recorded here rather than left for a reader to
 discover from a discrepancy.
 
-**Magnetoionic splitting** into O and X.  Honest statement of what this costs:
-the reflection altitudes are exact algebra, but the group delays are both
-computed with the field-free group index, which is exact for the O mode only in
-the limit of a negligible field and is an approximation for the X mode near its
-cutoff, where the magnetoionic group index genuinely differs.  Every X row
-carries the flag ``"x_group_delay_field_free"`` so that no downstream result can
-depend on that approximation without saying so, and
-:func:`tss.l1_propagation.magnetoionic.appleton_hartree` is the stub that will
-replace it.  A campaign that cares about the X trace shape should use the
-ray-traced tier.
+**Magnetoionic splitting** into O and X.  The reflection altitudes are exact
+algebra.  The group delays use the magnetoionic group index of
+:func:`tss.l1_propagation.magnetoionic.group_index` (Budden 1961, eq. 12.8)
+whenever the state carries a field direction, with the gyrofrequency and the
+angle between the field and the vertical taken at each height.  That is the
+``"magnetoionic"`` setting of ``group_index``, and ``"auto"`` selects it when
+the field is there.  Without a field direction, or when ``"field_free"`` is
+asked for, both modes use ``1 / sqrt(1 - X)``.  That is wrong for the ordinary
+mode by the ``cosec(theta)`` factor near reflection and wrong for the
+extraordinary mode by hundreds of kilometres, and every X row then carries the
+flag ``"x_group_delay_field_free"``.  Which index was used is recorded in
+``EchoSet.source`` and in the tier's ``group_index_used``.
+
+Still missing from the magnetoionic picture: the extraordinary branch below the
+gyrofrequency, which reflects at ``X = 1 + Y`` and appears on topside ionograms
+as the Z trace, and the lateral deviation of the ray in the magnetic meridian,
+which moves the reflection point and not the delay.
 
 **Doppler** from :mod:`tss.l1_propagation.doppler`, which is the forward model
 C3 must invert.  The tier reports the two-way shift in ``EchoSet.doppler_hz``,
-carrying the field-free refractive index at the spacecraft, and leaves the apparent-range bias to the layers that know the sweep rate,
+carrying the refractive index at the spacecraft for the mode, and leaves the apparent-range bias to the layers that know the sweep rate,
 because :class:`~tss.interfaces.EchoSet` has no sweep to refer to.
 
 Band edges are results, not errors.  Below the local plasma frequency at the
@@ -180,6 +187,15 @@ class AnalyticPropagation(PropagationBase):
     interp
         Profile interpolation, ``"linear"`` or ``"log"``.  See
         :func:`tss.l1_propagation.base.density_at`.
+    group_index
+        ``"auto"``, ``"magnetoionic"`` or ``"field_free"``.  ``"auto"`` uses the
+        magnetoionic group index when the state carries a field direction and
+        the field-free one otherwise.  ``"magnetoionic"`` demands the field and
+        raises without it.
+    default_theta_rad
+        Angle between the field and the vertical to use when the state carries
+        a field magnitude and no direction.  ``None`` means no direction is
+        invented.
     """
 
     def __init__(
@@ -191,8 +207,19 @@ class AnalyticPropagation(PropagationBase):
         spreading_range: str = "group",
         default_b_tesla: float | None = None,
         interp: str = "linear",
+        group_index: str = "auto",
+        default_theta_rad: float | None = None,
     ) -> None:
         super().__init__(interp=interp)
+        if group_index not in ("auto", "magnetoionic", "field_free"):
+            raise ValueError(
+                f"unknown group_index {group_index!r}, expected 'auto', "
+                "'magnetoionic' or 'field_free'"
+            )
+        self.group_index = group_index
+        self.default_theta_rad = default_theta_rad
+        #: What the last call to :meth:`echoes` actually used.
+        self.group_index_used: str | None = None
         modes_upper = tuple(str(m).upper() for m in modes)
         for m in modes_upper:
             if m not in ("O", "X"):
@@ -219,8 +246,10 @@ class AnalyticPropagation(PropagationBase):
             "spreading_range": self.spreading_range,
             "default_b_tesla": self.default_b_tesla,
             "geometry": "vertical incidence, no ray bending",
-            "group_index": "field-free, collisionless",
-            "doppler_index": "field-free refractive index at the platform",
+            "group_index": self.group_index,
+            "group_index_used": self.group_index_used,
+            "default_theta_rad": self.default_theta_rad,
+            "doppler_index": "refractive index at the platform, same model as the group index",
         }
 
     # -- the protocol -------------------------------------------------------
@@ -244,6 +273,15 @@ class AnalyticPropagation(PropagationBase):
         h_sat = float(platform.alt_m)
         v_close = self._closing_velocity(platform)
         f_n_sat = float(self.plasma_frequency_at(state, h_sat))
+        field_aware = self._field_aware(state)
+        self.group_index_used = "magnetoionic" if field_aware else "field_free"
+        if field_aware:
+            f_h_sat, theta_sat = magnetoionic.field_at(
+                state, h_sat,
+                default_b_tesla=self.default_b_tesla,
+                default_theta_rad=self.default_theta_rad,
+            )
+            f_h_sat, theta_sat = float(f_h_sat), float(theta_sat)
 
         n_rows = freqs.size * len(self.modes)
         out_freq = np.empty(n_rows, dtype=float)
@@ -263,7 +301,19 @@ class AnalyticPropagation(PropagationBase):
                 out_mode[row] = mode
                 # NaN below the plasma frequency at the spacecraft, where the
                 # row is evanescent and there is no echo to carry a shift.
-                mu_sat = float(refractive_index_at_platform(f, f_n_sat))
+                if field_aware and f > f_n_sat:
+                    mu_sat = float(
+                        magnetoionic.refractive_index(
+                            (f_n_sat / f) ** 2, f_h_sat / f, theta_sat, mode
+                        )
+                    )
+                    # Outside (0, 1] the branch is not one this tier makes an
+                    # echo for: evanescent, or the whistler branch below the
+                    # gyrofrequency.  No echo, so no shift.
+                    if not 0.0 < mu_sat <= 1.0:
+                        mu_sat = float("nan")
+                else:
+                    mu_sat = float(refractive_index_at_platform(f, f_n_sat))
                 out_dopp[row] = float(doppler_shift_hz(v_close, f, mu_sat=mu_sat))
 
                 h_refl, flag = self._reflection(state, f, h_sat, mode)
@@ -277,14 +327,29 @@ class AnalyticPropagation(PropagationBase):
                     continue
 
                 out_alt[row] = h_refl
-                p_group = group_range_m(
-                    state,
-                    f,
-                    h_refl,
-                    h_sat,
-                    n_steps=self.n_group_steps,
-                    interp=self.interp,
-                )
+                if field_aware:
+                    p_group = magnetoionic.group_range_m(
+                        state,
+                        f,
+                        h_refl,
+                        h_sat,
+                        mode,
+                        n_steps=self.n_group_steps,
+                        interp=self.interp,
+                        default_b_tesla=self.default_b_tesla,
+                        default_theta_rad=self.default_theta_rad,
+                    )
+                    if flag == X_GROUP_FLAG:
+                        flag = ""
+                else:
+                    p_group = group_range_m(
+                        state,
+                        f,
+                        h_refl,
+                        h_sat,
+                        n_steps=self.n_group_steps,
+                        interp=self.interp,
+                    )
                 out_delay[row] = 2.0 * p_group / C_LIGHT
 
                 a_db = absorption_db(
@@ -314,11 +379,32 @@ class AnalyticPropagation(PropagationBase):
             flags=out_flags,
             source=(
                 f"tss.l1_propagation.analytic (modes={'+'.join(self.modes)}, "
-                f"spreading={self.spreading_range})"
+                f"spreading={self.spreading_range}, "
+                f"group_index={self.group_index_used})"
             ),
         )
 
     # -- internals ----------------------------------------------------------
+
+    def _field_aware(self, state: IonosphereState) -> bool:
+        """Whether this state can be given the magnetoionic group index."""
+        if self.group_index == "field_free":
+            return False
+        b = state.b_field_t
+        has_direction = b is not None and np.asarray(b).ndim == 2
+        has_default = (
+            self.default_theta_rad is not None
+            and (b is not None or self.default_b_tesla is not None)
+        )
+        if has_direction or has_default:
+            return True
+        if self.group_index == "magnetoionic":
+            raise ValueError(
+                "group_index='magnetoionic' needs the field direction: supply "
+                "b_field_t as (3, N) north-east-down components, or a "
+                "default_theta_rad with a field magnitude"
+            )
+        return False
 
     def _closing_velocity(self, platform: PlatformState) -> float:
         """Line-of-sight closing velocity for a vertical sounding, m/s.
