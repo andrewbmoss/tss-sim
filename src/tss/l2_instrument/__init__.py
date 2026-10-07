@@ -100,6 +100,7 @@ from tss.l2_instrument.noise import (  # noqa: F401
 from tss.l2_instrument.oscillator import (  # noqa: F401
     Oscillator,
     phase_jitter_rad,
+    range_correlation_credit,
     range_correlation_credit_db,
     range_correlation_suppression,
     sideband_power_ratio,
@@ -159,6 +160,7 @@ __all__ = [
     "phase_jitter_rad",
     "sideband_power_ratio",
     "range_correlation_suppression",
+    "range_correlation_credit",
     "range_correlation_credit_db",
     # WP3 stub
     "LeakageModel",

@@ -60,9 +60,34 @@ is not.
 OPEN ITEM 12, WHICH IS NOT SETTLED
 ----------------------------------
 Whether the range-correlation credit is claimable at all for this instrument is
-open item 12, and the credit in question is a factor of 24 to 48, which is 14 to
-17 dB.  That is large enough that the answer changes the oscillator selection
-and therefore the parts cost.
+open item 12.  For the INS-26 goal, a coherent interval of 1.15 s and the 7.0 ms
+round-trip delay of INS-04's maximum range, the credit is a factor of 53 in
+Allan deviation if the oscillator's noise is flicker frequency noise, 9 if it is
+white frequency noise and 95 if it is random-walk frequency noise.  That is
+large enough that the answer changes the oscillator selection and therefore the
+parts cost, and the noise type moves it more than anything else does.
+
+THE CREDIT IS AN INTEGRAL, NOT ONE OFFSET
+-----------------------------------------
+The quantity INS-26 budgets is the phase accumulated across the coherent
+interval ``T``.  After de-chirping at a round-trip delay ``tau`` the phase is a
+lag-``tau`` difference of the oscillator phase, and what the coherent
+combination sees is the change of that difference across ``T``.  Two filters
+therefore act on the frequency-noise spectrum ``S_y(f)``:
+
+    credited variance = (2 pi f0)^2 * integral of
+        S_y(f) * [tau sinc(pi f tau)]^2 * 4 sin^2(pi f T) df
+
+The first bracket is the average of the fractional frequency over ``tau``.  The
+second is the first difference across ``T``, which peaks at ``f = 1/(2T)`` and
+is zero at ``f = 1/T``.  Evaluating the suppression at one offset is a shortcut.
+At ``1/(2T)`` it reproduces the integral for flicker frequency noise to 2 per
+cent.  At ``1/T``, which Requirements Rev G carried until 2026-10-06, it
+understates that case by a factor of two, because ``1/T`` is the one offset the
+difference across ``T`` cannot see.  For white frequency noise both shortcuts
+overstate the credit by a factor of 3 to 6.  :func:`range_correlation_credit`
+evaluates the integral in closed form for the three power-law types and is what
+:class:`Oscillator` uses.
 
 The doubt is not about the algebra, it is about whether the architecture earns
 it.  Range correlation requires the transmitted signal and the de-chirp
@@ -98,6 +123,8 @@ __all__ = [
     "range_correlation_suppression",
     "range_correlation_credit_db",
     "correlation_crossover_hz",
+    "FM_NOISE_TYPES",
+    "range_correlation_credit",
     "INS26_ALLAN_THRESHOLD",
     "INS26_THRESHOLD_INTERVAL_S",
     "INS26_ALLAN_GOAL",
@@ -123,8 +150,15 @@ INS26_GOAL_INTERVAL_S = 1.15
 #: from.
 BASELINE_PART_ALLAN = 2.0e-9
 
-#: The disputed range-correlation credit, as a power factor.  14 to 17 dB.
-OPEN_ITEM_12_CREDIT_RANGE = (24.0, 48.0)
+#: Power-law frequency-noise types and the exponent of ``S_y(f)`` for each.
+FM_NOISE_TYPES = {"white_fm": 0, "flicker_fm": -1, "random_walk_fm": -2}
+
+#: The disputed range-correlation credit, as a factor in Allan deviation, for
+#: the INS-26 goal (1.15 s) at the 7.0 ms round-trip delay of INS-04's maximum
+#: range.  The low end is white frequency noise and the high end is random-walk
+#: frequency noise.  Flicker frequency noise gives 53.  See
+#: :func:`range_correlation_credit`.
+OPEN_ITEM_12_CREDIT_RANGE = (9.0, 95.0)
 
 
 def phase_jitter_rad(
@@ -188,6 +222,55 @@ def range_correlation_credit_db(
     return -db(range_correlation_suppression(f_m_hz, tau_s))
 
 
+def range_correlation_credit(
+    coherent_interval_s: float,
+    round_trip_delay_s: float,
+    noise: str = "flicker_fm",
+) -> float:
+    """Range-correlation credit as a factor in Allan deviation.
+
+    The ratio of the uncredited phase jitter, ``2 pi f0 T sigma_y(T)``, to the
+    jitter that survives de-chirping at delay ``tau`` and a first difference
+    across ``T``.  An oscillator may be worse by this factor and give the same
+    phase error, if the credit applies at all, which is open item 12.
+
+    The integral in the module docstring is evaluated in closed form.  With
+    ``r = T / tau`` and ``S_y(f) = h f^a``:
+
+    * white FM, ``a = 0``: surviving variance ``h min(tau, T)``, against
+      ``h T / 2`` uncredited.
+    * flicker FM, ``a = -1``: surviving variance
+      ``h tau^2 [(r+1)^2 ln(r+1) + (r-1)^2 ln|r-1| - 2 r^2 ln r]``, against
+      ``2 ln2 h T^2``.  This is the two-sample variance with dead time (Barnes
+      1969), which reduces to the Allan variance at ``r = 1``.
+    * random-walk FM, ``a = -2``: surviving variance
+      ``2 pi^2 h tau^2 (T - tau/3)`` for ``T >= tau``, against
+      ``(2 pi^2 / 3) h T^3``.
+
+    The factor grows as the delay shortens against the interval.  When the two
+    are equal it is ``1/sqrt(2)`` for every type, because the surviving variance
+    is then twice the Allan variance by that variance's own definition.  ``T``
+    must be at least ``tau``: a coherent interval shorter than the round trip
+    is not a case the instrument has.
+    """
+    if noise not in FM_NOISE_TYPES:
+        raise ValueError(f"noise must be one of {sorted(FM_NOISE_TYPES)}, got {noise!r}")
+    t = float(coherent_interval_s)
+    tau = float(round_trip_delay_s)
+    if t <= 0.0 or tau <= 0.0:
+        raise ValueError("coherent interval and round-trip delay must be positive")
+    if t < tau:
+        raise ValueError("coherent interval must be at least the round-trip delay")
+    r = t / tau
+    if noise == "white_fm":
+        return float(np.sqrt(r / 2.0))
+    if noise == "flicker_fm":
+        low = (r - 1.0) ** 2 * np.log(r - 1.0) if r > 1.0 else 0.0
+        surviving = (r + 1.0) ** 2 * np.log(r + 1.0) + low - 2.0 * r**2 * np.log(r)
+        return float(np.sqrt(2.0 * np.log(2.0) * r**2 / surviving))
+    return float(np.sqrt(r**3 / (3.0 * (r - 1.0 / 3.0))))
+
+
 class Oscillator:
     """The frequency reference, specified the way one is bought.
 
@@ -208,6 +291,14 @@ class Oscillator:
         source.  This is INS-21 and it is the precondition for any
         range-correlation credit at all.  The credit is refused outright when it
         is False, because there is then nothing for the noise to correlate with.
+    noise_type
+        Power-law type of the frequency noise near the coherent interval, one of
+        :data:`FM_NOISE_TYPES`.  It sets the size of the range-correlation
+        credit and nothing else.  Flicker frequency noise is the default because
+        it is what usually dominates a crystal oscillator near one second.  The
+        part's own Allan deviation curve is what should decide it: flat in
+        ``tau`` is flicker, falling as ``tau^-1/2`` is white, rising as
+        ``tau^+1/2`` is random walk.
     """
 
     def __init__(
@@ -215,6 +306,7 @@ class Oscillator:
         allan_deviation: Mapping[float, float] | None = None,
         *,
         single_reference: bool = True,
+        noise_type: str = "flicker_fm",
     ) -> None:
         table = dict(allan_deviation or {1.0: BASELINE_PART_ALLAN, 2.0: BASELINE_PART_ALLAN})
         if not table:
@@ -223,6 +315,11 @@ class Oscillator:
             raise ValueError("Allan deviation intervals and values must be positive")
         self.allan_deviation = {float(k): float(v) for k, v in sorted(table.items())}
         self.single_reference = bool(single_reference)
+        if noise_type not in FM_NOISE_TYPES:
+            raise ValueError(
+                f"noise_type must be one of {sorted(FM_NOISE_TYPES)}, got {noise_type!r}"
+            )
+        self.noise_type = str(noise_type)
 
     # -- the specification ---------------------------------------------------
 
@@ -258,9 +355,12 @@ class Oscillator:
     ) -> np.ndarray:
         """Phase jitter with the range-correlation credit applied.
 
-        ``f_m_hz`` defaults to ``1 / (2 tau)``, the offset the coherent interval
-        itself corresponds to.  The credit is refused, and the uncredited value
-        returned unchanged, when the instrument is not single-reference.
+        The credit is :func:`range_correlation_credit` for this oscillator's
+        noise type, which is the integral over the noise spectrum.  Passing
+        ``f_m_hz`` asks instead for the single-offset shortcut at that offset,
+        which is kept so the two can be compared.  The credit is refused, and
+        the uncredited value returned unchanged, when the instrument is not
+        single-reference.
 
         Whether this number may be quoted at all is open item 12.  The
         uncredited number stands until it is settled; see the module docstring.
@@ -268,9 +368,13 @@ class Oscillator:
         raw = self.phase_jitter_rad(f_hz, tau_s)
         if not self.single_reference:
             return raw
-        offset = float(f_m_hz) if f_m_hz is not None else 1.0 / (2.0 * float(np.max(tau_s)))
-        suppression = range_correlation_suppression(offset, round_trip_delay_s)
-        return raw * np.sqrt(suppression)
+        if f_m_hz is not None:
+            suppression = range_correlation_suppression(float(f_m_hz), round_trip_delay_s)
+            return raw * np.sqrt(suppression)
+        credit = np.vectorize(
+            lambda t: range_correlation_credit(t, round_trip_delay_s, self.noise_type)
+        )(np.asarray(tau_s, dtype=float))
+        return raw / credit
 
     def sideband_power_ratio(
         self, df_hz: np.ndarray | float, tau_s: np.ndarray | float
@@ -308,8 +412,14 @@ class Oscillator:
         """
         sigma_y = float(self.sigma_y(coherent_interval_s))
         raw = float(self.phase_jitter_rad(f_hz, coherent_interval_s))
+        credit = range_correlation_credit(
+            coherent_interval_s, round_trip_delay_s, self.noise_type
+        )
+        by_type = {
+            name: range_correlation_credit(coherent_interval_s, round_trip_delay_s, name)
+            for name in FM_NOISE_TYPES
+        }
         offset = 1.0 / (2.0 * float(coherent_interval_s))
-        suppression = float(range_correlation_suppression(offset, round_trip_delay_s))
         credited = float(
             self.phase_jitter_credited_rad(f_hz, coherent_interval_s, round_trip_delay_s)
         )
@@ -322,15 +432,23 @@ class Oscillator:
             "phase_jitter_rad": raw,
             "phase_jitter_deg": math.degrees(raw),
             "credited_phase_jitter_rad": credited,
-            "credit_db": float(range_correlation_credit_db(offset, round_trip_delay_s)),
-            "suppression_factor": suppression,
+            "noise_type": self.noise_type,
+            "credit_factor": credit,
+            "credit_db": float(20.0 * math.log10(credit)),
+            "credit_factor_by_noise_type": by_type,
+            "suppression_factor": 1.0 / credit**2,
+            "single_offset_credit_db": float(
+                range_correlation_credit_db(offset, round_trip_delay_s)
+            ),
+            "single_offset_hz": offset,
             "correlation_crossover_hz": correlation_crossover_hz(round_trip_delay_s),
-            "offset_used_hz": offset,
             "single_reference": self.single_reference,
             "open_item_12": (
-                "Whether the range-correlation credit of "
-                f"{OPEN_ITEM_12_CREDIT_RANGE[0]:g} to {OPEN_ITEM_12_CREDIT_RANGE[1]:g} "
-                "applies is unsettled.  The uncredited number stands until it is."
+                "Whether the range-correlation credit applies is unsettled, and its "
+                f"size depends on the noise type: a factor of {by_type['white_fm']:.0f} "
+                f"for white, {by_type['flicker_fm']:.0f} for flicker and "
+                f"{by_type['random_walk_fm']:.0f} for random-walk frequency noise here.  "
+                "The uncredited number stands until it is settled."
             ),
             "interval_outside_table": self.outside_tabulated(coherent_interval_s),
         }
@@ -340,6 +458,7 @@ class Oscillator:
         return {
             "allan_deviation": dict(self.allan_deviation),
             "single_reference": self.single_reference,
+            "noise_type": self.noise_type,
             "ins26_threshold": INS26_ALLAN_THRESHOLD,
             "ins26_threshold_interval_s": INS26_THRESHOLD_INTERVAL_S,
             "ins26_goal": INS26_ALLAN_GOAL,
@@ -368,4 +487,8 @@ class Oscillator:
                 table[float(tail)] = float(value)
             except ValueError:
                 continue
-        return cls(table or None, single_reference=bool(cfg.get("single_reference", True)))
+        return cls(
+            table or None,
+            single_reference=bool(cfg.get("single_reference", True)),
+            noise_type=str(cfg.get("noise_type", "flicker_fm")),
+        )

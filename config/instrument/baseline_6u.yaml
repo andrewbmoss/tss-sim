@@ -26,6 +26,7 @@ isolation:
 oscillator:
   allan_deviation_1s: 2.0e-9  # the assumed part; INS-26 asks 5.8e-8 at 0.05 s and 3.2e-9 at 1.15 s
   allan_deviation_2s: 2.0e-9
+  noise_type: flicker_fm      # sets the size of the range-correlation credit, open item 12
   single_reference: true      # INS-21; this is what earns the range-correlation credit
 
 resources:
