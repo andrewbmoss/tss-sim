@@ -713,6 +713,7 @@ from tss.studies import (  # noqa: E402,F401
     antenna_scale,
     c3_verify,
     doppler_separation,
+    field_aligned_verify,
     field_inversion,
     isis_validation,
     link_budget,
