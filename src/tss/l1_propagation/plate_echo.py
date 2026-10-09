@@ -27,7 +27,10 @@ ends do not diffract into the window.
 
 Drift is a rigid vertical motion of the plate and, inside the plasma, of the
 whole profile with it, positive upward toward the platform.  That is the
-"strata moving as a whole" case of Technical Volume Section 8.2.
+"strata moving as a whole" case of Technical Volume Section 8.2.  The plate
+may also move along track, at ``drift_x_mps``.  The profile is horizontally
+stratified, so moving it along track changes nothing, and only the plate
+moves.
 
 Free space
 ----------
@@ -102,6 +105,11 @@ class Plate:
         Length along the plate.
     drift_mps
         Rigid vertical velocity, positive upward toward the platform.
+    drift_x_mps
+        Along-track velocity of the plate, positive toward ``+x``.  Added for
+        the two-node study, where a facet's horizontal drift between passes is
+        what SCI-23 scores.  Zero by default, which leaves every earlier result
+        unchanged.
     taper
         ``"uniform"`` for a facet, whose pattern is then a ``sinc``, or
         ``"tukey"`` for an extended layer, whose ends must not diffract.
@@ -117,6 +125,7 @@ class Plate:
     drift_mps: float = 0.0
     taper: str = "uniform"
     tukey_fraction: float = 0.25
+    drift_x_mps: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -206,11 +215,13 @@ def echo_free_space(
     field = np.empty(t.size, dtype=complex)
     group = np.empty(t.size, dtype=float)
     for j, tj in enumerate(t):
-        dx = float(v_s_mps) * tj - xi
+        dx = float(v_s_mps) * tj - xi - float(plate.drift_x_mps) * tj
         dz = di - float(plate.drift_mps) * tj
         r = np.hypot(dx, dz)
         field[j] = np.sum(w * np.exp(-2j * k * r))
-        group[j] = float(np.hypot(float(v_s_mps) * tj - plate.x_m, plate.depth_m - plate.drift_mps * tj))
+        group[j] = float(np.hypot(
+            float(v_s_mps) * tj - plate.x_m - plate.drift_x_mps * tj, plate.depth_m - plate.drift_mps * tj
+        ))
     return PlateEcho(t_s=t, field=field, group_path_m=group, mu_sat=1.0)
 
 
@@ -266,12 +277,13 @@ def echo_stratified(
     group = np.empty(t.size, dtype=float)
     for j, tj in enumerate(t):
         d_sat = float(plate.drift_mps) * tj  # the medium has risen past the platform
+        u_t = float(plate.drift_x_mps) * tj
         phase, group_c = _solve(
-            float(v_s_mps) * tj - xi, d_sat, di, f, profile, nodes, weights, newton_iterations
+            float(v_s_mps) * tj - xi - u_t, d_sat, di, f, profile, nodes, weights, newton_iterations
         )
         field[j] = np.sum(w * np.exp(-2j * k0 * phase))
         _, gc = _solve(
-            np.array([float(v_s_mps) * tj - xc[0]]), d_sat, dc, f, profile, nodes, weights,
+            np.array([float(v_s_mps) * tj - xc[0] - u_t]), d_sat, dc, f, profile, nodes, weights,
             newton_iterations,
         )
         group[j] = float(gc[0])

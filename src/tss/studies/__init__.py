@@ -721,6 +721,7 @@ from tss.studies import (  # noqa: E402,F401
     min_frequency,
     route_one,
     route_one_tilt_map,
+    route_two,
     sky_noise,
     trade_space,
     transcription,
