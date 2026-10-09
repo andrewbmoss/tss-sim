@@ -711,6 +711,7 @@ def run_campaign(
 # functions that need them, so `import tss.studies` stays cheap.
 from tss.studies import (  # noqa: E402,F401
     antenna_scale,
+    c3_verify,
     doppler_separation,
     field_inversion,
     isis_validation,

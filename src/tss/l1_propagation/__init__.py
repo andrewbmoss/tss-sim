@@ -25,6 +25,9 @@ Module                  Status    Note
                                   collisions.  The X = 1 + Y branch below the
                                   gyrofrequency is not generated.
 ``doppler``             done      The forward model C3 has to invert.
+``plate_echo``          done      Physical-optics echo of a flat plate, free
+                                  space and stratified (exact Snell rays).
+                                  Forward model of the C3 verification study.
 ``analytic``            done      Vertical-incidence tier, registered as
                                   ``l1/analytic``.
 ``raytrace``            stub      PHaRLAP through the MATLAB bridge.

@@ -4,7 +4,8 @@ Claims: C3, C4, C2
 Status: stub
 Requirements: INS-09, INS-15, INS-23, INS-24
 
-The novel L3 algorithms.  Every module in this subpackage is a stub.
+The novel L3 algorithms.  Every module in this subpackage is a stub except
+``route_one_estimator``, which is implemented at the parameter level.
 
 These four modules are the research the dissertation proposes, as opposed to
 the baseline chain of WP4 which is conventional processing written so that the
@@ -25,10 +26,14 @@ Module                  WP      Claim  What it would do
                                        Exploratory extension, not a claim.
 ``leakage_cancel``      WP5     C4     Adaptive cancellation of transmit-to-receive
                                        leakage.  The claim the concept now turns on.
+``route_one_estimator`` WP5     C3     Drift from the Doppler zero crossing and the
+                                       power peak of one echo, with the extended-
+                                       reflector refusal.  Implemented (parameter
+                                       level); tested by ``studies/c3_verify``.
 ======================  ======  =====  ==============================================
 
-Every function raises :class:`NotImplementedError` with a message naming its
-work package.  That is the point.  A stub that returned a plausible number
+Every function of the stub modules raises :class:`NotImplementedError` with a
+message naming its work package.  That is the point.  A stub that returned a plausible number
 would let a campaign produce a result that looks like evidence for C3, and the
 first governing principle of Section 3.1 of the proposal is that no figure is
 scored until the thing it is scored against exists.  A fabricated intermediate
@@ -46,6 +51,7 @@ from tss.l3_signal.novel import (  # noqa: F401
     aperture_synthesis,
     leakage_cancel,
     motion_compensation,
+    route_one_estimator,
     sweep_pairing,
 )
 from tss.l3_signal.novel.aperture_synthesis import (  # noqa: F401
