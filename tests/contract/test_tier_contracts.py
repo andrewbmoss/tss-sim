@@ -52,9 +52,10 @@ from tss.studies import _grids, _platform_for, _sweep_from_config
 EPOCH = "2026-01-01T12:00:00Z"
 SEED = 20261017
 
-#: Tiers that run in any environment and are held to every rule.
+#: Tiers held to every rule.  ``iri2020`` needs PyIRI; without it its tests
+#: skip rather than fail.
 IMPLEMENTED: dict[str, tuple[str, ...]] = {
-    "l0": ("chapman", "analytic"),
+    "l0": ("chapman", "analytic", "iri2020"),
     "l1": ("analytic",),
     "l2": ("baseline",),
     "l3": ("baseline",),
@@ -67,13 +68,24 @@ STUBS: dict[tuple[str, str], str] = {
     ("l1", "raytrace"): "WP2",
     ("l3", "motion_separated"): "WP5",
 }
-#: Tiers that need software this suite cannot assume (PyIRI, the IRI Fortran
+#: Tiers that need software this suite cannot assume (the IRI Fortran
 #: wrapper, MATLAB).  Only their description is checked here.
 EXTERNAL: tuple[tuple[str, str], ...] = (
-    ("l0", "iri2020"),
     ("l0", "iri_wrapper"),
     ("l0", "matlab_iri"),
 )
+#: Constructor arguments a tier cannot run without.
+KWARGS: dict[tuple[str, str], dict[str, object]] = {("l0", "iri2020"): {"f107": 120.0}}
+
+
+def _build(layer: str, name: str):
+    """Build a tier with its required arguments, skipping if its software is absent."""
+    try:
+        return build(layer, name, **KWARGS.get((layer, name), {}))
+    except (ImportError, ModuleNotFoundError) as exc:
+        pytest.skip(f"{layer}/{name} needs software this environment lacks: {exc}")
+
+
 #: The default tier at every layer, used to make the inputs of the layer under test.
 DEFAULT = {"l0": "chapman", "l1": "analytic", "l2": "baseline", "l3": "baseline",
            "l4": "lamination_magnetoionic", "l5": "standard"}
@@ -201,10 +213,7 @@ def test_every_registered_tier_is_covered_by_these_contracts():
     sorted({(lay, n) for lay, names in available().items() for n in names}),
 )
 def test_every_tier_describes_itself_in_json(layer, name):
-    try:
-        tier = build(layer, name)
-    except (ImportError, ModuleNotFoundError) as exc:
-        pytest.skip(f"{layer}/{name} needs software this environment lacks: {exc}")
+    tier = _build(layer, name)
     record = tier.describe()
     json.dumps(dict(record))  # raises on anything that is not JSON
     assert getattr(tier, "name", None) == name
@@ -258,7 +267,7 @@ def _call(layer: str, tier, chain, rng, *, frozen: bool):
 @pytest.mark.parametrize("layer,name", _all_implemented())
 def test_rule1_a_tier_does_not_write_into_its_inputs(chain, layer, name):
     """Read-only inputs: any in-place write raises at the line that makes it."""
-    tier = build(layer, name)
+    tier = _build(layer, name)
     args, _ = _call(layer, tier, chain, np.random.default_rng(1), frozen=True)
     for arg in args:
         if isinstance(arg, np.ndarray):
@@ -268,7 +277,7 @@ def test_rule1_a_tier_does_not_write_into_its_inputs(chain, layer, name):
 @pytest.mark.parametrize("layer,name", _all_implemented())
 def test_rule1_a_tier_leaves_its_inputs_as_it_found_them(chain, layer, name):
     """Including what a tier could change through a mapping it was handed."""
-    tier = build(layer, name)
+    tier = _build(layer, name)
     args = {
         "l0": (chain["alt_m"],),
         "l1": (chain["truth"], chain["platform"], chain["freq_hz"]),
@@ -296,7 +305,7 @@ def _finite(x) -> np.ndarray:
 @pytest.mark.parametrize("name", IMPLEMENTED["l0"])
 def test_rule2_l0_state_is_in_si(chain, name):
     p = chain["platform"]
-    state = build("l0", name).state_at(p.lat_deg, p.lon_deg, EPOCH, chain["alt_m"])
+    state = _build("l0", name).state_at(p.lat_deg, p.lon_deg, EPOCH, chain["alt_m"])
     assert isinstance(state, IonosphereState)
     assert 1.0e4 < state.alt_m.min() and state.alt_m.max() < 1.0e8, "altitude in metres"
     assert 1.0e9 < np.nanmax(state.ne) < 1.0e14, "density in m^-3, not cm^-3"

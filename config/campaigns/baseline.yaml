@@ -5,6 +5,9 @@ tiers:
   l0:
     name: iri2020
     topside: NeQuick
+    # Daily F10.7, SFU.  A stated campaign choice of moderate activity, not the
+    # observed value for the epoch: PyIRI takes no epoch-driven index.
+    f107: 120.0
   l1: analytic
   l2: baseline
   l3: baseline

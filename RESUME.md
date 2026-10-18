@@ -21,7 +21,7 @@ not, and what comes next.
 
 | Layer | Implemented tiers | Stubs | What it does not yet model |
 |---|---|---|---|
-| L0 | chapman, analytic; iri2020 / iri_wrapper / matlab_iri need external software | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
+| L0 | chapman, analytic, iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
 | L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
 | L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | leakage (WP3, critical path) | leakage, oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels |
 | L3 | baseline: per-step transform, leading-edge trace, connected-trace filter, SNR measurement at given cells | motion_separated (WP5) | O/X labelling, robust extraction (CFAR, a search limit at the design range), Doppler separation |
@@ -89,6 +89,20 @@ magnetoionic inversion and 1.3 to 17.9 km field-free, within 0.1 km of the
 numbers it gave before, because the old L2 defaults already used the physical
 antenna model.  Technical Volume Table 7.1 (`tab:fieldinversion`) was updated
 to these numbers on 2026-10-17.
+
+## IRI-2020 through PyIRI (2026-10-17)
+
+PyIRI 0.1.7 is installed in the `tss` environment (and listed in
+`environment.yml` and the `iri` extra) and the `l0: iri2020` tier is bound to
+its spherical-harmonic library with IRI-2020's default options: URSI foF2,
+SHU-2015 hmF2, ABT-2009 bottomside, NeQuick-2 topside.  It needs a stated daily
+F10.7 (`f107`); the `baseline` campaign states 120.  Against PHaRLAP's Fortran
+IRI-2020 at matched solar level (`docs/pyiri-validation.md`) NmF2 agrees to
+about 3 per cent and hmF2 to about 2 km, but the topside density at 500 to
+900 km is only 0.44 to 0.51 of IRI-2020's, so the plasma frequency at the
+spacecraft is about 35 per cent lower at 900 km.  Not yet traced.  The
+`iri2016` wrapper is installed but not built (it needs ninja on first call), so
+`matlab_iri` is the only Fortran IRI route that works today.
 
 ## Open findings of the 2026-10-17 review
 

@@ -26,6 +26,7 @@ dependencies:
   - pip
   - pip:
       - iri2016
+      - PyIRI==0.1.7          # the l0 iri2020 tier; also brings netCDF4, cftime, fortranformat
       - ppigrf
       - sgp4
       - -e .

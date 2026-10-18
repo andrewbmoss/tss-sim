@@ -26,8 +26,8 @@ Backends
                   It exists so that the harness can be tested end to end without
                   IRI and so a regression suite can run anywhere.  Never report
                   science results from it.
-``iri2020``       PyIRI, pure Python and vectorised.  Fastest if available.  Its
-                  ``profiles`` is deliberately left unbound; see the class.
+``iri2020``       IRI-2020 through PyIRI 0.1 (spherical-harmonic library), pure
+                  Python and vectorised.  Needs a stated daily F10.7.
 ``iri_wrapper``   the ``iri2020`` / ``iri2016`` Fortran wrappers (Hirsch et al.),
                   one call per sample point.
 ``matlab_iri``    IRI-2020 through the PHaRLAP mex, driven from MATLAB in batch
@@ -330,35 +330,89 @@ class AnalyticBackend(Backend):
 # ---------------------------------------------------------------------------
 @register("l0", "iri2020")
 class PyIRIBackend(Backend):
-    """PyIRI, if installed.  Vectorised and by far the fastest option.
+    """IRI-2020 through PyIRI: pure Python, vectorised, and the default IRI route.
 
-    Registered as ``iri2020`` because it is the IRI-2020 route the package
-    prefers when it is available.  The import is inside the constructor, so
-    ``import tss`` does not need PyIRI and a campaign that does not name this
-    tier never pays for it.
+    PyIRI (Forsythe et al. 2023, Space Weather; major update Servan-Schreiber
+    et al. 2026, Space Weather 24, e2025SW004853) is an independent Python
+    implementation of the International Reference Ionosphere, not a wrapper of
+    the Fortran code.  This tier calls its spherical-harmonic library,
+    ``PyIRI.sh_library.IRI_density_1day``, which is the 0.1 series' main
+    entry point.  The options default to IRI-2020's own defaults:
 
-    ``profiles`` raises.  That is the original module's decision and it is kept:
-    PyIRI's entry points differ between releases, and guessing one would be
-    worse than an explicit stop, because a wrong guess produces densities rather
-    than an error.
+    * foF2 from the URSI coefficients (``foF2_coeff="URSI"``; ``"CCIR"`` also);
+    * hmF2 from Shubin 2015 (``hmF2_model="SHU2015"``; ``"AMTB2013"`` and
+      ``"BSE1979"`` also);
+    * the bottomside from ABT-2009 (B0, B1), which PyIRI fixes;
+    * the topside an Epstein layer with the NeQuick-2 thickness law and its
+      growing scale height (g = 0.125, r = 100), which PyIRI also fixes.
+
+    So ``topside`` can only be ``"NeQuick"``.  IRI's other topside options
+    (IRI-2001, IRI-2001 corrected) are reached through ``matlab_iri``.  Being a
+    reimplementation, PyIRI agrees with Fortran IRI-2020 closely but not to the
+    last digit; ``docs/pyiri-validation.md`` records the comparison.
+
+    Solar activity is the daily F10.7 the caller gives, ``f107`` in SFU.  It is
+    required: PyIRI takes no epoch-driven index, and a default would put a
+    solar level into every result without anyone choosing it.  A campaign
+    states it, for example ``l0: {name: iri2020, f107: 120}``.
+
+    The import is inside the constructor, so ``import tss`` does not need
+    PyIRI and a campaign that does not name this tier never pays for it.
     """
+
+    #: Topside models this tier can give.  PyIRI builds one, NeQuick-2's.
+    TOPSIDES: tuple[str, ...] = ("NeQuick",)
+    FOF2_COEFFS: tuple[str, ...] = ("URSI", "CCIR")
+    HMF2_MODELS: tuple[str, ...] = ("SHU2015", "AMTB2013", "BSE1979")
 
     def __init__(
         self,
         topside: str = "NeQuick",
         f107: float | None = None,
         *,
+        foF2_coeff: str = "URSI",
+        hmF2_model: str = "SHU2015",
         geomagnetic_model: str = "auto",
     ) -> None:
         super().__init__(geomagnetic_model=geomagnetic_model)
-        import PyIRI  # noqa: F401
-        import PyIRI.main_library as ml
+        if topside not in self.TOPSIDES:
+            raise ValueError(
+                f"PyIRI builds only the NeQuick-2 topside; got topside={topside!r}.  "
+                "Use l0: matlab_iri for IRI's IRI-2001 topside options."
+            )
+        if foF2_coeff not in self.FOF2_COEFFS:
+            raise ValueError(f"foF2_coeff must be one of {self.FOF2_COEFFS}, got {foF2_coeff!r}")
+        if hmF2_model not in self.HMF2_MODELS:
+            raise ValueError(f"hmF2_model must be one of {self.HMF2_MODELS}, got {hmF2_model!r}")
+        if f107 is None:
+            raise ValueError(
+                "the iri2020 tier needs a daily F10.7 (SFU): state it in the campaign, "
+                "e.g. l0: {name: iri2020, f107: 120}.  PyIRI has no epoch-driven index."
+            )
+        if not 50.0 <= float(f107) <= 400.0:
+            raise ValueError(f"f107 = {f107} SFU is outside 50..400")
 
-        self.ml = ml
+        from importlib.metadata import version
+
+        import PyIRI
+        import PyIRI.sh_library as sh
+
+        self.sh = sh
+        self.coeff_dir = PyIRI.coeff_dir
+        self.pyiri_version = version("PyIRI")
         self.topside = topside
-        self.f107 = f107
-        self.label = f"PyIRI(topside={topside})"
-        self.provenance = f"PyIRI {getattr(PyIRI, '__version__', '?')}"
+        self.f107 = float(f107)
+        self.foF2_coeff = foF2_coeff
+        self.hmF2_model = hmF2_model
+        self._last_extra: list[dict[str, float]] = []
+        self.label = (
+            f"IRI-2020 via PyIRI {self.pyiri_version}(F10.7={self.f107:g}, "
+            f"foF2={foF2_coeff}, hmF2={hmF2_model}, topside={topside})"
+        )
+        self.provenance = (
+            f"PyIRI {self.pyiri_version} sh_library.IRI_density_1day; "
+            f"coefficients {self.coeff_dir}"
+        )
 
     def profiles(
         self,
@@ -368,15 +422,67 @@ class PyIRIBackend(Backend):
         alt_grid_m: np.ndarray,
         **opts: Any,
     ) -> np.ndarray:
-        raise NotImplementedError(
-            "Bind PyIRI here: call the density routine on the sample points and "
-            "return Ne in m^-3 shaped [n_samples, n_alt].  Left unbound "
-            "deliberately -- PyIRI's entry points differ between releases and "
-            "guessing one would be worse than an explicit stop."
-        )
+        """Electron density, m^-3, shaped ``[n_samples, n_alt]``.
+
+        Samples are grouped by date and universal time, because PyIRI evaluates
+        a set of points at one day and a set of times; each group is one call.
+        ``f107`` in ``opts`` overrides the tier's value for this call only.
+        """
+        lat = np.asarray(lat_deg, dtype=float).ravel()
+        lon = np.asarray(lon_deg, dtype=float).ravel()
+        times = list(when) if not isinstance(when, dt.datetime) else [when]
+        if not lat.size == lon.size == len(times):
+            raise ValueError("lat_deg, lon_deg and when must be parallel")
+        alt_km = np.asarray(alt_grid_m, dtype=float).ravel() / 1.0e3
+        f107 = float(opts.get("f107", self.f107))
+
+        groups: dict[tuple[int, int, int, float], list[int]] = {}
+        for i, w in enumerate(times):
+            ut = w.hour + w.minute / 60.0 + (w.second + w.microsecond / 1e6) / 3600.0
+            groups.setdefault((w.year, w.month, w.day, ut), []).append(i)
+
+        out = np.empty((lat.size, alt_km.size), dtype=float)
+        extra: list[dict[str, float]] = [{} for _ in range(lat.size)]
+        for (year, month, day, ut), idx in groups.items():
+            ix = np.asarray(idx, dtype=int)
+            # Longitude to (-180, 180]: the SH basis is periodic, but the
+            # local-time terms are not guaranteed to be.
+            lon_g = (lon[ix] + 180.0) % 360.0 - 180.0
+            F2, F1, E, _es, _sun, mag, edp = self.sh.IRI_density_1day(
+                year, month, day, np.array([ut]), lon_g, lat[ix], alt_km, f107,
+                coeff_dir=self.coeff_dir, foF2_coeff=self.foF2_coeff,
+                hmF2_model=self.hmF2_model, coord="GEO", old_output=False,
+            )
+            # edp is (N_T, N_V, N_G) with N_T = 1.
+            out[ix] = np.asarray(edp, dtype=float)[0].T
+            for k, i in enumerate(ix):
+                extra[i] = {
+                    "nmf2": float(F2["Nm"][0, k]),
+                    "hmf2_km": float(F2["hm"][0, k]),
+                    "fof2_hz": float(F2["fo"][0, k]) * 1.0e6,
+                    "b_top_km": float(F2["B_top"][0, k]),
+                    "b0_km": float(F2["B0"][0, k]),
+                    "b1": float(F2["B1"][0, k]),
+                    "modip_deg": float(np.asarray(mag["modip"]).ravel()[k]),
+                    "f107": f107,
+                }
+        self._last_extra = extra
+        return out
+
+    def _extra_for_point(self, index: int) -> dict[str, float]:
+        """The model's own NmF2, hmF2 and thicknesses, not the grid's peak."""
+        if 0 <= index < len(self._last_extra):
+            return dict(self._last_extra[index])
+        return {}
 
     def _settings(self) -> dict[str, Any]:
-        return {"topside": self.topside, "f107": self.f107}
+        return {
+            "topside": self.topside,
+            "f107": self.f107,
+            "foF2_coeff": self.foF2_coeff,
+            "hmF2_model": self.hmF2_model,
+            "pyiri_version": self.pyiri_version,
+        }
 
 
 # ---------------------------------------------------------------------------

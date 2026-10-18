@@ -27,14 +27,14 @@ dependencies = [
 [project.optional-dependencies]
 # Kept optional so that `import tss` works on a machine with none of them.
 # IRI needs a Fortran compiler, which is why the conda route exists.
-iri = ["iri2016>=1.11"]
+iri = ["iri2016>=1.11", "PyIRI==0.1.7"]
 geomag = ["ppigrf>=2.0"]
 orbits = ["sgp4>=2.22"]
 data = ["requests>=2.31", "pandas>=2.0"]
 figures = ["matplotlib>=3.7"]
 dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.4"]
 all = [
-  "iri2016>=1.11", "ppigrf>=2.0", "sgp4>=2.22",
+  "iri2016>=1.11", "PyIRI==0.1.7", "ppigrf>=2.0", "sgp4>=2.22",
   "requests>=2.31", "pandas>=2.0", "matplotlib>=3.7",
   "pytest>=7.0", "pytest-cov", "ruff>=0.4",
 ]
