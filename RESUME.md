@@ -100,7 +100,7 @@ F10.7 (`f107`); the `baseline` campaign states 120.  Against PHaRLAP's Fortran
 IRI-2020 at matched solar level (`docs/pyiri-validation.md`) NmF2 agrees to
 about 3 per cent and hmF2 to about 2 km, but the topside density at 500 to
 900 km is only 0.44 to 0.51 of IRI-2020's, so the plasma frequency at the
-spacecraft is about 35 per cent lower at 900 km.  Not yet traced.  The
+spacecraft is about 35 per cent lower at 900 km.  Traced on 2026-10-18 (`docs/topside-model-campaign.md`): PyIRI 0.1.7 applies the NeQuick G thickness step (H0 = k B2bot / v) on top of the NeQuick 2 shape factor, which IRI-2020 does not, so its H0 is 0.63-0.66 of IRI-2020's; ISIS-1 sides with IRI-2020. Do not use `iri2020` for band-edge or topside-shape work until corrected.  The
 `iri2016` wrapper is installed but not built (it needs ninja on first call), so
 `matlab_iri` is the only Fortran IRI route that works today.
 
