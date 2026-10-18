@@ -39,13 +39,23 @@ downstream from two positions and a time difference.
 orbit rather than by differencing, so it carries no finite-difference error and
 does not depend on the step the caller happened to choose.
 
-The velocity is in Earth-centred Earth-fixed components, which is the frame an
-along-track geometry calculation wants.  It is the inertial velocity rotated
-into the rotating frame, less the frame rotation term ``omega x r``, so at the
-equator it is about 465 m/s smaller than the inertial speed for a prograde orbit
-and about 465 m/s larger for a retrograde one.  That difference is roughly 6 per
-cent of the orbital speed and is far larger than the Doppler precision C3 needs,
-so getting the frame wrong here would be a real error and not a rounding one.
+The velocity is computed in Earth-centred Earth-fixed components: the inertial
+velocity rotated into the rotating frame, less the frame rotation term
+``omega x r``, so at the equator it is about 465 m/s smaller than the inertial
+speed for a prograde orbit and about 465 m/s larger for a retrograde one.  That
+difference is roughly 6 per cent of the orbital speed and is far larger than the
+Doppler precision C3 needs, so getting the frame wrong here would be a real
+error and not a rounding one.
+
+It is delivered on :class:`~tss.interfaces.PlatformState` in local
+north-east-down components (:func:`ned_from_ecef`), because that is the frame
+every consumer works in: L1's line of sight for a vertical sounding is local
+down, and L5's along-track spacing is the horizontal speed.  The local frame is
+taken at the spherical sub-satellite point, the same one the latitude and
+longitude are, so a circular orbit has exactly zero vertical velocity.  Until
+2026-10-17 the Earth-fixed components were delivered as they were and read as
+north-east-down, which at the equator put the northward speed, 7.5 km/s, into
+the vertical.
 """
 
 from __future__ import annotations
@@ -311,6 +321,26 @@ def _geocentric_lat_lon_alt(r_ecef: np.ndarray) -> tuple[float, float, float]:
     return lat, lon, radius - RE
 
 
+def ned_from_ecef(v_ecef: np.ndarray, lat_deg: float, lon_deg: float) -> np.ndarray:
+    """Earth-fixed Cartesian components to local north-east-down, at a point.
+
+    ``lat_deg`` and ``lon_deg`` fix the local frame.  Pass the spherical
+    latitude :func:`platform_state_at` reports, so that "down" is toward the
+    centre of the Earth the orbit is computed around.  The conversion is a
+    rotation, so it preserves the speed.
+    """
+    v = np.asarray(v_ecef, dtype=float)
+    if v.shape != (3,):
+        raise ValueError(f"an Earth-fixed velocity is a 3-vector; got shape {v.shape}")
+    lat, lon = math.radians(float(lat_deg)), math.radians(float(lon_deg))
+    sl, cl = math.sin(lat), math.cos(lat)
+    so, co = math.sin(lon), math.cos(lon)
+    north = np.array([-sl * co, -sl * so, cl])
+    east = np.array([-so, co, 0.0])
+    down = np.array([-cl * co, -cl * so, -sl])
+    return np.array([north @ v, east @ v, down @ v], dtype=float)
+
+
 def platform_state_at(
     orbit: CircularOrbit,
     t_s: float,
@@ -340,7 +370,8 @@ def platform_state_at(
         not hold a reference to the caller's array.
 
     The velocity is populated because C3 depends on it; see the module
-    docstring.  It is analytic, not a finite difference.
+    docstring.  It is analytic, not a finite difference, and it is delivered in
+    local north-east-down components.
     """
     r_ecef, v_ecef = orbit.ecef_state(float(t_s), gmst0_rad=gmst0_rad)
     lat, lon, alt = _geocentric_lat_lon_alt(r_ecef)
@@ -348,7 +379,7 @@ def platform_state_at(
         alt_m=float(alt),
         lat_deg=float(lat),
         lon_deg=float(lon),
-        velocity_ecef_mps=np.array(v_ecef, dtype=float, copy=True),
+        velocity_ned_mps=ned_from_ecef(v_ecef, lat, lon),
         attitude_quat=None
         if attitude_quat is None
         else np.array(attitude_quat, dtype=float, copy=True),

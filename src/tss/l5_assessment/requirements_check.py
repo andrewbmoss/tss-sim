@@ -46,8 +46,8 @@ INS-08      mode_discrimination                Boolean.  False from a scalar rec
                                                and False is a failure, not a silence.
 INS-09      residual_range_bias_cells          Residual after the WP5 separation, in
                                                INS-05 cells.  None until WP5 exists.
-INS-10      snr_db_min                         Worst per-cell SNR over the detected
-                                               trace.
+INS-10      snr_db_min_at_truth_echoes         Worst per-cell SNR measured at every
+                                               echo the truth returned.
 INS-11      none                               Receiver dynamic range, owned by L2.
 INS-14      none                               Transmit power, owned by L2 and by the
                                                configuration.
@@ -193,11 +193,12 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     ),
     (
         "INS-10",
-        "snr_db_min",
-        "worst per-range-cell signal to noise ratio over the detected trace.  The "
-        "cell noise bandwidth is the one from tss.l3_signal.transform, about 37 Hz "
-        "for a 1 km cell at K_f = 5.6 MHz/s, which is what makes it closable at "
-        "sub-watt transmit power.",
+        "snr_db_min_at_truth_echoes",
+        "worst per-range-cell signal to noise ratio measured by L3 at every echo the "
+        "truth returned, both modes, detected or not (decision of 2026-10-17).  The "
+        "minimum over detected cells only, snr_db_min, is carried as a diagnostic: a "
+        "cell is detected only if it already clears the 10 dB threshold, so it could "
+        "not fail.",
     ),
     (
         "INS-11",
@@ -302,6 +303,14 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "noise_bandwidth_hz",
     "snr_db_min",
     "snr_db_median",
+    "snr_db_min_at_truth_echoes",
+    "snr_db_median_at_truth_echoes",
+    "snr_db_min_at_truth_echoes_freq_hz",
+    "snr_db_min_at_truth_echoes_o",
+    "snr_db_min_at_truth_echoes_x",
+    "n_truth_echoes",
+    "n_truth_echoes_measured",
+    "n_truth_echoes_unmeasured",
     "along_track_sampling_m",
     "block_duration_s",
     "n_detected",

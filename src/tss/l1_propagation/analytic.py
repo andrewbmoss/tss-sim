@@ -415,10 +415,10 @@ class AnalyticPropagation(PropagationBase):
         contributes; see the frame note in
         :func:`tss.l1_propagation.doppler.doppler_geometry`.
         """
-        if platform.velocity_ecef_mps is None:
+        if platform.velocity_ned_mps is None:
             return 0.0
         return closing_velocity_mps(
-            platform.velocity_ecef_mps, vertical_line_of_sight()
+            platform.velocity_ned_mps, vertical_line_of_sight()
         )
 
     def _reflection(

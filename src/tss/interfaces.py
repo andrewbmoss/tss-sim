@@ -117,12 +117,21 @@ class PlatformState:
     C3 rests on the platform's motion being large and precisely known, so this
     object is a first-class input to L1 and to the novel L3 algorithms rather
     than a detail buried inside an orbit propagator.
+
+    ``velocity_ned_mps`` is the velocity relative to the rotating Earth, in
+    local north-east-down components at the platform, so its third component
+    is the rate of descent and a circular orbit has zero there.  Every consumer
+    (the L1 line of sight, the L5 along-track spacing) works in this frame.
+    Until 2026-10-17 the field was ``velocity_ecef_mps`` and the orbit code
+    filled it with Earth-fixed Cartesian components, which every consumer then
+    read as north-east-down; :func:`tss.platform.orbits.ned_from_ecef` is the
+    conversion that was missing.
     """
 
     alt_m: float
     lat_deg: float
     lon_deg: float
-    velocity_ecef_mps: np.ndarray | None = None
+    velocity_ned_mps: np.ndarray | None = None
     attitude_quat: np.ndarray | None = None
     epoch: str = ""
 
@@ -355,4 +364,14 @@ class L5Assessment(Tier, Protocol):
         truth: IonosphereState,
         ionogram: Ionogram,
         configuration: str,
-    ) -> Assessment: ...
+        *,
+        platform: PlatformState | None = None,
+        truth_echo_snr: Mapping[str, Any] | None = None,
+    ) -> Assessment:
+        """``platform`` and ``truth_echo_snr`` are passed by the pipeline.
+
+        ``truth_echo_snr`` is the signal to noise ratio L3 measured at every
+        echo the truth returned (see :func:`tss.l5_assessment.scoring.truth_echo_cells`),
+        which is what INS-10 is scored on.
+        """
+        ...

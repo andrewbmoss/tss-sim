@@ -108,7 +108,7 @@ def _state_and_platform():
         alt_m=ALT_SAT_M,
         lat_deg=0.0,
         lon_deg=0.0,
-        velocity_ecef_mps=np.array([7600.0, 0.0, 30.0]),
+        velocity_ned_mps=np.array([7600.0, 0.0, 30.0]),
         epoch="2026-01-01T00:00:00Z",
     )
     return state, platform

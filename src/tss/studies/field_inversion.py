@@ -103,7 +103,7 @@ def whole_chain(config: dict[str, Any], seeds: tuple[int, ...]) -> np.ndarray:
     """Rows per latitude and inversion; see the module docstring."""
     from tss.interfaces import PlatformState
     from tss.pipeline import Pipeline, build_tiers
-    from tss.studies import _grids, _sweep_from_config
+    from tss.studies import _grids, _sweep_from_config, build_instrument
 
     sweep, _ = _sweep_from_config(config, io.StringIO())
     alt_m, freq_hz = _grids(config)
@@ -115,7 +115,7 @@ def whole_chain(config: dict[str, Any], seeds: tuple[int, ...]) -> np.ndarray:
             alt_m=ALT_SAT_M,
             lat_deg=lat,
             lon_deg=0.0,
-            velocity_ecef_mps=np.array([7600.0, 0.0, 0.0]),
+            velocity_ned_mps=np.array([7600.0, 0.0, 0.0]),
             epoch=epoch,
         )
         for j, l4 in enumerate(("lamination", "lamination_magnetoionic")):
@@ -123,15 +123,16 @@ def whole_chain(config: dict[str, Any], seeds: tuple[int, ...]) -> np.ndarray:
             theta = float("nan")
             lost = 0
             for seed in seeds:
-                tiers = {
+                tiers = build_tiers({
                     "l0": "chapman",
                     "l1": {"name": "analytic", "modes": ["O"]},
-                    "l2": "baseline",
                     "l3": "baseline",
                     "l4": l4,
                     "l5": "standard",
-                }
-                pipeline = Pipeline(build_tiers(tiers), seed=int(seed), keep_intermediates=True)
+                })
+                # The instrument file, as the campaigns use it (2026-10-17).
+                tiers["l2"] = build_instrument("baseline", config)
+                pipeline = Pipeline(tiers, seed=int(seed), keep_intermediates=True)
                 result = pipeline.run_configuration(
                     "field_inversion", platform=platform, sweep=sweep,
                     freq_hz=freq_hz, alt_m=alt_m, epoch=epoch,

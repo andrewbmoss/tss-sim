@@ -88,7 +88,7 @@ from tss import sweep_law
 from tss.interfaces import Ionogram, PlatformState, ReceivedSignal
 from tss.l3_signal.base import SignalProcessingBase, sweep_duration_s
 from tss.l3_signal.dechirp import dechirp
-from tss.l3_signal.trace_extract import TraceSample, extract_trace
+from tss.l3_signal.trace_extract import TraceSample, extract_trace, noise_floor_db
 from tss.l3_signal.transform import RangeSpectrum, transform
 from tss.registry import register
 
@@ -417,6 +417,66 @@ class BaselineSignalProcessing(SignalProcessingBase):
             flags=flags,
             source=f"tss.l3_signal.ionogram.{type(self).__name__}",
         )
+
+    def snr_at(
+        self,
+        signal: ReceivedSignal,
+        freq_hz: Sequence[float] | np.ndarray,
+        range_m: Sequence[float] | np.ndarray,
+        *,
+        half_width_cells: float = 2.0,
+    ) -> np.ndarray:
+        """Signal to noise ratio per range cell at given (frequency, range) cells.
+
+        A measurement, not a detection: for each cell the column whose step
+        contains ``freq_hz`` is taken, its noise floor is estimated exactly as
+        the detector estimates it, and the result is the peak power within
+        ``half_width_cells`` range cells of ``range_m`` above that floor.  It is
+        what INS-10 is scored on at every echo the truth returned, which a
+        detected-cell minimum cannot be, because a cell is detected only if it
+        is already above the 10 dB threshold.
+
+        NaN where the frequency is outside every column or the range is beyond
+        the column's unambiguous range, which is where the echo has folded and
+        its range cell cannot be measured.  ``signal`` is not modified.
+        """
+        f = np.atleast_1d(np.asarray(freq_hz, dtype=float))
+        r = np.atleast_1d(np.asarray(range_m, dtype=float))
+        if f.shape != r.shape:
+            raise ValueError("freq_hz and range_m must be parallel")
+        out = np.full(f.shape, np.nan)
+        if f.size == 0:
+            return out
+        spectra = self.spectra(signal)
+        centres = np.array([sp.centre_frequency_hz for sp in spectra], dtype=float)
+        order = np.argsort(centres)
+        edges = np.concatenate((
+            [centres[order[0]] - 0.5 * (centres[order[1]] - centres[order[0]])
+             if centres.size > 1 else -np.inf],
+            0.5 * (centres[order[1:]] + centres[order[:-1]]),
+            [centres[order[-1]] + 0.5 * (centres[order[-1]] - centres[order[-2]])
+             if centres.size > 1 else np.inf],
+        ))
+        floors: dict[int, float] = {}
+        for i, (fi, ri) in enumerate(zip(f, r, strict=True)):
+            if not (np.isfinite(fi) and np.isfinite(ri)):
+                continue
+            slot = int(np.searchsorted(edges, fi, side="right")) - 1
+            if not 0 <= slot < centres.size:
+                continue
+            j = int(order[slot])
+            sp = spectra[j]
+            if ri > sp.unambiguous_range_m:
+                continue
+            row = np.asarray(sp.power_db, dtype=float)[0]
+            rng = np.asarray(sp.range_m, dtype=float)
+            if j not in floors:
+                floors[j] = noise_floor_db(row, rng, exclude_below_m=self.exclude_below_m)
+            near = np.abs(rng - ri) <= float(half_width_cells) * sp.range_resolution_m
+            if not np.any(near):
+                continue
+            out[i] = float(np.max(row[near]) - floors[j])
+        return out
 
     def describe(self) -> Mapping[str, Any]:
         return super().describe()

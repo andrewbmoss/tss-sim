@@ -75,7 +75,7 @@ def _platform() -> PlatformState:
         alt_m=ALT_S,
         lat_deg=0.0,
         lon_deg=0.0,
-        velocity_ecef_mps=np.array([7600.0, 0.0, 0.0]),
+        velocity_ned_mps=np.array([7600.0, 0.0, 0.0]),
         epoch="2026-01-01T00:00:00Z",
     )
 

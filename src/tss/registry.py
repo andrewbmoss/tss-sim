@@ -26,7 +26,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any, TypeVar
 
-__all__ = ["register", "build", "available", "LAYERS", "UnknownTier"]
+__all__ = ["register", "build", "tier_class", "available", "LAYERS", "UnknownTier"]
 
 LAYERS: tuple[str, ...] = ("l0", "l1", "l2", "l3", "l4", "l5")
 
@@ -59,16 +59,20 @@ def register(layer: str, name: str) -> Callable[[T], T]:
     return _decorate
 
 
-def build(layer: str, name: str, /, **kwargs: Any) -> Any:
-    """Instantiate the implementation registered under ``layer``/``name``."""
+def tier_class(layer: str, name: str) -> type:
+    """The class registered under ``layer``/``name``, without building it."""
     try:
-        cls = _REGISTRY[layer][name]
+        return _REGISTRY[layer][name]
     except KeyError as exc:
         known = ", ".join(sorted(_REGISTRY.get(layer, {}))) or "nothing"
         raise UnknownTier(
             f"no {layer} tier named {name!r}; registered: {known}"
         ) from exc
-    return cls(**kwargs)
+
+
+def build(layer: str, name: str, /, **kwargs: Any) -> Any:
+    """Instantiate the implementation registered under ``layer``/``name``."""
+    return tier_class(layer, name)(**kwargs)
 
 
 def available(layer: str | None = None) -> dict[str, Iterable[str]]:

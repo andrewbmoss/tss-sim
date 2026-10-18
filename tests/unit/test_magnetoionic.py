@@ -122,7 +122,7 @@ def _state(theta_deg: float | None, *, f_h_hz: float = F_H) -> IonosphereState:
 def _platform(lat: float = 0.0) -> PlatformState:
     return PlatformState(
         alt_m=ALT_S, lat_deg=lat, lon_deg=0.0,
-        velocity_ecef_mps=np.array([7600.0, 0.0, 0.0]), epoch="2026-01-01T00:00:00Z",
+        velocity_ned_mps=np.array([7600.0, 0.0, 0.0]), epoch="2026-01-01T00:00:00Z",
     )
 
 

@@ -142,14 +142,10 @@ requirements:
     derivation: "SCI-08: apparent range at least 1.5 times the maximum true range so foF2 and fxF2 can be read (Franklin and MacLean 1969); 1.5 x (900 - 200) km over the MIS-01 envelope (Rev G, amended 2026-09-29)"
     notes: >-
       Raised from 1000 km, which served only spacecraft at or below 800 km, to
-      1050 km for the 900 km top of MIS-01 with hmF2 at 200 km.  Known artefact
-      (code review, 2026-10-17): the metric unambiguous_range_m is c fs / (4 K_f)
-      with the sample rate the L2 baseline tier picked for the run, and that
-      tier picks fs as 2.5 times the largest beat among the simulated echoes.
-      The scored value is therefore 1.25 times the deepest simulated echo, not
-      a property of the instrument, and a verdict on this entry says nothing
-      about the design until L2 takes its digitiser rate from the instrument
-      configuration (INS-06).
+      1050 km for the 900 km top of MIS-01 with hmF2 at 200 km.  Scored from
+      c fs / (4 K_f) with the instrument's digitiser rate.  Before 2026-10-17
+      the L2 tier set fs from the deepest simulated echo, so this entry scored
+      1.25 times that echo and every earlier verdict on it is void.
 
   INS-05:
     title: Virtual range resolution
@@ -241,6 +237,12 @@ requirements:
     source: derived
     derivation: "Corrected sensitivity model against the Franklin and MacLean 1969 in-orbit sky noise measurement"
     notes: >-
+      Scored (decision of 2026-10-17) as the worst SNR per range cell that L3
+      measures at every echo the truth returned, both modes, detected or not
+      (metric snr_db_min_at_truth_echoes).  The earlier metric, the minimum
+      over detected cells, could not fail, because a cell is detected only
+      when it already clears 10 dB; it is kept as the diagnostic snr_db_min.
+      Echoes folded beyond the unambiguous range are counted and not scored.
       SNR per range cell at maximum range, across the band.  Resolved
       affirmative with large margin over the band where a measured noise
       reference exists.  Below 0.6 MHz the reference is an extrapolation, which
@@ -486,8 +488,7 @@ not_scored:
     category: flowed_down
     scored_through: [INS-04]
     reason: >-
-      Apparent range of at least 1.5 times the true range is INS-04.  See the
-      INS-04 note on why its present metric is a simulation artefact.
+      Apparent range of at least 1.5 times the true range is INS-04.
   SCI-14:
     category: flowed_down
     scored_through: [INS-08]
@@ -553,12 +554,12 @@ not_scored:
       the six-component vector receive signal model; L2's extra channels are
       placeholders.
   INS-06:
-    category: pending
-    work_packages: [WP3]
+    category: flowed_down
+    scored_through: [INS-04]
     reason: >-
-      The L2 baseline tier picks its sample rate from the deepest simulated
-      echo, not from the instrument, so there is no designed digitiser rate to
-      score (see the INS-04 note).  Scorable once fs is an instrument setting.
+      fs >= 4 K_f R_max / c is the statement c fs / (4 K_f) >= R_max, which
+      INS-04 scores from the achieved digitiser rate.  Since 2026-10-17 the L2
+      rate is the instrument's and defaults to the INS-06 rate.
   INS-16:
     category: pending
     work_packages: [WP10]

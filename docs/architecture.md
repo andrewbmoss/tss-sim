@@ -68,7 +68,7 @@ All are frozen dataclasses in `src/tss/interfaces.py`.
 | Object | Produced by | Carries |
 | --- | --- | --- |
 | `IonosphereState` | L0 | `alt_m`, `ne`, `nu`, `te`, `b_field_t`, location, epoch, `source`, `extra` |
-| `PlatformState` | campaign / orbit | `alt_m`, `lat_deg`, `lon_deg`, `velocity_ecef_mps`, `attitude_quat`, `epoch` |
+| `PlatformState` | campaign / orbit | `alt_m`, `lat_deg`, `lon_deg`, `velocity_ned_mps` (local north-east-down), `attitude_quat`, `epoch` |
 | `EchoSet` | L1 | parallel arrays of `freq_hz`, `mode`, `group_delay_s`, `amplitude_db`, `absorption_db`, optional `doppler_hz`, `aoa_deg`, `reflection_alt_m`, `flags` |
 | `SweepSchedule` | campaign / L2 | `f_start_hz`, `f_stop_hz`, `k_f_hz_per_s`, `sweep_period_s`, `direction`, `nonlinearity_ppm` |
 | `ReceivedSignal` | L2 | `samples` as `(n_channels, n_samples)` complex, `fs_hz`, the `sweep` actually transmitted, `noise_floor_dbm_hz`, `flags` |

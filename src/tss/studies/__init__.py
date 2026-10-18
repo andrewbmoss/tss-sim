@@ -553,6 +553,80 @@ def _platform_for(configuration: Mapping[str, Any], epoch: str) -> Any:
     return platform_state_at(orbit, 0.0, epoch=epoch)
 
 
+def instrument_config(
+    config: Mapping[str, Any], configuration: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """The instrument one configuration flies, as an instrument mapping.
+
+    The campaign's ``instrument`` file (``config/instrument/...``) with the
+    configuration's overrides applied:
+
+    * ``antenna_length_m`` sets the antenna length.  A stated
+      ``radiation_efficiency_db`` belongs to the antenna it was stated for, so
+      when the length changes it is dropped and the ShortDipole physical model
+      is used instead.  The change is recorded under
+      ``configuration_overrides`` and reaches the run manifest.
+    * ``vector_receive`` sets the receive channels to ``antenna_count`` (three
+      for the C5 configuration).
+
+    Until 2026-10-17 no campaign read the instrument file at all.
+    """
+    import copy
+
+    from tss.config import load_yaml, resolve_path
+
+    ref = config.get("instrument")
+    cfg: dict[str, Any] = copy.deepcopy(load_yaml(resolve_path(str(ref)))) if ref else {}
+    if not configuration:
+        return cfg
+    notes: list[str] = list(cfg.get("configuration_overrides", []) or [])
+    antenna = dict(cfg.get("antenna", {}))
+    length = configuration.get("antenna_length_m")
+    if length is not None:
+        stated_length = antenna.get("length_m")
+        if stated_length is not None and float(length) != float(stated_length):
+            if antenna.get("radiation_efficiency_db") is not None:
+                notes.append(
+                    f"antenna length {float(stated_length):g} m -> {float(length):g} m: the "
+                    f"stated radiation_efficiency_db ({float(antenna['radiation_efficiency_db']):g}"
+                    " dB) belongs to the stated antenna and is replaced by the ShortDipole "
+                    "physical model"
+                )
+                antenna.pop("radiation_efficiency_db")
+            else:
+                notes.append(f"antenna length {float(stated_length):g} m -> {float(length):g} m")
+        antenna["length_m"] = float(length)
+    cfg["antenna"] = antenna
+    if configuration.get("vector_receive"):
+        receiver = dict(cfg.get("receiver", {}))
+        receiver["channels"] = int(configuration.get("antenna_count", 3))
+        cfg["receiver"] = receiver
+        notes.append(f"vector receive: {receiver['channels']} channels")
+    cfg["name"] = f"{cfg.get('name', 'instrument')}/{configuration.get('name', '')}"
+    cfg["configuration_overrides"] = notes
+    return cfg
+
+
+def build_instrument(
+    spec: Any, config: Mapping[str, Any], configuration: Mapping[str, Any] | None = None
+) -> Any:
+    """The L2 tier for one configuration, built from the instrument file.
+
+    ``spec`` is the campaign's ``tiers.l2`` entry.  A tier class with a
+    ``from_config`` classmethod is built from :func:`instrument_config`, with
+    any keyword arguments in ``spec`` applied on top; any other tier is built
+    from ``spec`` alone, as before.
+    """
+    from tss.registry import build, tier_class
+
+    name = spec if isinstance(spec, str) else spec["name"]
+    kwargs = {} if isinstance(spec, str) else {k: v for k, v in spec.items() if k != "name"}
+    cls = tier_class("l2", name)
+    if hasattr(cls, "from_config"):
+        return cls.from_config(instrument_config(config, configuration), **kwargs)
+    return build("l2", name, **kwargs)
+
+
 def run_campaign(
     campaign: str,
     out: str | Path | None = None,
@@ -601,11 +675,15 @@ def run_campaign(
     out_dir = Path(out) if out is not None else results_root() / loaded.name / _timestamp()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline = Pipeline(
-        build_tiers(loaded.tiers),
-        seed=loaded.seed,
-        keep_intermediates=bool(config.get("run", {}).get("keep_intermediates", True)),
-    )
+    # Every layer but L2 is the same for every configuration.  L2 is the
+    # instrument, and the instrument differs by configuration (antenna length,
+    # receive channels), so it is built per configuration from the instrument
+    # file.  The pipeline's generator depends only on the seed and the
+    # configuration name, so a pipeline per configuration draws the same noise
+    # one shared pipeline would.
+    shared = build_tiers({k: v for k, v in loaded.tiers.items() if k != "l2"})
+    keep = bool(config.get("run", {}).get("keep_intermediates", True))
+    described: dict[str, Any] = {}
 
     sweep, sweep_notes = _sweep_from_config(config, out_stream)
     alt_m, freq_hz = _grids(config)
@@ -617,6 +695,12 @@ def run_campaign(
 
     for name in loaded.configurations:
         configuration = load_yaml(resolve_path(name, subdir="configurations"))
+        pipeline = Pipeline(
+            {**shared, "l2": build_instrument(loaded.tiers["l2"], config, configuration)},
+            seed=loaded.seed,
+            keep_intermediates=keep,
+        )
+        described[name] = pipeline.describe()
         result = pipeline.run_configuration(
             name,
             platform=_platform_for(configuration, epoch),
@@ -664,7 +748,8 @@ def run_campaign(
             file=out_stream,
         )
 
-    tiers_record = dict(pipeline.describe())
+    tiers_record = dict(next(iter(described.values()))) if described else {}
+    tiers_record["l2_by_configuration"] = {n: d.get("l2") for n, d in described.items()}
     tiers_record.update(sweep_notes)
     manifest = Manifest(
         study=f"campaign/{loaded.name}",

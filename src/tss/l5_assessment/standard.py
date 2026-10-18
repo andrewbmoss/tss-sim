@@ -97,8 +97,17 @@ class StandardAssessment(AssessmentBase):
         truth: IonosphereState,
         ionogram: Ionogram,
         configuration: str,
+        *,
+        platform: PlatformState | None = None,
+        truth_echo_snr: Mapping[str, Any] | None = None,
     ) -> Assessment:
-        """Return a scored :class:`~tss.interfaces.Assessment`.  Nothing is mutated."""
+        """Return a scored :class:`~tss.interfaces.Assessment`.  Nothing is mutated.
+
+        ``platform``, when given, is used for the along-track metric in place of
+        the one the tier was built with; the pipeline passes it.
+        ``truth_echo_snr`` is the SNR L3 measured at every truth echo, which
+        INS-10 is scored on; without it INS-10 is not evaluated.
+        """
         if not configuration:
             raise ValueError(
                 "configuration must be named.  Section 1.3 of the proposal reports "
@@ -110,8 +119,9 @@ class StandardAssessment(AssessmentBase):
             retrieved,
             truth,
             ionogram,
-            platform=self.platform,
+            platform=platform if platform is not None else self.platform,
             extra=self.extra_metrics,
+            truth_echo_snr=truth_echo_snr,
         )
         records = check_requirements(metrics, self.requirements)
 

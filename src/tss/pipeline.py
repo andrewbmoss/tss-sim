@@ -50,6 +50,7 @@ class RunResult:
     retrieved: DensityProfile | None = None
     timing_s: dict[str, float] = field(default_factory=dict)
     flags: dict[str, Any] = field(default_factory=dict)
+    truth_echo_snr: dict[str, Any] | None = None
 
 
 def build_tiers(tiers: Mapping[str, Any]) -> dict[str, Any]:
@@ -128,6 +129,24 @@ class Pipeline:
         ionogram = self.tiers["l3"].form_ionogram(signal, platform)
         t["l3"] = time.perf_counter() - t0
 
+        # INS-10 is scored at every echo the truth returned (2026-10-17).  The
+        # cells come from the echo set and the measurement from L3, which is
+        # the layer that knows how a range cell's SNR is measured; the
+        # pipeline only hands one to the other.  A tier without the
+        # measurement leaves INS-10 not evaluated.
+        truth_echo_snr: dict[str, Any] | None = None
+        measure = getattr(self.tiers["l3"], "snr_at", None)
+        if callable(measure):
+            from tss.l5_assessment.scoring import truth_echo_cells
+
+            t0 = time.perf_counter()
+            cells = truth_echo_cells(echoes)
+            truth_echo_snr = {
+                **cells,
+                "snr_db": np.asarray(measure(signal, cells["freq_hz"], cells["range_m"])),
+            }
+            t["l3_truth_echo_snr"] = time.perf_counter() - t0
+
         t0 = time.perf_counter()
         retrieved = self.tiers["l4"].invert(ionogram, platform)
         t["l4"] = time.perf_counter() - t0
@@ -144,11 +163,15 @@ class Pipeline:
             )
 
         t0 = time.perf_counter()
-        assessment = self.tiers["l5"].score(retrieved, truth, ionogram, configuration)
+        assessment = self.tiers["l5"].score(
+            retrieved, truth, ionogram, configuration,
+            platform=platform, truth_echo_snr=truth_echo_snr,
+        )
         t["l5"] = time.perf_counter() - t0
 
         result.assessment = assessment
         result.timing_s = t
+        result.truth_echo_snr = truth_echo_snr
         if self.keep_intermediates:
             result.truth = truth
             result.echoes = echoes

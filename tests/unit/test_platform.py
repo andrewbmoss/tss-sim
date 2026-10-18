@@ -106,8 +106,8 @@ def test_platform_state_is_the_interface_object():
     assert isinstance(state, PlatformState)
     assert state.epoch == "2026-01-01T00:00:00"
     assert state.alt_m == pytest.approx(600.0e3, abs=1.0)
-    assert state.velocity_ecef_mps is not None
-    assert state.velocity_ecef_mps.shape == (3,)
+    assert state.velocity_ned_mps is not None
+    assert state.velocity_ned_mps.shape == (3,)
 
 
 def test_ecef_velocity_matches_a_finite_difference_of_ecef_position():
@@ -135,9 +135,34 @@ def test_ecef_speed_is_below_the_inertial_speed_for_a_prograde_orbit():
     """
     orbit = CircularOrbit(600.0e3, 30.0)
     state = platform_state_at(orbit, 0.0)
-    ecef_speed = float(np.linalg.norm(state.velocity_ecef_mps))
+    ecef_speed = float(np.linalg.norm(state.velocity_ned_mps))
     assert ecef_speed < orbit.speed
     assert orbit.speed - ecef_speed == pytest.approx(465.0, abs=60.0)
+
+
+def test_ned_from_ecef_has_the_right_axes_at_the_origin():
+    """At latitude 0, longitude 0 the Earth-fixed x is up, y east and z north."""
+    from tss.platform.orbits import ned_from_ecef
+
+    assert np.allclose(ned_from_ecef(np.array([1.0, 0.0, 0.0]), 0.0, 0.0), [0.0, 0.0, -1.0])
+    assert np.allclose(ned_from_ecef(np.array([0.0, 1.0, 0.0]), 0.0, 0.0), [0.0, 1.0, 0.0])
+    assert np.allclose(ned_from_ecef(np.array([0.0, 0.0, 1.0]), 0.0, 0.0), [1.0, 0.0, 0.0])
+    # At the north pole, Earth-fixed z is up.
+    assert np.allclose(ned_from_ecef(np.array([0.0, 0.0, 1.0]), 90.0, 0.0), [0.0, 0.0, -1.0])
+
+
+@pytest.mark.parametrize("t_s", [0.0, 700.0, 2100.0, 4000.0])
+@pytest.mark.parametrize("inclination", [30.0, 80.0, 97.4])
+def test_a_circular_orbit_neither_climbs_nor_falls(t_s, inclination):
+    """The vertical component of the delivered velocity is zero for a circular
+    orbit, and the horizontal speed is the Earth-fixed speed.  Until 2026-10-17
+    the Earth-fixed z (northward at the equator) was read as the vertical."""
+    orbit = CircularOrbit(600.0e3, inclination)
+    state = platform_state_at(orbit, t_s)
+    _, v_ecef = orbit.ecef_state(t_s)
+    v = state.velocity_ned_mps
+    assert abs(v[2]) < 1.0e-6 * orbit.speed
+    assert np.hypot(v[0], v[1]) == pytest.approx(np.linalg.norm(v_ecef), rel=1e-12)
 
 
 def test_altitude_stays_constant_around_a_circular_orbit():

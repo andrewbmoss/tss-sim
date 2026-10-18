@@ -90,6 +90,20 @@ traceability, not as a second loss to apply.  This tier therefore uses
 would double-count the absorption, which at the top of the band near foF2 is
 several decibels.
 
+THE SAMPLE RATE
+---------------
+The digitiser rate is a property of the instrument, not of the echoes.  It is
+``sample_rate_hz`` when the configuration fixes one, and otherwise the INS-06
+rate ``4 K_f R / c`` at the sweep's fastest rate, with ``R`` the design range
+(INS-04's 1050 km by default), so that the unambiguous range ``c fs / (4 K_f)``
+equals the design range.  Until 2026-10-17 the rate was 2.5 times the largest
+beat among the simulated echoes, which made the INS-04 score a statement about
+the simulated ionosphere (always 1.25 times its deepest echo) and sampled a
+record with no usable echo at 2.5 Hz.  Echoes beyond the unambiguous range fold
+back into the record, as they would in the instrument, because the analytic
+phase is evaluated at the sample times; they are counted in
+``flags["rows_beyond_unambiguous_range"]``.
+
 WHAT IS NOT IN IT YET
 ---------------------
 Transmit-to-receive leakage.  :mod:`tss.l2_instrument.leakage` is a stub and it
@@ -109,7 +123,7 @@ from typing import Any
 import numpy as np
 
 from tss import sweep_law
-from tss.constants import K_BOLTZ
+from tss.constants import C_LIGHT, K_BOLTZ
 from tss.interfaces import EchoSet, ReceivedSignal, SweepSchedule
 from tss.l2_instrument.antenna import ShortDipole, antenna_noise_temperature_k
 from tss.l2_instrument.noise import (
@@ -127,7 +141,20 @@ from tss.l2_instrument.waveform import (
 from tss.registry import register
 from tss.units import db, undb, w_to_dbm
 
-__all__ = ["BaselineInstrument", "DEFAULT_POLARIZATION_LOSS_DB", "DelayTrace"]
+__all__ = [
+    "BaselineInstrument",
+    "DEFAULT_DESIGN_RANGE_M",
+    "DEFAULT_POLARIZATION_LOSS_DB",
+    "DelayTrace",
+]
+
+#: Design unambiguous range, m: the INS-04 threshold.  With no configured
+#: sample rate the digitiser runs at the INS-06 rate that reaches it.
+DEFAULT_DESIGN_RANGE_M = 1.05e6
+
+#: Relative guard on the INS-06 rate, so that the unambiguous range computed
+#: back from it is not a rounding error short of the design range.
+_RATE_GUARD = 1.0e-9
 
 #: Fixed-point passes used to find the emission time of a dispersed echo.  The
 #: contraction factor is ``|d tau_g / d f| K``, about 0.005 for the A1 sweep in
@@ -210,10 +237,10 @@ class BaselineInstrument:
     tx_power_w
         Transmit power at the power amplifier output.  INS-14's threshold is 1 W.
     tx_chain_efficiency_db
-        Loss between the amplifier and the antenna terminals, negative.  The
-        baseline configuration states -20 dB and calls it matching-network
-        dominated.  See the note in :meth:`describe` about the risk of
-        double-counting this against the antenna radiation efficiency.
+        Loss between the amplifier and the antenna terminals, negative, not
+        counting the matching network.  The matching-network loss is part of
+        the antenna's radiation efficiency and is carried there only (decision
+        of 2026-10-17); the baseline configuration states 0 dB here.
     antenna
         A :class:`~tss.l2_instrument.antenna.ShortDipole`, or ``None`` to build
         the default 5 m one.  The same antenna is used for transmit and receive;
@@ -229,10 +256,14 @@ class BaselineInstrument:
         be more generous.
     polarization_loss_db, extra_loss_db
         Applied to every echo.
-    oversample
-        Complex sample rate as a multiple of the largest beat frequency present.
-        2.5 is the default: a complex sampler needs only to exceed the highest
-        beat frequency, and the margin is for the window skirts.
+    sample_rate_hz
+        Complex digitiser rate, Hz.  ``None``, the default, runs at the INS-06
+        rate for the sweep in use: see :meth:`sample_rate_for` and the module
+        docstring, THE SAMPLE RATE.
+    design_range_m
+        The unambiguous range the INS-06 rate is set to reach.  Default
+        :data:`DEFAULT_DESIGN_RANGE_M`, the INS-04 threshold.  Ignored when
+        ``sample_rate_hz`` is given.
     max_samples
         Cap on the record length.  A sweep longer than this is generated only up
         to the cap and the truncation is recorded in the flags, together with
@@ -261,7 +292,8 @@ class BaselineInstrument:
         stated_efficiency_db: float | None = None,
         polarization_loss_db: float = DEFAULT_POLARIZATION_LOSS_DB,
         extra_loss_db: float = 0.0,
-        oversample: float = 2.5,
+        sample_rate_hz: float | None = None,
+        design_range_m: float = DEFAULT_DESIGN_RANGE_M,
         max_samples: int = 1 << 20,
         sky_model: str = "franklin",
         quantise: bool = True,
@@ -269,11 +301,14 @@ class BaselineInstrument:
         isolation: Mapping[str, Any] | None = None,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
+        configuration_notes: tuple[str, ...] = (),
     ) -> None:
         if tx_power_w <= 0.0:
             raise ValueError("tx_power_w must be positive")
-        if oversample <= 1.0:
-            raise ValueError("oversample must exceed 1 for a complex sampler")
+        if sample_rate_hz is not None and not float(sample_rate_hz) > 0.0:
+            raise ValueError("sample_rate_hz must be positive")
+        if not float(design_range_m) > 0.0:
+            raise ValueError("design_range_m must be positive")
         if max_samples < 16:
             raise ValueError("max_samples must be at least 16")
         self.tx_power_w = float(tx_power_w)
@@ -286,7 +321,8 @@ class BaselineInstrument:
         )
         self.polarization_loss_db = float(polarization_loss_db)
         self.extra_loss_db = float(extra_loss_db)
-        self.oversample = float(oversample)
+        self.sample_rate_hz = None if sample_rate_hz is None else float(sample_rate_hz)
+        self.design_range_m = float(design_range_m)
         self.max_samples = int(max_samples)
         self.sky_model = str(sky_model)
         self.quantise = bool(quantise)
@@ -294,11 +330,12 @@ class BaselineInstrument:
         self.isolation = dict(isolation or {})
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
+        self.configuration_notes = tuple(str(n) for n in configuration_notes)
 
     # -- configuration -------------------------------------------------------
 
     @classmethod
-    def from_config(cls, cfg: Mapping[str, Any]) -> BaselineInstrument:
+    def from_config(cls, cfg: Mapping[str, Any], **overrides: Any) -> BaselineInstrument:
         """Build from the instrument configuration shape.
 
         The shape is the one in ``config/instrument/baseline_6u.yaml``: blocks
@@ -310,7 +347,9 @@ class BaselineInstrument:
         transmit = dict(cfg.get("transmit", {}))
         antenna_cfg = dict(cfg.get("antenna", {}))
         antenna = ShortDipole.from_config(antenna_cfg)
-        return cls(
+        receiver_cfg = dict(cfg.get("receiver", {}))
+        rate = receiver_cfg.get("sample_rate_hz")
+        kwargs: dict[str, Any] = dict(
             tx_power_w=float(transmit.get("power_w", 1.0)),
             tx_chain_efficiency_db=float(transmit.get("efficiency_db", 0.0)),
             antenna=antenna,
@@ -321,7 +360,28 @@ class BaselineInstrument:
             isolation=dict(cfg.get("isolation", {})),
             resources=dict(cfg.get("resources", {})),
             configuration_name=str(cfg.get("name", "")),
+            configuration_notes=tuple(cfg.get("configuration_overrides", ()) or ()),
+            sample_rate_hz=None if rate is None else float(rate),
+            design_range_m=float(receiver_cfg.get("design_range_m", DEFAULT_DESIGN_RANGE_M)),
         )
+        kwargs.update(overrides)
+        return cls(**kwargs)
+
+    def sample_rate_for(self, sweep: SweepSchedule) -> float:
+        """Complex digitiser rate for a sweep, Hz.
+
+        The configured ``sample_rate_hz`` when there is one.  Otherwise the
+        INS-06 rate ``4 K_f R / c`` at the sweep's fastest rate (for a stepped
+        sweep ``k_f_hz_per_s`` is the peak step rate), with ``R`` the design
+        range, so that ``c fs / (4 K_f)`` is the design range.  It never
+        depends on the echoes.
+        """
+        if self.sample_rate_hz is not None:
+            return self.sample_rate_hz
+        k = abs(float(sweep.k_f_hz_per_s))
+        if k <= 0.0:
+            raise ValueError("SweepSchedule.k_f_hz_per_s must be non-zero")
+        return 4.0 * k * self.design_range_m / C_LIGHT * (1.0 + _RATE_GUARD)
 
     # -- antenna terms -------------------------------------------------------
 
@@ -386,8 +446,10 @@ class BaselineInstrument:
         f0 = float(sweep.f_start_hz) if direction > 0 else float(sweep.f_stop_hz)
 
         max_delay = float(np.max(delay[usable])) if np.any(usable) else 0.0
-        beat_max = max(k * max_delay, 1.0)
-        fs_hz = self.oversample * beat_max
+        beat_max = k * max_delay
+        # The digitiser rate is the instrument's (INS-06), never the echoes'.
+        fs_hz = self.sample_rate_for(sweep)
+        unambiguous_m = C_LIGHT * fs_hz / (4.0 * k)
         n_full = int(np.floor(duration_s * fs_hz))
         n_samples = int(min(max(n_full, 16), self.max_samples))
         truncated = n_samples < n_full
@@ -535,6 +597,22 @@ class BaselineInstrument:
             samples[lo:hi] += amplitude * np.exp(1j * phase)
             rows_used += 1
 
+        # Echoes beyond the unambiguous range fold back into the record, as they
+        # would in the instrument.  They are counted against the rate of the
+        # step that sounds them, so a reader can tell a folded trace from a
+        # measured one.
+        rows_beyond = 0
+        if np.any(usable):
+            f_u = freq[usable]
+            if stepped:
+                k_u = np.asarray(
+                    sweep_law.rate_hz_per_s(sweep, sweep_law.time_at_frequency_s(sweep, f_u)),
+                    dtype=float,
+                )
+            else:
+                k_u = np.full(f_u.shape, k)
+            rows_beyond = int(np.count_nonzero(k_u * delay[usable] > fs_hz / 2.0))
+
         # Noise.  The antenna temperature follows the sweep, because the sky is
         # three orders of magnitude colder at the top of the band than at the
         # bottom and a single band-averaged figure would be wrong at both ends.
@@ -603,6 +681,12 @@ class BaselineInstrument:
             "rows_outside_window": rows_outside,
             "dwell_s": dwell_s,
             "max_beat_frequency_hz": beat_max,
+            "sample_rate_rule": (
+                "configured sample_rate_hz" if self.sample_rate_hz is not None
+                else f"INS-06: 4 K_f R / c at the peak rate, R = {self.design_range_m:g} m"
+            ),
+            "unambiguous_range_m": unambiguous_m,
+            "rows_beyond_unambiguous_range": rows_beyond,
             "clip_level_dbm": float(w_to_dbm(clip_level_w)),
             "n_clipped": n_clipped,
             "quantised": bool(self.quantise and self.receiver.n_bits is not None),
@@ -651,7 +735,9 @@ class BaselineInstrument:
             "tx_chain_efficiency_db": self.tx_chain_efficiency_db,
             "polarization_loss_db": self.polarization_loss_db,
             "extra_loss_db": self.extra_loss_db,
-            "oversample": self.oversample,
+            "sample_rate_hz": self.sample_rate_hz,
+            "design_range_m": self.design_range_m,
+            "configuration_notes": list(self.configuration_notes),
             "max_samples": self.max_samples,
             "sky_model": self.sky_model,
             "quantise": self.quantise,
@@ -668,13 +754,8 @@ class BaselineInstrument:
             "isolation": dict(self.isolation),
             "resources": dict(self.resources),
             "leakage_modelled": False,
-            "open_question_transmit_efficiency": (
-                "The baseline configuration states transmit.efficiency_db = -20 dB, "
-                "described as matching-network dominated, and separately "
-                "antenna.radiation_efficiency_db = -20 dB.  A matching network loss "
-                "is part of the radiation efficiency in the ShortDipole model, so "
-                "applying both may double-count it.  Both are applied here because "
-                "that is what the configuration says; the reading has not been "
-                "confirmed against the WP3 antenna trade."
+            "matching_network_loss": (
+                "carried in the antenna radiation efficiency only (decision of "
+                "2026-10-17); tx_chain_efficiency_db excludes it"
             ),
         }

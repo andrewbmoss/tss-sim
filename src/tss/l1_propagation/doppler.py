@@ -409,13 +409,10 @@ def doppler_geometry(
 ) -> list[DopplerGeometry]:
     """Assemble the Doppler picture for a set of sounding frequencies.
 
-    ``platform.velocity_ecef_mps`` and ``u_los`` must be in the same frame.  The
-    interface names the field ``velocity_ecef_mps``; for a vertical sounding the
-    caller usually supplies the local north-east-down components and the default
-    line of sight of :func:`vertical_line_of_sight`, in which case only the
-    vertical component contributes.  That is stated here rather than enforced,
-    because enforcing it would need an attitude and a geodetic conversion that
-    belong in the platform package and not in L1.
+    ``platform.velocity_ned_mps`` and ``u_los`` must be in the same frame, and
+    both are local north-east-down: the interface carries the velocity in that
+    frame, and the default line of sight of :func:`vertical_line_of_sight` is
+    local down, in which case only the vertical component contributes.
 
     ``f_n_sat_hz`` is the plasma frequency at the platform.  When it is given
     the shift and the bias carry the refractive index at the platform from
@@ -430,12 +427,12 @@ def doppler_geometry(
     direction = int(np.sign(sweep.direction)) or 1
     k_f = abs(float(sweep.k_f_hz_per_s))
 
-    if platform.velocity_ecef_mps is None:
+    if platform.velocity_ned_mps is None:
         v_close = 0.0
     else:
         los = vertical_line_of_sight() if u_los is None else np.asarray(u_los, dtype=float)
         v_close = closing_velocity_mps(
-            platform.velocity_ecef_mps, los, reflector_velocity=reflector_velocity
+            platform.velocity_ned_mps, los, reflector_velocity=reflector_velocity
         )
 
     # For a stepped sweep the bias uses the rate of the step that sounds each

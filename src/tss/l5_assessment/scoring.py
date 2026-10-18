@@ -49,11 +49,9 @@ what the campaign asked for.
 A note on the along-track number
 ---------------------------------
 ``along_track_sampling_m`` is the ionogram period times the horizontal speed of
-the platform.  Two things about it.  The horizontal speed is taken as the
-magnitude of the first two components of ``PlatformState.velocity_ecef_mps``,
-which assumes the caller has supplied local north-east-down components; that is
-the same convention :func:`tss.l1_propagation.doppler.doppler_geometry` assumes
-and it is stated rather than enforced, for the same reason.  And the spacing
+the platform.  Two things about it.  The horizontal speed is the magnitude
+of the north and east components of ``PlatformState.velocity_ned_mps``, the
+frame the interface carries the velocity in.  And the spacing
 that matters for SCI-09 is the spacing of the reflection points, which are
 below the spacecraft and therefore move slightly slower, by the factor
 ``(R_E + h_r) / (R_E + h_s)``.  Using the spacecraft speed overstates the
@@ -77,7 +75,8 @@ from typing import Any
 
 import numpy as np
 
-from tss.interfaces import DensityProfile, Ionogram, IonosphereState, PlatformState
+from tss.constants import C_LIGHT
+from tss.interfaces import DensityProfile, EchoSet, Ionogram, IonosphereState, PlatformState
 
 __all__ = [
     "INS02_STEP_CROSSOVER_HZ",
@@ -87,7 +86,12 @@ __all__ = [
     "height_error_at_matched_density_m",
     "along_track_sampling_m",
     "profile_scoring_basis",
+    "truth_echo_cells",
+    "truth_echo_metrics",
 ]
+
+#: Row flags of an EchoSet that mean there is no echo.
+_NO_ECHO_FLAGS = ("evanescent", "penetrating")
 
 #: Frequency at which the INS-02 step law changes from the fractional rule to
 #: the absolute cap: ``150 kHz / 0.05``.  Below it the 5 per cent fraction is
@@ -309,7 +313,7 @@ def along_track_sampling_m(
     """
     if ionogram_period_s is None or platform is None:
         return None
-    v = platform.velocity_ecef_mps
+    v = platform.velocity_ned_mps
     if v is None:
         return None
     v = np.asarray(v, dtype=float)
@@ -446,6 +450,78 @@ def _as_float(value: Any) -> float | None:
     return out if np.isfinite(out) else None
 
 
+def truth_echo_cells(echoes: EchoSet) -> dict[str, Any]:
+    """Every echo the truth returned, as (frequency, mode, virtual range) cells.
+
+    A row is an echo when its frequency and group delay are finite and
+    positive and it is not flagged evanescent or penetrating.  The virtual
+    range is ``c tau / 2``, the range the de-chirp maps the echo to.  Both
+    modes are kept: INS-10 is about whether the instrument can see what the
+    ionosphere returns, and the X echo is returned.
+    """
+    freq = np.asarray(echoes.freq_hz, dtype=float)
+    delay = np.asarray(echoes.group_delay_s, dtype=float)
+    if echoes.flags is not None:
+        flags = [str(x) for x in np.asarray(echoes.flags, dtype=object).ravel()[: freq.size]]
+    else:
+        flags = [""] * freq.size
+    mode = (
+        [str(m) for m in np.asarray(echoes.mode, dtype=object).ravel()[: freq.size]]
+        if echoes.mode is not None and np.size(echoes.mode) == freq.size
+        else [""] * freq.size
+    )
+    ok = (
+        np.isfinite(freq) & np.isfinite(delay) & (delay > 0.0)
+        & np.array([fl not in _NO_ECHO_FLAGS for fl in flags], dtype=bool)
+    )
+    return {
+        "freq_hz": freq[ok],
+        "range_m": C_LIGHT * delay[ok] / 2.0,
+        "mode": [m for m, k in zip(mode, ok, strict=True) if k],
+    }
+
+
+def truth_echo_metrics(truth_echo_snr: Mapping[str, Any] | None) -> dict[str, Any]:
+    """INS-10 numbers from the SNR measured at every truth echo.
+
+    ``truth_echo_snr`` is :func:`truth_echo_cells` with an ``snr_db`` array
+    beside it, as the pipeline assembles it from L3's measurement.  NaN SNRs
+    are echoes that could not be measured (folded beyond the unambiguous
+    range, or outside every column); they are counted and not scored.
+    """
+    out: dict[str, Any] = {
+        "snr_db_min_at_truth_echoes": None,
+        "snr_db_median_at_truth_echoes": None,
+        "snr_db_min_at_truth_echoes_freq_hz": None,
+        "snr_db_min_at_truth_echoes_o": None,
+        "snr_db_min_at_truth_echoes_x": None,
+        "n_truth_echoes": None,
+        "n_truth_echoes_measured": None,
+        "n_truth_echoes_unmeasured": None,
+    }
+    if not truth_echo_snr:
+        return out
+    snr = np.asarray(truth_echo_snr.get("snr_db", []), dtype=float)
+    freq = np.asarray(truth_echo_snr.get("freq_hz", []), dtype=float)
+    mode = list(truth_echo_snr.get("mode", [""] * snr.size))
+    measured = np.isfinite(snr)
+    out["n_truth_echoes"] = int(snr.size)
+    out["n_truth_echoes_measured"] = int(np.count_nonzero(measured))
+    out["n_truth_echoes_unmeasured"] = int(snr.size - np.count_nonzero(measured))
+    if not np.any(measured):
+        return out
+    worst = int(np.flatnonzero(measured)[np.argmin(snr[measured])])
+    out["snr_db_min_at_truth_echoes"] = float(snr[worst])
+    out["snr_db_median_at_truth_echoes"] = float(np.median(snr[measured]))
+    if freq.size == snr.size:
+        out["snr_db_min_at_truth_echoes_freq_hz"] = float(freq[worst])
+    for label in ("O", "X"):
+        sel = measured & np.array([str(m) == label for m in mode], dtype=bool)
+        if np.any(sel):
+            out[f"snr_db_min_at_truth_echoes_{label.lower()}"] = float(np.min(snr[sel]))
+    return out
+
+
 def compute_metrics(
     retrieved: DensityProfile,
     truth: IonosphereState,
@@ -453,6 +529,7 @@ def compute_metrics(
     *,
     platform: PlatformState | None = None,
     extra: Mapping[str, Any] | None = None,
+    truth_echo_snr: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """All metrics for one run, as a flat dictionary.
 
@@ -467,6 +544,7 @@ def compute_metrics(
     metrics: dict[str, Any] = {}
     metrics.update(profile_metrics(retrieved, truth))
     metrics.update(ionogram_metrics(ionogram, platform=platform))
+    metrics.update(truth_echo_metrics(truth_echo_snr))
     if extra:
         metrics.update(dict(extra))
     return metrics
