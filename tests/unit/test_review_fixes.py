@@ -131,9 +131,22 @@ def test_the_matching_loss_is_counted_once_in_the_antenna_efficiency():
     l2 = build_instrument("baseline", config, _configuration("leo_500km_single"))
     record = l2.describe()
     assert record["tx_chain_efficiency_db"] == 0.0
-    assert record["stated_efficiency_db"] == -20.0
-    assert record["efficiency_source"] == "configuration radiation_efficiency_db"
-    assert np.allclose(l2.efficiency_db(np.array([0.33, 3.0, 20.0])), -20.0)
+    assert record["stated_efficiency_db"] is None
+
+
+def test_the_antenna_efficiency_follows_the_sounding_frequency():
+    """Decision of 2026-10-17: the baseline flies the physical model, matching
+    coil included, at every frequency, not the flat -20 dB it once stated."""
+    from tss.l2_instrument import ShortDipole
+
+    config, _, _, _ = _smoke()
+    l2 = build_instrument("baseline", config, _configuration("leo_500km_single"))
+    assert l2.describe()["efficiency_source"] == "ShortDipole physical model"
+    f_mhz = np.array([0.33, 1.0, 3.0, 10.0, 20.0])
+    eta = l2.efficiency_db(f_mhz)
+    assert np.allclose(eta, ShortDipole(length_m=5.0).efficiency_db(f_mhz))
+    assert np.all(np.diff(eta) > 0.0)
+    assert eta[0] < -40.0 and eta[-1] > -1.0
 
 
 def test_a_configuration_that_changes_the_antenna_uses_the_physical_model():
@@ -141,12 +154,30 @@ def test_a_configuration_that_changes_the_antenna_uses_the_physical_model():
     cfg = instrument_config(config, _configuration("leo_500km_small_antenna"))
     assert cfg["antenna"]["length_m"] == 1.0
     assert "radiation_efficiency_db" not in cfg["antenna"]
-    assert any("physical model" in note for note in cfg["configuration_overrides"])
-    l2 = build_instrument("baseline", config, _configuration("leo_500km_small_antenna"))
-    record = l2.describe()
+    assert any("1 m" in note for note in cfg["configuration_overrides"])
+    small = build_instrument("baseline", config, _configuration("leo_500km_small_antenna"))
+    record = small.describe()
     assert record["efficiency_source"] == "ShortDipole physical model"
     assert record["antenna"]["length_m"] == 1.0
     assert record["configuration_notes"]
+    full = build_instrument("baseline", config, _configuration("leo_500km_single"))
+    assert small.efficiency_db(1.0) < full.efficiency_db(1.0) - 10.0
+
+
+def test_a_stated_flat_efficiency_is_dropped_when_the_length_changes(tmp_path):
+    """A flat efficiency stated for one antenna does not carry to another."""
+    import yaml
+
+    config, _, _, _ = _smoke()
+    cfg = instrument_config(config)
+    cfg["antenna"]["radiation_efficiency_db"] = -20.0
+    path = tmp_path / "flat.yaml"
+    path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    out = instrument_config(
+        {**config, "instrument": str(path)}, _configuration("leo_500km_small_antenna")
+    )
+    assert "radiation_efficiency_db" not in out["antenna"]
+    assert any("physical model" in note for note in out["configuration_overrides"])
 
 
 def test_the_vector_configuration_has_three_receive_channels():

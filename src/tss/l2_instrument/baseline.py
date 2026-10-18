@@ -249,11 +249,10 @@ class BaselineInstrument:
     receiver, oscillator
         The receive chain and the frequency reference.
     stated_efficiency_db
-        When given, this radiation efficiency is used instead of the one the
-        physical antenna model computes.  The baseline configuration states one,
-        and a run against the baseline has to be a run against the threshold the
-        requirement set writes down rather than against a physics model that may
-        be more generous.
+        When given, this flat radiation efficiency replaces the frequency
+        dependent one the physical antenna model computes.  The baseline
+        configuration does not state one (decision of 2026-10-17): its
+        efficiency follows the sounding frequency, matching-coil loss included.
     polarization_loss_db, extra_loss_db
         Applied to every echo.
     sample_rate_hz

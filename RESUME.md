@@ -52,7 +52,8 @@ pipeline.  The pipeline itself runs one sweep at one epoch.
 ## Step 1 addendum (2026-10-17): the review fixes
 
 Decisions by Andrew: the matching-network loss belongs in the antenna
-efficiency; INS-10 is scored at every truth echo; fix before closing WP0.
+efficiency, and the antenna efficiency follows the sounding frequency; INS-10
+is scored at every truth echo; fix before closing WP0.
 
 1. **Velocity frame.**  `PlatformState.velocity_ned_mps` (was
    `velocity_ecef_mps`) is local north-east-down; `tss.platform.orbits`
@@ -66,29 +67,31 @@ efficiency; INS-10 is scored at every truth echo; fix before closing WP0.
    range fold, as in the instrument, and are counted.
 3. **Instrument file.**  Campaigns build L2 with `build_instrument` from the
    instrument file plus each configuration's overrides (antenna length,
-   vector receive).  `transmit.efficiency_db` is 0 dB; the stated -20 dB
-   `antenna.radiation_efficiency_db` carries the matching loss and applies to
-   the 5 m antenna only, so `leo_500km_small_antenna` runs the physical model.
-   The pipeline now passes the platform to L5, so SCI-09 is scored.
+   vector receive).  `transmit.efficiency_db` is 0 dB, and the antenna
+   efficiency, matching-coil loss included, is the ShortDipole physical
+   model's at every sounding frequency: -46 dB at 0.33 MHz rising to -0.5 dB
+   at 20 MHz for the 5 m antenna, where the file stated a flat -20 dB.  A
+   configuration's antenna length changes it (`leo_500km_small_antenna`
+   flies 1 m).  The pipeline now passes the platform to L5, so SCI-09 is
+   scored.
 4. **INS-10.**  Scored as the worst SNR per range cell that L3 measures at
    every echo the truth returned, both modes, detected or not
    (`snr_db_min_at_truth_echoes`).  The old minimum over detected cells could
    not fail and is kept as a diagnostic.
 
-Smoke after the fixes: 0 goal, 10 threshold, 2 fail (INS-08, INS-10),
-10 not evaluated.  INS-04 meets threshold at 1050 km; SCI-09 is 32.8 km;
-INS-10 fails at 9.4 dB on the X echo at 6.64 MHz, just below penetration, with
-the O minimum at 9.7 dB, on 44 truth echoes of which 25 were detected.
-`field_inversion` through the whole chain now gives 5.7 to 6.0 km for the
-magnetoionic inversion (4.5 to 5.1 km before) and 2.4 to 16.7 km field-free,
-because it now flies the instrument file.  Technical Volume Table 7.x quotes
-the old numbers.
+Smoke after the fixes: 0 goal, 11 threshold, 1 fail (INS-08), 10 not
+evaluated.  INS-04 meets threshold at 1050 km; SCI-09 is 32.8 km; INS-10
+meets threshold at 19.2 dB, the X echo at 6.64 MHz just below penetration
+(O minimum 19.7 dB), over 44 truth echoes of which 25 were detected.  With
+the flat -20 dB efficiency the same run failed INS-10 at 9.4 dB.
+`field_inversion` through the whole chain gives 4.5 to 5.0 km for the
+magnetoionic inversion and 1.3 to 17.9 km field-free, within 0.1 km of the
+numbers it gave before, because the old L2 defaults already used the physical
+antenna model.  Technical Volume Table 7.1 (`tab:fieldinversion`) was updated
+to these numbers on 2026-10-17.
 
 ## Open findings of the 2026-10-17 review
 
-* The stated antenna efficiency is a flat -20 dB, where the ShortDipole
-  physical model of the same 5 m antenna gives -46 dB at 0.33 MHz and -0.5 dB
-  at 20 MHz.  Which one the baseline should fly is still a decision.
 * L3 searches every bin out to each column's unambiguous range, about
   9300 km in the slowest steps, with a fixed 10 dB threshold, so noise alone
   can raise a detection.  WP4's robust extractor (CFAR and a search limit at

@@ -9,19 +9,25 @@ name: baseline_6u
 
 transmit:
   power_w: 1.0              # INS-14 threshold
-  # 0 dB: the matching-network loss is carried in antenna.radiation_efficiency_db
-  # and nowhere else (decision of 2026-10-17).  This file carried -20 dB here as
-  # well until then, which would have counted the matching loss twice.
+  # 0 dB: the matching-network loss is part of the antenna's radiation
+  # efficiency and is carried there and nowhere else (decision of 2026-10-17).
+  # This file carried -20 dB here as well until then, which would have counted
+  # the matching loss twice.
   efficiency_db: 0.0
 
 antenna:
   kind: electrically_short_dipole
   length_m: 5.0
   directivity_dbi: 1.76     # short dipole, lossless
-  # Stated radiation efficiency, matching-network loss included, flat across
-  # the band.  It belongs to this antenna: a configuration that changes the
-  # length runs on the ShortDipole physical model instead.
-  radiation_efficiency_db: -20.0
+  # The radiation efficiency, matching-coil loss included, follows the sounding
+  # frequency: it is the ShortDipole physical model's at every frequency
+  # (decision of 2026-10-17), -46 dB at 0.33 MHz rising to -0.5 dB at 20 MHz for
+  # this antenna.  This file stated a flat -20 dB until then.  These are the
+  # model's inputs; a radiation_efficiency_db key here would replace the model
+  # with a flat figure.
+  radius_m: 5.0e-3
+  coil_q: 150.0
+  physical_temperature_k: 290.0
 
 receiver:
   noise_figure_db: 3.0

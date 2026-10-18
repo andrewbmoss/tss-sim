@@ -383,13 +383,11 @@ class ShortDipole:
     def from_config(cls, cfg: Mapping[str, Any]) -> ShortDipole:
         """Build from the ``antenna:`` block of an instrument configuration.
 
-        The baseline configuration states ``radiation_efficiency_db`` directly as
-        well as a length.  That stated figure is a requirement threshold and this
-        class computes an efficiency from physics, so the two can disagree.  When
-        they do, the stated figure wins and is carried as
-        ``stated_efficiency_db``, because a run against the baseline
-        configuration has to be a run against the threshold the requirement set
-        actually writes down.  :func:`efficiency_db` is unaffected; the caller
+        A configuration may state ``radiation_efficiency_db`` as a flat figure
+        as well as a length.  When it does, the figure is carried as
+        ``stated_efficiency_db`` and the baseline tier uses it in place of the
+        physical model.  The baseline configuration does not (decision of
+        2026-10-17): its efficiency follows the sounding frequency.  :func:`efficiency_db` is unaffected; the caller
         decides which to use and :mod:`tss.l2_instrument.baseline` records which
         it used.
         """
