@@ -1,103 +1,102 @@
-# tss-sim build state — 2026-09-21
+# tss-sim: where things stand
 
-Delivered to `C:\Users\Andrew\PhD\tss-sim`.  170 files: 92 Python, 24 MATLAB,
-15 Markdown, 11 YAML.
+Updated 2026-10-17, at the start of the simulation build that follows the
+proposal (Rev D).  This file replaces the delivery note of 2026-09-21.  The
+history of what was built and why is in the git log and in the project notes;
+this file says what the code does today, what it does not, and what comes next.
 
-Status: `ruff check` clean, 239 tests pass, `tss run smoke` completes the full
-L0 to L5 pipeline and produces a scored assessment, and all eight studies run or
-refuse for a stated reason.
+## Baseline
 
-## First thing to do
+* Tag `proposal-baseline` marks `f103fc8`, the code the proposal and the
+  Technical Volume cite: 474 tests, `tss run smoke` 0 goal, 8 threshold,
+  2 fail (INS-04, INS-08), 10 not evaluated.
+* Run everything in the `tss` conda environment (`conda activate tss`).  Plain
+  `python` in PowerShell is a stand-alone 3.13 without the dependencies.
+* `pytest` runs the unit and contract suites; `ruff check src tests scripts` is
+  clean; `tss verify` lists what verification has and has not run.
 
-This is not a git repository yet.  There is no shell on your machine from this
-session, so the three commands are yours to run:
+## What each layer is today
 
-    cd C:\Users\Andrew\PhD\tss-sim
-    git init && git add . && git commit -m "Initial import of the M&S simulator"
+| Layer | Implemented tiers | Stubs | What it does not yet model |
+|---|---|---|---|
+| L0 | chapman, analytic; iri2020 / iri_wrapper / matlab_iri need external software | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
+| L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
+| L2 | baseline: de-chirped baseband from the A1 stepped sweep, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | leakage (WP3, critical path) | leakage, oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels, a configured digitiser rate |
+| L3 | baseline: per-step transform, leading-edge trace, connected-trace filter | motion_separated (WP5) | O/X labelling, robust extraction, Doppler separation |
+| L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default) | - | uncertainty propagation, depletion crossings, reference-field error |
+| L5 | standard: scores the Rev G set, reports what it does not score | feasibility (WP7) | NmF2/hmF2 errors, 1 sigma coverage, Kp classes |
 
-`.gitignore`, `.gitattributes`, `LICENSE` (BSD-3), `CITATION.cff` and a GitHub
-Actions workflow are already in place, so `git remote add origin ...` and push is
-all that stands between this and GitHub.
+The C3 work (route one, route two, the field-aligned sheet, the tilt map, the
+arrival-angle options) runs as studies at parameter level, outside the L0-L5
+pipeline.  The pipeline itself runs one sweep at one epoch.
 
-## What works today
+## Requirements (step 1, 2026-10-17)
 
-- **Core**: `interfaces.py` (the L0–L5 contracts), `registry.py`, `config.py`,
-  `requirements.py`, `provenance.py`, `pipeline.py`, `cli.py`, `constants.py`,
-  `units.py`
-- **L0** tiers: `chapman`, `analytic`, `iri2020`, `iri_wrapper`, `matlab_iri`
-- **L1** tiers: `analytic` (real: absorption integral, magnetoionic splitting,
-  Doppler forward model), `raytrace` (stub, PHaRLAP via the MATLAB bridge)
-- **L2**: the migrated link budget whole, plus antenna, noise, waveform,
-  receiver, oscillator; `leakage.py` is the critical-path stub
-- **L3**: `baseline` tier real (de-chirp, transform, ionogram, trace extract);
-  `motion_separated` registered and stubbed so the C3 campaign validates
-- **L4**: `lamination` real, 162 m height error at 80 laminae against the
-  closed-form exponential topside
-- **L5**: `standard` real, scoring against `config/requirements/requirements.yaml`
-- **Data**: SPDF ISIS, wspr.live, data.gov absorption, local model discovery
-- **Studies**: link_budget, antenna_scale, sky_noise, min_frequency,
-  isis_validation, transcription all run; doppler_separation and trade_space are
-  documented stubs
-- **Docs**: README, CONTRIBUTING, architecture, work-packages,
-  requirements-traceability, data-sources, matlab-python-bridge, verification,
-  and five ADRs
+* `scripts/import_srm.py` transcribes the SRM workbook into
+  `config/requirements/srm_catalog.yaml`: all 70 Rev G requirements
+  (SCI 28, INS 28, MIS 10, SW 4).  Generated; never edit it by hand.
+* `requirements.yaml` scores 22 of them and lists the other 48 under
+  `not_scored` with a category and a reason (8 flowed_down, 9 pending,
+  7 analysis, 4 bench, 15 mission, 4 software, 1 tbd).  `tss requirements`
+  fails if any catalogue ID is in neither place.
+* New scored entries: SCI-15 (in proposal Table 3.1, missing until now) and
+  INS-03.  The L5 report now ends with every not-scored requirement and why.
+* To take in a new SRM revision: rerun `import_srm.py`, review the diff of the
+  catalogue, amend the scored entries.  A unit test fails if the catalogue and
+  the workbook in `..\Dissertation` disagree.
 
-## Remaining, in priority order
+## Contract tests (step 1, 2026-10-17)
 
-1. **MATLAB gaps** — `matlab/bridge/` needs `tss_yaml_lite.m` and
-   `tss_call_python.m`; `matlab/studies/` and `matlab/tests/` are empty;
-   `matlab/README.md` is missing.  `matlab/tss/` (19 files) and
-   `matlab/bridge/` (4 files) are done.
-2. **`scripts/`** — only `fetch_data.py` exists.  Needs `run_study.py`,
-   `make_figures.py`, `check_requirements.py` and `import_srm.py` (the last
-   imports the remaining Rev E requirements from the .docx and .xlsx).
-3. **Requirement set is a partial import** — 17 of the claim-bearing entries from
-   Table 3.1.  The full Rev E set is 27 measurement, 26 instrument and 9 mission
-   requirements.
-4. **Tests** — `tests/contract/`, `tests/replication/` and `tests/archive/` are
-   empty directories.  All 239 current tests are unit tests.
-5. **WP4 then WP5** — the actual research.  `doppler_separation` is the study
-   that resolves C3 and it is the one thing with no evidence of tractability
-   behind it.
+`tests/contract/test_tier_contracts.py` holds every implemented tier to the
+four rules of `tss/interfaces.py`, and fails if a tier is registered that it
+does not cover.  It found three departures:
 
-## Four things needing your judgement, not more code
+1. **Fixed:** an echo set with no rows made L2 raise a TypeError.
+2. **Recorded (strict xfail):** `tss.platform.orbits` gives the velocity in
+   Earth-fixed axes, but L1 and L5 read it as north-east-down.  In every
+   campaign L1 computes a 7.5 km/s vertical closing speed for a circular orbit.
+   Harmless today only because L2 ignores Doppler.
+3. **Recorded (strict xfail):** L2 sets its sample rate from the deepest
+   simulated echo, so an echo-free record is sampled at 2.5 Hz and L3 raises.
+   The same rule makes INS-04's scored value 1.25 times the deepest echo: the
+   INS-04 failure in every smoke run is an artefact, not an instrument result.
 
-1. **The 5 m antenna does not hold sky dominance at the band edge.**  (Updated
-   2026-10-05.)  The short-dipole reactance in `antenna.py` was corrected to the
-   Balanis form; the model inherited from `small_antenna.py` used twice the
-   terminal capacitance and was 3 dB optimistic.  At radius 5 mm and coil Q 150
-   the 5 m margin at 0.33 MHz is now +0.5 dB against 2.6e7 K and -2.5 dB against
-   1.3e7 K, and about +7 dB at 0.6 MHz.  The old *0.5 dB against +10 dB*
-   disagreement was one model quoted at different frequencies and skies.  What
-   needs judgement is whether 5 m stays a candidate or 10 m becomes the floor.
-2. **Possible 20 dB double count in `config/instrument/baseline_6u.yaml`.**
-   `transmit.efficiency_db: -20.0` is commented as matching-network dominated,
-   but a matching-coil loss is already inside
-   `antenna.radiation_efficiency_db: -20.0`.  The baseline tier applies both
-   because that is what the config says, and flags it in `describe()`.
-3. **INS-01 cannot be scored as written.**  Its `sense: range` compares one
-   achieved value against `[lower, upper]`, and its goal band `[0.26, 20] MHz`
-   contains its threshold band `[0.33, 20] MHz`, so a sounder whose lowest
-   usable frequency was 5 MHz would score `goal`.  L5 deliberately leaves it
-   `not_evaluated` and records why.  The fix is in the requirement set: split it
-   into a lowest-usable-frequency with `sense: max` and a highest with
-   `sense: min`.
-4. **Open item 12 is load-bearing for INS-26.**  Whether the range-correlation
-   credit applies is unsettled, so `oscillator.py` scores the uncredited number
-   and reports the credited one as a note only.  For the baseline the credit
-   computes to 38 dB, well outside the 24–48x range recorded in the Technical
-   Volume, which is itself a reason to settle the offset convention first.
+## Other findings of the 2026-10-17 code review
 
-## Two corrections already applied
+* `BaselineInstrument.from_config` is never called.  Campaigns build L2 with
+  its defaults, so `config/instrument/baseline_6u.yaml` and the antenna fields
+  of the configuration files (length, count, vector receive) have no effect.
+  `leo_500km_small_antenna` runs with the 5 m antenna; the trade study's
+  antenna axis would change nothing.  The "20 dB double count" question has
+  never affected a pipeline run, because neither -20 dB is applied.
+* The pipeline does not pass the platform to L5, so SCI-09 is never scored in
+  a campaign; and L2-owned numbers (INS-11, INS-14, INS-23, INS-24, INS-26)
+  have no route into L5.
+* The oscillator is built but never applied to the samples, and
+  `EchoSet.doppler_hz` is ignored by L2: the samples carry no phase noise and
+  no Doppler.
+* `config/campaigns/c3_doppler.yaml` still asks for coherent intervals of 1 and
+  2 s and up/down sweep pairing, both withdrawn; `motion_separated` describes
+  the single-pair model the route studies replaced.
+* No configuration sits at the 900 km governing case of INS-01a and MIS-01.
+* `docs/work-packages.md`, `docs/architecture.md` and
+  `config/instrument/baseline_6u.yaml` still say Rev E in places.
 
-- The "37 unit tests" on the link budget was wrong.  The author's
-  `test_link_budget.py` has 19 test functions; the port has 21 (two
-  migration-specific checks were added and are labelled as such).  Every
-  occurrence in code and docs now says 21.
-- A subagent wrote "38,953 ISIS-1 profiles" into `spdf_isis.py` and
-  `docs/data-sources.md` without access to the file.  The count is now not
-  asserted; `read_ne_ascii` reports it at read time.
-- `tests/fixtures/isis1_ne_sample.asc` is **synthetic**, hand-built from the
-  field widths in `crc_read.py` because the real 8.4 MB file was never staged.
-  It round-trips through the unmodified `crc_read.read_crc`.  Replacing it with
-  the first ~40 lines of the real file needs no test changes.
+## Next, in order
+
+1. Step 1 remainder: push to GitHub once the remote exists.
+2. WP0 closure: the band-edge harness at 1000-1400 km (SCI-02 goal); INS-13
+   downlink and on-board processing requirements.
+3. WP3, L2: fix the velocity frame and give L2 a configured digitiser rate
+   (removes both xfails); call `from_config` so the instrument file and the
+   configurations take effect; then the leakage model and the de-chirped
+   residual against INS-24; phase noise and Doppler into the samples.
+4. WP4, L3: robust trace extraction, O/X labelling (INS-08), the Barry and
+   Poole reference former.
+5. Gate M2: SCI-05 and SCI-07 scored against truth with both modes present,
+   over seeds.
+6. Beside 3-5: the MATLAB bridge (`tss_yaml_lite.m`, `tss_call_python.m`), the
+   PHaRLAP L1 tier, NeQuick 2 and IRTAM L0 tiers, the depletion generator,
+   WP12's noise reference.
+7. WP5: `motion_separated` as a real tier over a sequence of sweeps, then WP6,
+   WP7, the V2-V4 campaign, and the goal-level packages.

@@ -1,0 +1,1061 @@
+# GENERATED FILE - do not edit by hand.
+#
+# The requirement catalogue, transcribed from the SRM workbook by
+#     python scripts/import_srm.py <workbook>
+# Every ID in the workbook appears here with its text as the workbook states it.
+# requirements.yaml names this file under `catalog:`, and `tss requirements`
+# fails unless every ID here is either scored there or listed under
+# `not_scored` with a reason.  To take in a new revision, rerun the script and
+# review the diff of this file.
+
+generated_by: scripts/import_srm.py
+source_workbook: TSS_SRM_RevG.xlsx
+source_sha256: fa7286861d19ea2abc4539839fd3be2c3255aeae32f9477869a9ab33d3716a18
+revision: G
+counts:
+  SCI: 28
+  INS: 28
+  MIS: 10
+  SW: 4
+requirements:
+  SCI-01:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure the vertical profile of electron density Ne(h) between the spacecraft and the
+      F2 peak, and report NmF2 and hmF2.
+    threshold: Profile + NmF2 + hmF2
+    goal: Profile + NmF2 + hmF2 + topside scale height H(h)
+    basis: 'Q1, Q2. Scale height is the parameter the models actually need (Bilitza et al. 2011; Stankov
+      et al. 2003). Verified in the dissertation by scoring the simulated retrieval against its truth
+      profile, and against measured ionospheres used as truth: ISIS-1 hand-scaled profiles and incoherent-scatter
+      profiles (SW-01, SW-02).'
+    verification: S, R. L4 against L0 truth (SW-01); ISIS-1 and ISR profiles used as truth (SW-02); GIRO
+      hmF2 at conjunctions. Verified in simulation against measured ionospheres.
+    verification_methods:
+    - S
+    - R
+  SCI-02:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Provide continuous altitude coverage from the spacecraft down to and including the F2
+      peak.
+    threshold: h_sat to hmF2, for h_sat 500–900 km and hmF2 anywhere in 200–500 km
+    goal: Same, with h_sat up to 1400 km to capture the O⁺/H⁺ transition level
+    basis: 'hmF2 range from Stankov (300–400 km nominal, lower under storm); transition level 1000–1400
+      km. G3 adds a reason to prefer the upper end of the orbit range: bubbles routinely reach 1000 km
+      and storm-time super-bubbles 1500–3000 km, so a higher sounder places more of the depleted volume
+      below it.'
+    verification: A. hmF2 distribution against MIS-01 from the band-edge run.
+    verification_methods:
+    - A
+  SCI-03:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure electron densities spanning the full topside range, including the interior of
+      a depletion.
+    threshold: 1×10⁹ to 5×10¹² m⁻³
+    goal: 3×10⁸ to 5×10¹² m⁻³
+    basis: 'Sets the sounding band via fN = 8.98√Ne. The upper edge follows from that relation directly.
+      The lower edge does not: an O-mode wave cannot propagate below the local plasma frequency at the
+      sounder''s own position, whatever density this requirement asks to observe. §5.6 measures that limit
+      against IRI-2020 and §5.7 checks it against ISIS-1 observations; INS-01 states it.'
+    verification: A, S. §5.1; simulated depletion crossing. Tied to INS-17.
+    verification_methods:
+    - A
+    - S
+  SCI-04:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Sample the profile in electron density with a relative precision sufficient to resolve
+      departures from model climatology.
+    threshold: ΔNe/Ne ≤ 10%
+    goal: ΔNe/Ne ≤ 5%
+    basis: Instantaneous values depart ≥30% from models (Chartier 2022); a measurement must be several
+      times better to discriminate. RPI states 5% in frequency = 10% in density.
+    verification: A, S. Step law (SRM Derivations §2); L5 metric frequency_step_fraction_max through INS-02.
+    verification_methods:
+    - A
+    - S
+  SCI-05:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Determine absolute electron density, not merely relative structure.
+    threshold: ≤15% absolute, verified against co-located ISR or in-situ measurements
+    goal: ≤10% absolute
+    basis: Requires unambiguous O/X mode identification; a mis-identified mode produces a systematic density
+      error. Verified in the dissertation by the simulated density error against truth, a mislabelled-mode
+      injection, and comparison with independent in-situ density at conjunctions (SW-01, SW-03). In flight,
+      verified against co-located ISR or in-situ measurements and the resonance-derived plasma frequency
+      at the spacecraft.
+    verification: S, R, O. L5 density error against truth from the magnetoionic inversion, scored in requirements.yaml
+      (SW-01); mode-mislabel injection and DMSP or ISIS-1 in-situ comparison (SW-03); in flight, ISR or
+      in-situ conjunctions and the resonance-derived f_N at the spacecraft.
+    verification_methods:
+    - S
+    - R
+    - O
+  SCI-06:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Resolve the vertical structure of the topside profile.
+    threshold: Height sampling ≤20 km; virtual range resolution ≤10 km at and above 0.5 MHz, ≤15 km below
+    goal: Height sampling ≤10 km; virtual range resolution ≤5 km at and above 0.7 MHz, ≤10 km below
+    basis: Topside scale height H ≈ 100 km typical, 150 ± 30 km at night (Meehan), 78–244 km across profiler
+      models (Stankov). Sampling at H/5 to H/10 is required to recover shape. See §5.2 — this requirement
+      and SCI-04 are the same requirement in different variables.
+    verification: 'A, S. §5.2; L5 metric virtual_range_resolution_by_frequency through INS-05, scored
+      per band. Band-bottom trade settled 2026-09-30: INS-05 stated per band.'
+    verification_methods:
+    - A
+    - S
+  SCI-07:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Determine the height of each profile point, and hmF2, to an accuracy that preserves the
+      retrieved scale height.
+    threshold: ±20 km
+    goal: ±10 km
+    basis: A 20 km height error on a 100 km scale height is a 20% scale-height error, comparable to the
+      day-time transition-level error Stankov reports. Verified in the dissertation as the rms height
+      error of the simulated retrieval against truth, including measured ionospheres used as truth (SW-01,
+      SW-02). The retrieval includes the magnetic field, without which the error is itself of the size
+      of this requirement.
+    verification: S, R. L5 height error against truth from the magnetoionic inversion, scored in requirements.yaml
+      (SW-01); ISR profiles used as truth (SW-02).
+    verification_methods:
+    - S
+    - R
+  SCI-08:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure apparent (virtual) range far enough beyond the true range that the penetration
+      frequencies foF2 and fxF2 can be determined accurately.
+    threshold: '≥1.5 × maximum true range: ≥1050 km over the MIS-01 envelope (h_sat ≤ 900 km, hmF2 ≥ 200
+      km)'
+    goal: ≥1500 km
+    basis: Franklin & MacLean (1969), explicit design rule. Group retardation diverges as f → foF2, so
+      the trace runs to large apparent range exactly where the most important parameter is read. At 900
+      km with hmF2 at 200 km the true range is 700 km, so the threshold is 1050 km (amended 2026-09-29
+      from 1000 km, which served only h_sat ≤ 800 km).
+    verification: A. Ray tracing, including Z-trace and ducted echoes.
+    verification_methods:
+    - A
+  SCI-09:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Produce complete profiles densely enough along the orbit track to resolve horizontal
+      structure, including individual plasma bubble depletions.
+    threshold: One complete profile per ≤50 km along track (≤6.7 s at the 7.5 km/s orbital speed; the
+      profile footprint moves at about 7.0 km/s, so this is conservative)
+    goal: One per ≤25 km (≤3.3 s)
+    basis: Tightened by a factor of two under G3. Trough, SED plume and EIA crest scales of 100–500 km
+      justified only the previous ≤100 km value; an individual depletion envelope is ~300 km (302 ± 41
+      km, Navas-Portella et al. 2025; a few to 10 degrees of longitude, Aa et al. 2023), and ≤100 km yields
+      three profiles across it, which is not enough to place the walls. See Finding F7 and §5.5.
+    verification: A, S. L5 metric along_track_sampling_m.
+    verification_methods:
+    - A
+    - S
+  SCI-10:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Revisit a given geographic location often enough to follow storm-time evolution.
+    threshold: ≤30 min (constellation-level)
+    goal: ≤15 min
+    basis: Stankov reports 15 min operational reconstruction is adequate for most applications including
+      storms. Not achievable from a single spacecraft — this is the requirement that drives the constellation.
+      Superseded for the post-sunset sector by SCI-24, which is tighter.
+    verification: A. Constellation coverage study. Open Item 6.
+    verification_methods:
+    - A
+  SCI-11:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Sample all latitudes, longitudes and local times.
+    threshold: '|lat| to ≥80°, all longitudes, all local times over the mission'
+    goal: Full global including polar cap
+    basis: Q1 explicitly asks for the latitude/longitude/local-time dependence. Drives inclination ≥80°
+      and a non-sun-synchronous orbit.
+    verification: A. Orbit propagation. Mission level.
+    verification_methods:
+    - A
+  SCI-12:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Observe over enough of a year and of the solar cycle to separate diurnal, seasonal and
+      solar-activity variation.
+    threshold: ≥12 months
+    goal: ≥24 months, phased to cover a solar maximum
+    basis: Local time precession plus a full seasonal cycle is the minimum that lets Q1 be answered without
+      aliasing season against local time.
+    verification: A, I. Mission design. Mission level.
+    verification_methods:
+    - A
+    - I
+  SCI-13:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Continue operating through geomagnetic storms.
+    threshold: 'Full performance for Kp ≤ 6. For Kp > 6, degraded but valid: profiles are still delivered,
+      with SCI-05 and SCI-07 relaxed by a factor of two (≤30% absolute, ±40 km) and the SCI-18 uncertainty
+      still calibrated'
+    goal: Full performance at all Kp
+    basis: 'Q3 is specifically about storms; an instrument that saturates or blanks during the event cannot
+      answer it. G3 raises the stakes: storm-time super bubbles reach apex heights of 1500–3000 km and
+      30–35° latitude (Zakharenkova et al. 2025), and ~43° geomagnetic latitude in the March 2013 storm
+      (Sori et al. 2022), so the extreme cases are exactly the ones the instrument must not miss. Rev
+      G defines "degraded but valid" so the requirement can be scored; the factor of two is a proposal
+      to be confirmed (Open Item 8). Verified in simulation on historical storm days, scored separately
+      by Kp class (SW-04).'
+    verification: S. Storm-day L0 states, every metric reported by Kp class (SW-04). Definition to be
+      confirmed (Open Item 8).
+    verification_methods:
+    - S
+  SCI-14:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Separately detect and identify the ordinary (O) and extraordinary (X) magnetoionic modes.
+    threshold: Both traces resolved at every frequency above the X-mode cutoff at the spacecraft, f_x;
+      below it, the O trace distinguished from any Z trace
+    goal: Same, plus Z-mode where present
+    basis: No X-mode echo exists at the spacecraft below f_x = f_ce/2 + √((f_ce/2)² + f_N²), which is
+      0.62 to 1.53 MHz over 500–900 km at f_N = 0.33 MHz (IGRF-14, §5.3). The Z mode propagates below
+      the upper hybrid frequency, so the O trace is not alone there. Above it the O/X separation is ≈fH/2
+      at the reflection point, which is 0.63 MHz at 300 km falling to 0.35 MHz at 1000 km. Mode identification
+      removes the density ambiguity of SCI-05 and gives an independent check on fH.
+    verification: S. L1 magnetoionic propagation; simulated ionograms above and below f_x.
+    verification_methods:
+    - S
+  SCI-15:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure the line-of-sight Doppler velocity of the reflection point, unambiguously, in
+      the Earth-fixed frame after the platform velocity projected on the line of sight has been removed
+      using the ephemeris.
+    threshold: Unambiguous range ≥±1 km/s; accuracy ≤100 m/s (1σ) for an isolated echo
+    goal: ≥±1.5 km/s; accuracy ≤50 m/s (1σ); resolution ≤50 m/s between scatterers in one range cell
+    basis: 'Drifts exceed 1 km/s outside the high-latitude convection region (Chartier); Poole reports
+      substorm V* > 500 m/s. RPI required ±1 kHz to avoid aliasing from satellite motion. Met in the Doppler
+      observing mode (INS-09, INS-27). The ionogram mode need not deliver it: at ionogram cadence each
+      frequency is revisited once per sweep, so the unambiguous velocity is only ±3.5 m/s at 5 MHz (§5.4).
+      Accuracy is the threshold because the formation and movement of plasma bubbles need the velocity
+      of each echo, which is what route one of TV Chapter 8 delivers. Resolution is the goal: separating
+      two scatterers in one range cell shows finer structure inside a bubble. Where more than one scatterer
+      shares a cell, the threshold accuracy holds only once they are separated.'
+    verification: S, B. Doppler-mode simulation against a known truth drift; bench Doppler injection on
+      the prototype.
+    verification_methods:
+    - S
+    - B
+  SCI-16:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Limit the range error introduced by uncompensated Doppler.
+    threshold: 'Residual apparent-range bias ≤1 range cell (Read Me: Range cell)'
+    goal: ≤0.5 cell
+    basis: In FMCW the Doppler-induced range bias is Δd = μ_sat·v·f/K_f (§5.4), evaluated at its upper
+      bound μ_sat = 1, where v is the total line-of-sight velocity, platform term included. At 1 km/s
+      and 20 MHz with K_f = 5.6 MHz/s this is 3.6 km, or 3.6 cells at the 1.0 km range cell of the A1
+      sweep above 3 MHz. A 5° layer tilt projects 662 m/s of platform velocity and gives 2.4 km at 20
+      MHz, which is also several cells. It is not negligible.
+    verification: A, S. §5.4; L5 metric residual_range_bias_cells through INS-09.
+    verification_methods:
+    - A
+    - S
+  SCI-17:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Time-tag every measurement to an accuracy that supports cross-satellite ranging in a
+      networked constellation.
+    threshold: ≤1 µs (300 m)
+    goal: ≤100 ns (30 m)
+    basis: 'Chartier: GPS timing at <100 ns gives <30 m virtual range error, which is the enabler for
+      the cross-link geometry that multiplies the measurement count.'
+    verification: I, B. GNSS receiver specification; PPS timing test on the prototype.
+    verification_methods:
+    - I
+    - B
+  SCI-18:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Deliver a geolocated ionogram and a retrieved Ne(h) profile with a per-point uncertainty
+      estimate.
+    threshold: Ionogram + profile + uncertainty
+    goal: Plus scale height H(h) and its uncertainty
+    basis: Assimilation requires an error estimate to weight the observation; Schunk's ensemble study
+      shows that models disagree even on identical data, so unweighted observations are of limited use.
+    verification: S. Fraction of retrieved points within their reported 1σ of truth (SW-01).
+    verification_methods:
+    - S
+  SCI-19:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Detect the ionospheric echo against the natural background at all sounding frequencies
+      and out to the maximum required apparent range.
+    threshold: SNR ≥ 10 dB per range cell for trace detection
+    goal: SNR ≥ 20 dB wherever phase or Doppler is measured
+    basis: Franklin & MacLean used 10 dB as the trace-detection prerequisite; Chartier invokes the Rose
+      criterion at ≈7 dB; Poole shows 20 dB gives <4° RMS phase error, which is what SCI-15 needs.
+    verification: A, S, B. Link budget; L5 metric snr_db_min through INS-10; calibrated-attenuator bench
+      test. Open Item 1 at the band edge.
+    verification_methods:
+    - A
+    - S
+    - B
+  SCI-20:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Reference the sensitivity calculation to the measured in-orbit noise environment, not
+      to a receiver noise temperature.
+    threshold: Galactic background 2×10⁷ K at 0.6 MHz falling to 4×10⁵ K at 12 MHz, ±2 dB
+    goal: Same, plus a modelled man-made and solar interference component
+    basis: Franklin & MacLean measured this in situ from Alouette over several years, from 0.6 to 14 MHz,
+      and extrapolated it to 2–3×10⁷ K from 0.1 to 0.6 MHz. It is the correct reference for a spaceborne
+      HF sounder; see §7, Finding F4.
+    verification: A, R. Cane bracket; Wind/WAVES RAD1; ISIS-1 AGC records (WP12).
+    verification_methods:
+    - A
+    - R
+  SCI-21:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Tolerate the interference environment without loss of measurement.
+    threshold: Instantaneous dynamic range ≥60 dB; ≥90 dB with gain control; no damage or paralysis at
+      +120 dB above threshold
+    goal: Same, plus automatic excision of narrowband interferers
+    basis: 'Franklin & MacLean: solar bursts exceed galactic by >30 dB, ionospheric noise bands below
+      fuh by up to 80 dB, and identified ground transmitters appeared ~90 dB above threshold sensitivity;
+      they ask for ≥90 dB of dynamic range, which the threshold carries as the with-gain-control figure.
+      The 60 dB instantaneous figure is RPI''s (60 dB plus 66 dB of AGC, Reinisch et al. 2001). INS-11
+      states where it applies.'
+    verification: S, B. Interference injection; two-tone and blocking tests at the INS-11 reference point.
+    verification_methods:
+    - S
+    - B
+  SCI-28:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Deliver a valid profile from a stated fraction of ionograms in the natural interference
+      environment, by band segment and by region.
+    threshold: TBD, set by Open Item 14
+    goal: TBD
+    basis: 'The band bottom is the local plasma frequency by construction and is the noisiest part of
+      the band: plasma resonances, quasi-thermal noise peaking at f_N, noise bands below f_UH up to +80
+      dB, auroral kilometric radiation, solar bursts and ground transmitters (§5.11). Each removes sweeps,
+      or parts of a sweep, from use, which is an availability problem rather than a sensitivity one. The
+      fraction needed is set by what the constellation science needs, which only ray-path modelling of
+      the constellation can say.'
+    verification: A, S, R. Environment occurrence from Alouette/ISIS and DEMETER records; constellation
+      ray-path modelling (Chartier verification project); availability demonstrated in simulation (WP12).
+      Value TBD (Open Item 14).
+    verification_methods:
+    - A
+    - S
+    - R
+  SCI-22:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Detect and geolocate individual plasma bubble depletions, and measure the depletion depth.
+    threshold: Detect depletions ≥1 order of magnitude below the local background, with ≥4 complete profiles
+      across the envelope
+    goal: ≥1.5 orders, ≥10 profiles across the envelope, wall positions to one sample
+    basis: Depletion depths of 2–3 orders of magnitude are reported for storm-time super bubbles (Zakharenkova
+      et al. 2025), and COSMIC-2 in-situ density gives the global occurrence (Zakharenkova et al. 2023).
+      The envelope is ~300 km (Navas-Portella et al. 2025), so the profile count follows directly from
+      SCI-09. The sounder signature of a depletion is a step increase in virtual range as the sub-satellite
+      point crosses it.
+    verification: S. Simulated depletion crossing; retrieval error inside against outside.
+    verification_methods:
+    - S
+  SCI-23:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure the horizontal (zonal) drift of a depletion structure.
+    threshold: ≤50 m/s drift accuracy (1σ), in orbit class O2 or O3
+    goal: ≤25 m/s
+    basis: Reported drifts cluster at 100–150 m/s, predominantly eastward, post-sunset across sectors,
+      with a full envelope of 75–250 m/s (Navas-Portella et al. 2025 and the studies they compile). Separating
+      a 100 m/s bubble from a 150 m/s one needs an accuracy several times finer than that spread. Rev
+      G states this as the accuracy of the drift of a structure rather than a Doppler resolution. A nadir
+      Doppler sees horizontal drift only through a layer tilt, and not at all when the drift is cross-track,
+      so SCI-23 is met from the displacement of the same structure seen by a second node Δt later (route
+      two of TV Chapter 8). MIS-10 sets the phasing, SCI-24 the revisit and SCI-09 the wall-position accuracy
+      (§5.5).
+    verification: S, A. Two-node following pass over a drifting simulated depletion (route two, WP5 and
+      WP10); phasing by orbit propagation (MIS-10). L5 metric to be renamed from drift_resolution_mps.
+    verification_methods:
+    - S
+    - A
+  SCI-24:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Revisit the post-sunset sector often enough to track a bubble between passes.
+    threshold: ≤15 min in the 18:00–03:00 LT sector
+    goal: ≤10 min
+    basis: A bubble drifting at 150 m/s moves 135 km in 15 minutes and 270 km in 30 minutes. Since the
+      envelope is ~300 km, a 30 minute revisit displaces a structure by nearly its own width and identity
+      between passes becomes ambiguous. 15 minutes moves it by under half a width, which is trackable.
+    verification: A. Constellation coverage in 18:00–03:00 LT. Open Item 6.
+    verification_methods:
+    - A
+  SCI-25:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Identify echoes returned from off-vertical directions, and flag the profiles they contaminate.
+    threshold: Flag suspect profiles by trace-consistency inference (available in every configuration)
+    goal: Discriminate off-vertical echoes geometrically and exclude them from the retrieval (requires
+      configuration A2)
+    basis: A bubble wall is a steep density gradient that returns a strong off-vertical echo. Treating
+      one as vertical biases the retrieved profile, and the bias is largest exactly where G3 wants the
+      measurement. The threshold is met by inference from trace behaviour — range discontinuities and
+      shape anomalies — with one receive antenna. The goal requires the vector receive system of §6.3.
+    verification: S. Ray-traced bubble wall; detection and false-alarm rates. Open Item 10.
+    verification_methods:
+    - S
+  SCI-26:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Sample the local time sector in which bubbles form and evolve.
+    threshold: Continuous coverage of 18:00–03:00 LT over the mission
+    goal: Plus pre-reversal enhancement window 17:00–19:00 LT resolved
+    basis: Bubbles are a post-sunset phenomenon seeded near the pre-reversal enhancement and persisting
+      5–6 hours. A sun-synchronous dawn-dusk orbit would observe almost none of this, which makes MIS-03
+      a hard requirement rather than a preference.
+    verification: A. Local-time coverage by orbit propagation. Mission level.
+    verification_methods:
+    - A
+  SCI-27:
+    sheet: Measurement Reqs
+    family: SCI
+    requirement: Measure the angle of arrival and polarization sense of each echo.
+    threshold: Not required at threshold in any configuration
+    goal: Arrival angle to ≤2° (≤1° where SNR ≥ 40 dB), plus polarization sense sufficient to label O
+      and X modes directly
+    basis: RPI flew this on IMAGE with three orthogonal dipoles, with arrival angle specified to 2°, or
+      1° at SNR ≥ 40 dB (Reinisch et al. 2001); these are specifications rather than demonstrated accuracies.
+      Three orthogonal antennas sample the full vector of the incident field at a single point, so no
+      interferometric baseline is needed, which is what makes the measurement plausible on a small platform
+      where Poole's spaced four-antenna scheme is not. At 500 km range, 2° corresponds to 17.5 km of lateral
+      position, comparable to the SCI-09 along-track goal. Route three of TV Chapter 8 needs 0.38° to
+      meet SCI-23, so SCI-27 does not serve SCI-23 on its own.
+    verification: S, A, B. Vector-receive simulation; NEC mutual coupling; bench channel phase match.
+      Goal level.
+    verification_methods:
+    - S
+    - A
+    - B
+  INS-01a:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Lowest sounding frequency
+    value: '0.33 MHz threshold (95% profile coverage), 0.26 MHz goal (99%), over the full envelope MIS-01
+      declares: 500–900 km, either orbit class, and a complete solar cycle. Construction corrected in
+      Rev D: across a model ensemble the safe value is the MINIMUM of the per-model fifth percentiles,
+      not the maximum; see F12. The governing case is O1 at 900 km, solar min, where NeQuick gives 0.334
+      MHz against IRI-2001''s 0.477 and IRI-2001 corrected''s 0.354. Tolerance is one-sided, −20%/+0%:
+      ISIS-1 measurements (§5.7) show the models overstate the low tail by about 19%, so the requirement
+      may need to go lower, never higher. A mission declaring solar maximum only may use 0.90 MHz. Split
+      from Rev F''s INS-01 so the lower edge can be scored on its own.'
+    flows_from: SCI-03; §5.6, §5.7
+    status: '0.9-28 MHz. Rev A/B carried 0.5 MHz with no derivation; Rev C stated 1.9 MHz from the same
+      study read the wrong way round. Corrected: 0.33 MHz.'
+    verification: A, R, S. Band-edge study; ISIS-1 pairing; L5 metric sweep_min_frequency_hz, the lowest
+      frequency the transmitted sweep covered. Solar-minimum tail (Open Item 2). The lowest detected echo
+      is set by the ionosphere and is a diagnostic only.
+    verification_methods:
+    - A
+    - R
+    - S
+  INS-01b:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Highest sounding frequency
+    value: 20 MHz (5×10¹² m⁻³). The median foF2 along track peaks at 10.19 MHz at solar maximum (F11);
+      stating the upper edge against a percentile of foF2 is Open Item 5.
+    flows_from: SCI-03; §5.1
+    status: 0.9–28 MHz in the TISC baseline. 20 MHz is sufficient (F3, F11).
+    verification: A, S. foF2 distribution along track; L5 metric sweep_max_frequency_hz, the highest frequency
+      the transmitted sweep covered. Percentile form (Open Item 5). The highest detected echo is fxF2
+      and is a diagnostic only.
+    verification_methods:
+    - A
+    - S
+  INS-02:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Frequency step law
+    value: 'Configuration A1: Δf ≤ min(0.05·f, 150 kHz), goal min(0.025·f, 150 kHz), with the 150 kHz
+      cap applied only above the X-mode cutoff at the spacecraft, f_x, since there is no X trace below
+      it (§5.3). Scoping the cap does not change INS-03. Configuration A2: the 150 kHz cap is unnecessary
+      because O and X are separated by polarization rather than in frequency, so Δf ≤ 0.05·f, goal 0.025·f.'
+    flows_from: SCI-04, SCI-14, SCI-27; §5.3
+    status: 'Fixed step. Fails SCI-04 below ~4 MHz. Rev G: the 150 kHz cap applies only above the X-mode
+      cutoff, 0.62–1.53 MHz at 500–900 km.'
+    verification: I, S. Sweep table; L5 metric frequency_step_fraction_max. The cap binds only above 3
+      MHz, above f_x in the governing case, so the scored fraction is unaffected by scoping it.
+    verification_methods:
+    - I
+    - S
+  INS-03:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Frequency steps per ionogram
+    value: 'A1: 159 threshold / 211 goal over 0.33–20 MHz. A2: 85 / 167. INS-02''s step law is unchanged;
+      the band it runs over is not, so the counts move with the band edge: 151/194 in Rev B over 0.5–20
+      MHz, 123/140 in Rev C over its erroneous 1.9 MHz edge, 159/211 here. At 26.8 ms per range profile
+      the A1 threshold sweep is 4.26 s, or 32.0 km along track: inside SCI-09''s ≤50 km threshold, outside
+      its ≤25 km goal. A2 at 85 steps is 2.28 s and 17.1 km and meets the goal. These sweep times are
+      configurations, not a fixed law: the sweep is programmable under INS-27, the TISC point design sweeps
+      in 4.84 s, and the uniform 5.6 MHz/s sweep of TV Chapter 8 would take 3.51 s but is withdrawn as
+      an ionogram setting (2026-09-30).'
+    flows_from: INS-01, INS-02
+    status: Not specified.
+    verification: A. Step count from INS-01a and INS-02.
+    verification_methods:
+    - A
+  INS-04:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Maximum unambiguous apparent range
+    value: ≥1050 km threshold; ≥1500 km goal
+    flows_from: SCI-08
+    status: 500 km. Fails for orbits above ~600 km.
+    verification: A, S. Beat band and sample rate; L5 metric unambiguous_range_m.
+    verification_methods:
+    - A
+    - S
+  INS-05:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Virtual range resolution
+    value: 'Threshold: ≤15 km below 0.5 MHz; ≤10 km at and above 0.5 MHz. Goal: ≤10 km below 0.7 MHz;
+      ≤5 km at and above 0.7 MHz. Per band because INS-02''s 0.05·f step sets the range cell at the bottom
+      of the band (Rev G §5.2; amended 2026-09-30).'
+    flows_from: SCI-06
+    status: 'A1, Hann window: 13.6 km at 0.33 MHz against 15 km; 9.0 km at 0.5 MHz and 1.5 km above 3
+      MHz against 10 km. Meets threshold in every band. Goal met with no window (9.1 km at 0.33 MHz, 4.3
+      km at 0.7 MHz). See Derivations §5.'
+    verification: A, S. L5 metric virtual_range_resolution_by_frequency, scored per band.
+    verification_methods:
+    - A
+    - S
+  INS-06:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Baseband sample rate
+    value: f_s ≥ 4·K_f·R_max/c at the highest K_f the selected sweep settings use (INS-27). At K_f = 5.6
+      MHz/s and R_max = 1050 km, f_s ≥ 78.4 kHz. Configuration A2 sweeps at up to 37.3 MHz/s and needs
+      f_s ≥ 522 kHz.
+    flows_from: INS-04, INS-27, FMCW relation
+    status: 40 kHz — consistent with the 500 km assumption, not with INS-04.
+    verification: I, A. Sample-rate derivation at the highest K_f in use.
+    verification_methods:
+    - I
+    - A
+  INS-07:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Complete ionogram period
+    value: ≤6.7 s threshold; ≤3.3 s goal
+    flows_from: SCI-09, SCI-22
+    status: 4.84 s. Meets the new threshold and nearly the goal - but only because the corrected link
+      budget removed the need to spend along-track resolution on coherent integration.
+    verification: A, S. L5 metric ionogram_period_s. Goal needs A2.
+    verification_methods:
+    - A
+    - S
+  INS-08:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Magnetoionic mode discrimination
+    value: Detect and label the O and X traces at every frequency above the X-mode cutoff at the spacecraft
+      (§5.3); below it, label the O trace and distinguish it from any Z trace
+    flows_from: SCI-14
+    status: 'Not specified. Rev G: required only above the X-mode cutoff at the spacecraft.'
+    verification: S. L5 boolean mode_discrimination above f_x.
+    verification_methods:
+    - S
+  INS-09:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Doppler measurement
+    value: 'Doppler observing mode: line-of-sight velocity in the Earth-fixed frame after the ephemeris-predicted
+      platform term is removed, unambiguous over ≥±1 km/s with accuracy ≤100 m/s 1σ at threshold and resolution
+      ≤50 m/s at goal (SCI-15), across the sub-band selected for the mode, at sounding frequencies of
+      at least twice the plasma frequency at the spacecraft (§5.4). Ionogram mode: residual apparent-range
+      bias ≤1 range cell as defined in Rev G §1, at the frequency concerned. The instrument shall be capable
+      of both and need not meet them simultaneously (§1.1, §5.4).'
+    flows_from: SCI-15, SCI-16, INS-27; §5.4
+    status: 'Approach formulated for claim C3 (proposal Sec. 3.3.1, Technical Volume Ch. 8). Rev G: met
+      in a Doppler observing mode; direct sub-sweep sampling reaches +/-1 km/s to 5.4 MHz at 1050 km range,
+      range-rate disambiguation above (Open Item 15).'
+    verification: S, B. Doppler-mode simulation; L5 metric residual_range_bias_cells; bench Doppler injection.
+    verification_methods:
+    - S
+    - B
+  INS-10:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Sensitivity
+    value: SNR ≥10 dB per range cell at R_max across the band, against the SCI-20 noise reference, in
+      the fraction of sweeps SCI-28 requires, outside declared interference intervals
+    flows_from: SCI-19, SCI-20, SCI-28
+    status: 'tss-sim link_budget: median 38.5 dB and minimum 33.1 dB SNR per range cell over the band
+      against the 10 dB threshold, on the Franklin and MacLean reference (measured above 0.6 MHz). Availability
+      clause waits on SCI-28.'
+    verification: A, S, B. Link budget; L5 metric snr_db_min; bench. Availability clause waits on SCI-28.
+    verification_methods:
+    - A
+    - S
+    - B
+  INS-11:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Receiver dynamic range
+    value: ≥60 dB instantaneous, at the digitiser input, after analog de-chirp and a high-pass filter
+      that removes the de-chirped leakage before digitisation. The filter shall reject the leakage carrier
+      by at least the leakage-over-echo ratio less 60 dB plus 10 dB of headroom, which is 32 dB at INS-23's
+      40 dB isolation (§5.9). ≥90 dB with AGC; survive +120 dB. The 60 dB and the AGC split follow RPI
+      (60 dB plus 66 dB of AGC, Reinisch et al. 2001); the 90 dB and 120 dB follow Franklin and MacLean.
+    flows_from: SCI-21, INS-10, INS-23; §5.9
+    status: 'Not specified in the baseline. Rev G states the reference point: the digitiser input, after
+      analog de-chirp and a leakage high-pass filter of >= 32 dB rejection at 40 dB isolation.'
+    verification: A, B. Analysis of the analog chain and high-pass filter; two-tone, blocking and leakage-injection
+      tests at the digitiser input.
+    verification_methods:
+    - A
+    - B
+  INS-12:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Time-tag accuracy
+    value: ≤1 µs threshold; ≤100 ns goal
+    flows_from: SCI-17
+    status: Not specified.
+    verification: B. PPS against GNSS timing.
+    verification_methods:
+    - B
+  INS-13:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Data product and volume
+    value: Raw ionogram 16.7 kB (159 steps × 105 range bins × 8 bit), which is 215 MB/day at INS-07's
+      6.7 s threshold cadence and 339 MB/day at A1's 4.26 s sweep. On-board trace extraction reduces this
+      to ~2.5 kB per ionogram, 32 to 51 MB/day. The product bins range at 10 km, the INS-05 threshold
+      at and above 0.5 MHz, over INS-04's 1050 km. These bins are not the range cell of Rev G §1, which
+      is 1.0 km above 3 MHz, and binning at the cell makes the raw volume up to ten times larger. Scales
+      with INS-03's step count and with the sweep settings of INS-27.
+    flows_from: SCI-18, INS-03, INS-07
+    status: Not specified. On-board trace extraction gives a factor ~6 downlink saving (339 to 51 MB/day
+      at a 4.26 s sweep).
+    verification: A. Data-volume arithmetic.
+    verification_methods:
+    - A
+  INS-14:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Resource constraint (programmatic, not science-derived)
+    value: ≤6U CubeSat volume; transmit power ≤1 W; total instrument power ≤5 W
+    flows_from: TISC proposal baseline
+    status: This is a constraint on the solution, not a science requirement.
+    verification: I, B. Mass, volume and power budget; measured prototype power. Programmatic.
+    verification_methods:
+    - I
+    - B
+  INS-15:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Coherent multi-sweep processing
+    value: Coherent combination of Doppler-mode sub-sweeps across ≥0.05 s at 3 MHz (threshold), enough
+      for SCI-15's 100 m/s accuracy at 10 dB per sub-sweep and 40 Hz, and ≥1.15 s at 3 MHz (goal), for
+      SCI-15's 50 m/s resolution, with compensation for the change in geometry over the interval. The
+      threshold interval scales as (f·μ_sat)^(-2/3); the goal product f·T·μ_sat ≥ 3.0×10⁶ Hz·s holds at
+      every frequency. Both are sized at f ≥ 2·f_N,sat, where the refractive index at the spacecraft is
+      μ_sat ≥ 0.87 (amended 2026-10-06; the goal was 1.0 s in free space). Derivations §23 and §17.
+    flows_from: SCI-15, INS-09; §5.4
+    status: 'Absent in the baseline. Rev G derives it from SCI-15: 0.05 s from the threshold accuracy,
+      1.15 s from the goal resolution, at 3 MHz and μ_sat = 0.87. SCI-23 is met from displacement between
+      looks, not by this processing.'
+    verification: S. L5 metric coherent_interval_s from the Doppler-mode tier.
+    verification_methods:
+    - S
+  INS-16:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Off-vertical echo handling
+    value: Flag profiles containing echoes inconsistent with vertical incidence; report the flag with
+      the data product. Available in every configuration.
+    flows_from: SCI-25
+    status: Absent.
+    verification: S. Off-vertical flag against ray-traced truth. Open Item 10.
+    verification_methods:
+    - S
+  INS-17:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Low-frequency reach when inside a depletion
+    value: 'Sweep must extend to 0.28 MHz (threshold) / 0.16 MHz (goal) when the local plasma frequency
+      permits. INS-01a now reaches close to this range in the ambient topside, so the two requirements
+      nearly meet: the ambient band edge is 0.33 MHz and the depletion reach is 0.28 MHz. The distinction
+      that remains is that INS-17 must hold when the spacecraft is inside the depleted flux tube, which
+      is also when the local plasma frequency permits it.'
+    flows_from: SCI-03, SCI-22
+    status: Band starts at 0.9 MHz. Note the sounder need not radiate 0.18 MHz through a background ionosphere
+      - only when it is already inside the depleted flux tube.
+    verification: A, S. Depletion crossing with the antenna scale declared. Feasibility at 0.16 MHz not
+      yet acted on (§1.2).
+    verification_methods:
+    - A
+    - S
+  INS-18:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Vector receive provision
+    value: The design shall accommodate three mutually orthogonal receive antennas and three phase-coherent
+      receive channels. A given mission may populate one channel and one antenna; the design shall not
+      preclude three. Receiver channels shall be phase-matched to ≤2° across the band, or calibratable
+      to that level in flight.
+    flows_from: SCI-25, SCI-27
+    status: Absent. This is the obligation the A2 option places on the receiver architecture.
+    verification: I, A, B. Design review; NEC mutual coupling; bench channel phase match. Coupling between
+      closely spaced passive dipoles can exceed 2°.
+    verification_methods:
+    - I
+    - A
+    - B
+  INS-19:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Data volume in the vector configuration
+    value: Three receive channels triple the raw data rate. With on-board trace extraction and arrival-angle
+      reduction the delivered product grows by roughly a factor of two, not three, since range and frequency
+      axes are shared.
+    flows_from: INS-13, INS-18
+    status: Not specified.
+    verification: A. Data-volume arithmetic.
+    verification_methods:
+    - A
+  INS-20:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Antenna scale and the efficiency it buys
+    value: 'The design shall state, at every sounding frequency, the resonant (half-wave) antenna length
+      and the radiation efficiency achieved by any shorter antenna of either type, dipole or loop, so
+      that a mission choosing a physically smaller antenna inherits a quantified penalty rather than an
+      open question. Resonant length at the 0.33 MHz band edge is 454 m; no CubeSat will carry it, and
+      the requirement is not that it should. The penalty is transmit-only: receive efficiency cancels
+      out of the SNR while the antenna temperature stays sky-dominated, which at the band edge needs an
+      efficiency of at least −46.5 dB on Cane and −43.5 dB at the lower end of the sky bracket (§5.8).
+      The 5 m dipole of §5.8 meets the first by 0.5 dB and misses the second by 2.5 dB, so its receive
+      efficiency cannot be assumed to cancel at the band edge; tss-sim reproduces both figures. §6.3 tabulates
+      the trade and MIS-09 requires each mission to declare where on it it sits.'
+    flows_from: INS-01a, SCI-19, SCI-20; §5.8, §6.3
+    status: Not specified anywhere in the baseline.
+    verification: A, I. Antenna model (§5.8); declaration review.
+    verification_methods:
+    - A
+    - I
+  INS-21:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Chirp reference coherence
+    value: 'The de-chirp reference shall be derived from the same synthesiser and the same frequency reference
+      as the transmitted chirp, so that transmit frequency error is common-mode between the radiated signal
+      and the receive reference. This is an architectural constraint rather than a performance number,
+      and it is what makes INS-22 achievable: range correlation suppresses the leakage''s own sweep error
+      by 33 to 83 dB across the echo beat band (§5.9). A second, independent synthesiser forfeits all
+      of it.'
+    flows_from: INS-24; §5.9
+    status: Unspecified in every baseline document.
+    verification: I. Schematic and architecture review.
+    verification_methods:
+    - I
+  INS-22:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Transmit chirp spectral purity
+    value: Spurious content of the radiated chirp ≤ −70 dBc threshold, ≤ −80 dBc goal, at offsets from
+      3736 Hz to 39227 Hz from the instantaneous carrier — the beat band spanned by echoes between 100
+      km and INS-04's maximum range. The threshold is derived at 40 dB isolation, a 10 m coupling path
+      and 10 dB of margin; the SRM Derivations sheet carries it as a live formula in those three inputs
+      (§5.9). Configuration A2 sweeps at up to 37.3 MHz/s, so its beat band extends to 261 kHz, where
+      range correlation suppresses a spur 16.5 dB less; A2 needs ≤ −86.5 dBc at 40 dB isolation, or INS-23
+      ≥ 56.5 dB.
+    flows_from: INS-04, INS-05, INS-24; §5.9
+    status: Not specified. The M&S plan names this the critical path.
+    verification: B. Spectrum analyser on the radiated chirp.
+    verification_methods:
+    - B
+  INS-23:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Transmit-to-receive isolation
+    value: '≥40 dB threshold, ≥60 dB goal, across the band, between the transmit and receive apertures
+      as deployed. The figure is a deployed-configuration property, not a component specification, and
+      it trades directly against INS-22: every decibel of isolation buys a decibel of relaxation in transmit
+      purity. Configuration A2 needs ≥56.5 dB at INS-22''s −70 dBc threshold, because its faster sweep
+      reduces range-correlation suppression by 16.5 dB.'
+    flows_from: INS-24; §5.9
+    status: Not specified.
+    verification: A, B, O. NEC deployed-geometry model; bench surrogate; in-flight measurement. Deployed
+      property (Open Item 13).
+    verification_methods:
+    - A
+    - B
+    - O
+  INS-24:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Residual de-chirped leakage floor
+    value: 'After de-chirping and any cancellation, the leakage pedestal shall lie ≥10 dB below the weakest
+      echo admitted by INS-10, at every beat frequency in the echo band. This is the primary requirement
+      of the family: it is the quantity that can be measured, in simulation and on a bench, and INS-21
+      to INS-23 are allocations to it. The transmit phase-noise mask derived in the M&S plan (−108 dBc/Hz
+      at 40 dB isolation) is subsumed here, since sweep spurs and phase noise contribute to the same pedestal.'
+    flows_from: SCI-19, INS-10; §5.9
+    status: Absent. This is what the bench phase of the prototype measures.
+    verification: B, S. De-chirped residual through a calibrated delay line; L2 leakage model. Primary
+      requirement of its family.
+    verification_methods:
+    - B
+    - S
+  INS-25:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Sweep rate stability
+    value: ΔK_f/K_f ≤ 2.4×10⁻³ within one analysis dwell; ≤4.8×10⁻³ end to end across a sweep after calibration.
+      Both follow from ΔK_f/K_f ≤ α·δR/R_max with α = ½ for holding an echo inside one analysis bin and
+      α = 1 for the one-cell bias convention INS-09 already uses, evaluated at INS-05's goal cell and
+      INS-04's threshold range (§5.9).
+    flows_from: INS-05, INS-09; §5.9
+    status: Not specified.
+    verification: B. Time-frequency analysis of the chirp.
+    verification_methods:
+    - B
+  INS-26:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Reference oscillator short-term stability
+    value: Allan deviation σ_y ≤ 5.8×10⁻⁸ at τ = 0.05 s (threshold) and ≤ 3.2×10⁻⁹ at τ = 1.15 s (goal).
+      The threshold allocates one tenth of SCI-15's 100 m/s accuracy to the oscillator, through σ_v =
+      c·σ_y/(2·μ_sat) at μ_sat = 0.87 (Derivations §23). The goal follows from σ_φ = 2π(f·T)·σ_y(T) with
+      f·T = c/(2·δv·μ_sat) at SCI-15's 50 m/s resolution, budgeted at Poole's 4°, with no range-correlation
+      credit; Open Item 12 may relax it by 9x to 95x according to the noise type, 52x for flicker frequency
+      noise (Derivations §17). Long-term accuracy is disciplined under INS-12.
+    flows_from: INS-15, SCI-15; §5.10
+    status: 'Absent. Rev G relaxes the threshold from 2e-9 to 6.7e-8 by deriving it from the SCI-15 accuracy;
+      the goal, 3.7e-9, follows from the SCI-15 resolution. Amended 2026-10-06 for the refractive index
+      at the spacecraft: 5.8e-8 and 3.2e-9 at μ_sat = 0.87.'
+    verification: B. Allan deviation at 0.05 s and 1.15 s against a better reference.
+    verification_methods:
+    - B
+  INS-27:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Programmable sweep
+    value: 'The start and stop frequencies, the frequency-step law, the dwell per step or sweep rate,
+      and the sweep repetition interval shall be selectable in software per observing mode, without hardware
+      change. The instrument shall support at least the four observing modes (Configurations sheet): an
+      ionogram mode in A1 and in A2, a Doppler mode, and a drift mode for route one of TV Chapter 8. The
+      settings shall span the 4.84 s TISC sweep, the 4.26 s A1 and 2.28 s A2 stepped sweeps, Doppler-mode
+      sub-sweeps of 14 to 18 ms over 75 to 100 kHz, and drift-mode repetition from 45 Hz up to the 71
+      Hz cap. A uniform-rate sweep across the band is not an ionogram setting: at 5.6 MHz/s the minimum
+      14.0 ms dwell spans 78.4 kHz, which exceeds INS-02''s 0.05·f below 1.57 MHz. No sweep law is fixed
+      (Open Item 15).'
+    flows_from: SCI-09, SCI-15, SCI-16; §5.4, §5.5
+    status: New in Rev G. The TISC design fixes a 4.84 s sweep; Rev G requires the sweep to be programmable
+      and leaves the settings to this work (Open Item 15).
+    verification: I, B. Command-set review; bench capture of each configuration INS-27 lists. Settings
+      from Open Item 15.
+    verification_methods:
+    - I
+    - B
+  MIS-01:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Orbit altitude
+    value: 500–900 km circular, threshold; 800–900 km preferred. Must be above the F2 peak at all times
+      sampled.
+    flows_from: 'SCI-02, and §5.6. Altitude still widens the usable band, but by less than Rev B argued
+      and in the opposite bookkeeping to Rev C: a higher orbit LOWERS the band edge, which is a harder
+      antenna problem, not an easier one. The 95% edge falls from 0.79 MHz at 500 km to 0.33 MHz at 900
+      km. What altitude buys is observable density range and more of the bubble volume below the sounder;
+      what it costs is antenna scale.'
+    status: '600 km assumed in the TISC baseline. The 95% lower band edge falls from 0.79 MHz at 500 km
+      to 0.33 MHz at 900 km at solar minimum (Min-Freq Study): a higher orbit LOWERS the edge, which is
+      a harder antenna problem. A higher orbit places more of the bubble volume below the sounder.'
+    verification: A. Band-edge run by altitude. Mission level.
+    verification_methods:
+    - A
+  MIS-02:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Inclination
+    value: 'Mission-configuration dependent — see §6.3. Orbit class O1 (global morphology): ≥80°. Orbit
+      class O2 (bubble tracking): ≤30°. The instrument design is indifferent to the choice; the science
+      return is not.'
+    flows_from: SCI-11, SCI-24
+    status: Not specified.
+    verification: A. Orbit design. Mission level.
+    verification_methods:
+    - A
+  MIS-03:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Local time coverage
+    value: Non-sun-synchronous; local time must precess through 24 h within the mission
+    flows_from: SCI-11, SCI-12
+    status: Not specified.
+    verification: A. Nodal precession through 24 h of local time within the mission. Mission level.
+    verification_methods:
+    - A
+  MIS-04:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Mission duration
+    value: ≥12 months threshold; ≥24 months goal
+    flows_from: SCI-12
+    status: Not specified.
+    verification: I. Mission design. Mission level.
+    verification_methods:
+    - I
+  MIS-05:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Constellation size
+    value: Set by SCI-10 revisit; a single spacecraft cannot meet it. Sizing is an open item (§8, Open
+      Item 6).
+    flows_from: SCI-10
+    status: Constellation named as motivation but never sized.
+    verification: A. Constellation sizing. Open Item 6.
+    verification_methods:
+    - A
+  MIS-06:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Inter-satellite geometry (goal)
+    value: Co-orbital pairs or planes permitting oblique cross-link sounding
+    flows_from: 'Chartier: 129 unique raypaths found by ray tracing, of a possible 273 (three links at
+      91 frequencies), between two co-orbital sounders at 890 km over a 2–20 MHz scan; to be re-checked
+      by the constellation ray-path modelling of Open Item 14'
+    status: 129 unique raypaths between two co-orbital sounders at 890 km over a 2-20 MHz scan (Chartier
+      2022); to be re-checked by constellation ray-path modelling (Open Item 14).
+    verification: A, S. Oblique ray tracing between nodes (Chartier verification project). Open Item 14.
+    verification_methods:
+    - A
+    - S
+  MIS-07:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Local time sampling of the bubble sector
+    value: Continuous coverage of 18:00–03:00 LT. A sun-synchronous dawn-dusk orbit is disqualified.
+    flows_from: SCI-26
+    status: Not specified. Makes MIS-03 a hard requirement rather than a preference.
+    verification: A. Local-time coverage. Mission level.
+    verification_methods:
+    - A
+  MIS-08:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Configuration declaration
+    value: Each mission shall declare its orbit class and antenna configuration, and shall state in its
+      own traceability which goals it does not serve. This replaces the inclination trade recorded as
+      a conflict in Rev B; it is a selection, not an incompatibility.
+    flows_from: §6.3
+    status: New in this revision.
+    verification: I. Declaration review. Mission level.
+    verification_methods:
+    - I
+  MIS-09:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Antenna declaration
+    value: Each mission shall declare its antenna type (dipole or loop), its deployed antenna length and
+      the resulting radiation efficiency across 0.33–20 MHz, and shall state the transmit power required
+      to meet SCI-19 at its own band edge. A mission may descope the lower part of the band by declaring
+      a narrower envelope under INS-01a (solar maximum only, or a lower orbit) rather than by silently
+      failing to reach it.
+    flows_from: INS-01a, INS-20; §6.3
+    status: New in Rev D.
+    verification: I, A. Declaration review; antenna model. Mission level.
+    verification_methods:
+    - I
+    - A
+  MIS-10:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Constellation phasing for the second look (O2, O3)
+    value: Where SCI-23 is served, at least two nodes shall be phased so that the second crosses the ground
+      track of the first 4.4 to 10 minutes later (threshold, with the A1 sweep), with a cross-track ground-track
+      offset of no more than 140 km at the magnetic equator. The goal accuracy of SCI-23 needs 8.7 to
+      10 minutes, or the A2 sweep. Earth rotation moves a following node's track by about 28 km per minute
+      at the equator, so near 10 minutes in the ≤30° class the planes may need an offset in right ascension
+      rather than sharing one plane (§5.5).
+    flows_from: SCI-23, SCI-24, SCI-09; §5.5
+    status: New in Rev G. Not considered in any baseline document.
+    verification: 'A. Orbit propagation of the phased pair: Δt and cross-track offset over the mission.
+      Mission level.'
+    verification_methods:
+    - A
+  SW-01:
+    sheet: Software (tss-sim)
+    family: SW
+    requirement: Retrieval scoring against truth
+    value: 'L5 shall compare each L4 profile with its L0 truth between hmF2 and the spacecraft and report
+      the fractional density error and the height error of each profile point (bias and rms), the NmF2
+      and hmF2 errors, and the fraction of points lying within their reported 1σ. Retrieved points below
+      the truth peak are counted, not scored. The density rms is scored against SCI-05 and the height
+      rms against SCI-07 in requirements.yaml. Status (2026-09-29): the density and height errors are
+      implemented over the topside only, with points below the peak counted; NmF2, hmF2 and the 1σ coverage
+      are not yet implemented. The density and height errors are scored against SCI-05 and SCI-07 only
+      when the echoes were made with the magnetoionic group index and the inversion corrected for the
+      magnetic field; a field-free inversion is in error by up to 18 km at high magnetic latitude and
+      is reported as not evaluated (amended 2026-10-06).'
+    flows_from: SCI-01, SCI-05, SCI-07, SCI-18
+    verification: T, D. Unit tests with an injected retrieval error; WP4 campaign.
+    verification_methods:
+    - T
+    - D
+  SW-02:
+    sheet: Software (tss-sim)
+    family: SW
+    requirement: Measured ionospheres as truth
+    value: 'tss-sim shall accept measured profiles as L0 truth and run the unchanged chain on them: ISIS-1
+      CRC hand-scaled topside profiles (SPDF), incoherent-scatter topside profiles from Millstone Hill
+      and Jicamarca (Madrigal), and IRTAM-assimilated peak parameters with a model topside. For ISIS-1
+      records with an archived ionogram, L1 shall reproduce the archived virtual-height trace from the
+      CRC profile to within one ISIS range cell (15 km), which checks the propagation model against measurement.'
+    flows_from: SCI-01, SCI-07
+    verification: T, D, R. Fixture test on ISIS-1 and Madrigal records; archived-trace comparison.
+    verification_methods:
+    - T
+    - D
+    - R
+  SW-03:
+    sheet: Software (tss-sim)
+    family: SW
+    requirement: Absolute density and mode identification
+    value: 'L5 shall report the density at the spacecraft and the absolute density error over the profile.
+      A mode-mislabel case, with the X trace read as O, shall be injected and the resulting systematic
+      density error reported, since SCI-05 rests on correct mode identification. For runs on measured
+      ionospheres, the retrieved density at the spacecraft shall be compared with an independent in-situ
+      measurement where one exists: DMSP ion density from Madrigal at conjunction, or the ISIS-1 in-situ
+      probes (Open Item 7).'
+    flows_from: SCI-05, SCI-14
+    verification: T, D, R. Mislabel-injection unit test; DMSP conjunction campaign.
+    verification_methods:
+    - T
+    - D
+    - R
+  SW-04:
+    sheet: Software (tss-sim)
+    family: SW
+    requirement: Storm-time ionospheres
+    value: tss-sim shall provide L0 states for historical storm days with Kp > 6, from IRTAM and from
+      IRI with its storm model enabled, and L5 shall report every metric separately for Kp ≤ 6 and Kp
+      > 6, so that the two regimes of SCI-13 are scored against their own values.
+    flows_from: SCI-13
+    verification: T, D. IRTAM storm-day fixture; campaign scored by Kp class.
+    verification_methods:
+    - T
+    - D

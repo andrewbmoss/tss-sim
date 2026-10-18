@@ -79,14 +79,13 @@ them without touching the block loop:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace as _replace
 from typing import Any
 
 import numpy as np
 
-from tss.interfaces import Ionogram, PlatformState, ReceivedSignal
-from dataclasses import replace as _replace
-
 from tss import sweep_law
+from tss.interfaces import Ionogram, PlatformState, ReceivedSignal
 from tss.l3_signal.base import SignalProcessingBase, sweep_duration_s
 from tss.l3_signal.dechirp import dechirp
 from tss.l3_signal.trace_extract import TraceSample, extract_trace

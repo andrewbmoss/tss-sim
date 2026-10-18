@@ -362,6 +362,7 @@ def ionogram_metrics(
         "sweep_min_frequency_hz": _as_float(flags.get("sweep_min_frequency_hz")),
         "sweep_max_frequency_hz": _as_float(flags.get("sweep_max_frequency_hz")),
         "frequency_step_fraction_max": None,
+        "frequency_step_count": None,
         "snr_db_min": None,
         "snr_db_median": None,
         "n_detected": None,
@@ -369,6 +370,7 @@ def ionogram_metrics(
         "doppler_resolved": bool(ionogram.doppler_mps is not None),
         "residual_range_bias_cells": None,
         "drift_resolution_mps": _as_float(flags.get("drift_resolution_mps")),
+        "los_velocity_accuracy_mps": _as_float(flags.get("los_velocity_accuracy_mps")),
     }
 
     if "mode_discrimination" in flags:
@@ -393,6 +395,9 @@ def ionogram_metrics(
     # min(f, crossover) turns both branches into one fraction, so the single
     # number can be compared against the 0.05 threshold directly.
     f_sorted = np.sort(freq[np.isfinite(freq)])
+    # INS-03: one column per frequency step.  Counted from the columns, not
+    # from the configuration, for the same reason as every number here.
+    out["frequency_step_count"] = int(np.unique(f_sorted).size)
     if f_sorted.size >= 2:
         steps = np.diff(f_sorted)
         reference = np.minimum(f_sorted[:-1], INS02_STEP_CROSSOVER_HZ)

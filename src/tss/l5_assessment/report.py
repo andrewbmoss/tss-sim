@@ -105,6 +105,16 @@ def render_text(assessment: Assessment, *, width: int = 96) -> str:
         f"{total} requirements: {counts['goal']} goal, {counts['threshold']} threshold, "
         f"{counts['fail']} fail, {counts['not_evaluated']} NOT EVALUATED"
     )
+    coverage = assessment.flags.get("coverage") or {}
+    if coverage.get("n_catalog"):
+        held = ", ".join(
+            f"{n} {cat}" for cat, n in coverage.get("not_scored_by_category", {}).items() if n
+        )
+        lines.append(
+            f"Catalogue Rev {coverage.get('catalog_revision', '?')}: "
+            f"{coverage['n_catalog']} requirements, {coverage.get('n_scored', 0)} scored here, "
+            f"{coverage.get('n_not_scored', 0)} NOT SCORED in simulation ({held})"
+        )
     lines.append(rule)
 
     header = (
@@ -127,6 +137,20 @@ def render_text(assessment: Assessment, *, width: int = 96) -> str:
         )
         if verdict == "not_evaluated" and record.get("reason"):
             lines.append(f"{'':9s} {'':8s} reason: {record['reason']}")
+
+    not_scored = assessment.flags.get("not_scored") or {}
+    if not_scored:
+        lines.append("-" * width)
+        lines.append("Not scored in simulation, by catalogue order")
+        for rid, record in not_scored.items():
+            through = record.get("scored_through") or []
+            wps = record.get("work_packages") or []
+            extra = (
+                f" via {', '.join(through)}" if through
+                else (f" ({', '.join(wps)})" if wps else "")
+            )
+            lines.append(f"{rid:9s} {str(record.get('category', '')):12s}{extra}")
+            lines.append(f"{'':9s} reason: {record.get('reason', '')}")
 
     if assessment.errors:
         lines.append("-" * width)

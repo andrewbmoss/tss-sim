@@ -2,7 +2,7 @@
 WP: WP0, WP7
 Claims: C1, C2, C3, C4, C5
 Status: implemented
-Requirements: INS-01a, INS-01b, INS-02, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, SCI-05, SCI-07, SCI-09, SCI-23
+Requirements: INS-01a, INS-01b, INS-02, INS-03, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, SCI-05, SCI-07, SCI-09, SCI-15, SCI-23
 
 Map computed metrics onto requirement IDs and score them.
 
@@ -36,6 +36,7 @@ INS-01a     sweep_min_frequency_hz             Lowest frequency swept (sense max
 INS-01b     sweep_max_frequency_hz             Highest frequency swept (sense min).
 INS-02      frequency_step_fraction_max        df / min(f, 3 MHz), so the fractional
                                                rule and the 150 kHz cap are one number.
+INS-03      frequency_step_count               Ionogram columns the sweep produced.
 INS-04      unambiguous_range_m                From the sample rate and the sweep rate.
 INS-05      virtual_range_resolution_by_       Window ENBW over the coherent block,
             frequency (falls back to           per column, scored per band (Rev G,
@@ -63,6 +64,8 @@ SCI-05      ne_rms_fractional                  Density error against truth (SW-0
 SCI-07      height_error_rms_m                 Height error against truth (SW-01).
                                                Same condition.
 SCI-09      along_track_sampling_m             Ionogram period times horizontal speed.
+SCI-15      los_velocity_accuracy_mps          Doppler-mode line-of-sight velocity
+                                               accuracy.  None until WP5 exists.
 SCI-23      drift_resolution_mps               Drift accuracy from a second look (Rev G).
                                                None until WP5 exists; rename pending.
 ==========  ================================  ==========================================
@@ -158,6 +161,12 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
         "df / min(f, 150 kHz / 0.05), which expresses the fractional rule and the "
         "absolute cap as one fraction scored against 0.05.",
     ),
+    (
+        "INS-03",
+        "frequency_step_count",
+        "the number of ionogram columns the transmitted sweep produced, one per step of "
+        "a stepped sweep.",
+    ),
     ("INS-04", "unambiguous_range_m", "c fs / (4 K_f), from the record and the sweep."),
     (
         "INS-05",
@@ -235,6 +244,13 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
         "along_track_sampling_m",
         "ionogram period times the platform's horizontal speed.  Sampling, not "
         "resolution; see tss.l5_assessment.scoring.",
+    ),
+    (
+        "SCI-15",
+        "los_velocity_accuracy_mps",
+        "1-sigma line-of-sight velocity accuracy of an isolated echo in the Doppler "
+        "observing mode, Earth-fixed after the platform term is removed.  None until the "
+        "WP5 Doppler-mode tier exists, so 'not_evaluated' rather than a failure.",
     ),
     (
         "SCI-23",

@@ -138,46 +138,85 @@ The same rule is why `threshold` is required for every non-boolean sense.  An
 entry with a goal and no threshold would silently score everything below the
 goal as a failure.
 
+## The catalogue, and the requirements that are not scored
+
+The SRM workbook is the requirement set of record, and it holds more than a
+simulation can score: mission requirements, bench measurements, inspections,
+software requirements and a TBD.  Two files keep it whole without pretending
+otherwise.
+
+`config/requirements/srm_catalog.yaml` is generated from the workbook by
+`scripts/import_srm.py`.  It carries every requirement ID with the workbook's
+own wording, the verification methods (A, S, R, B, I, T, D, O) and the SHA-256
+of the workbook it came from.  It is never edited by hand.
+
+`requirements.yaml` names it under `catalog:`.  Every catalogue ID is then
+either a scored entry under `requirements:` or an entry under `not_scored:`:
+
+```yaml
+not_scored:
+  SCI-06:
+    category: flowed_down
+    scored_through: [INS-05]
+    reason: >-
+      The virtual range resolution part is scored per band as INS-05.  The
+      height sampling part is not yet a metric.
+  INS-06:
+    category: pending
+    work_packages: [WP3]
+    reason: >-
+      L2 picks its sample rate from the deepest simulated echo, so there is no
+      designed digitiser rate to score.
+```
+
+The categories are `flowed_down` (scored through the derived requirements named
+in `scored_through`), `pending` (scorable in simulation, metric not yet
+produced; `work_packages` says who will produce it), `analysis`, `bench`,
+`mission`, `software` and `tbd`.  `RequirementSet.validate()` fails on a
+catalogue ID that is in neither place or in both, on a scored ID missing from
+the catalogue, on a `flowed_down` entry whose targets are not scored, and on a
+`pending` entry that names no work package.  The L5 report prints the coverage
+line and every not-scored requirement with its reason, after the scored table.
+
 ## Keeping the YAML in step with the documents
 
 Three artefacts have to agree:
 
-1. `TSS_Science_Requirements_RevE.docx`, the prose requirement document.  It is
+1. `TSS_Science_Requirements_RevG.docx`, the prose requirement document.  It is
    the authority.  It carries the rationale, the negotiation history and the
    sign-off.
-2. `TSS_SRM_RevE.xlsx`, the science requirements matrix.  It carries the
-   traceability from science objective to measurement to instrument
-   requirement, in a form that can be tabulated.
-3. `config/requirements/requirements.yaml`, which is what actually scores
-   results.
+2. `TSS_SRM_RevG.xlsx`, the science requirements matrix, which carries the same
+   requirements in tabular form with their traceability.
+3. `config/requirements/requirements.yaml` and its generated catalogue, which
+   are what actually score results.
 
 The YAML is downstream of the other two.  It is never edited first.  The
 procedure for a change is:
 
-1. Change the Rev E document.  If the change alters a threshold, a goal or a
-   sense, the revision letter goes up; Rev E is not edited in place once
-   results have been scored against it.  Add the new revision letter to the
-   `revision` key in the YAML at the same time.
-2. Update the SRM spreadsheet so the traceability chain still closes.
-3. Run `python scripts/import_srm.py TSS_SRM_RevE.xlsx` to regenerate a
-   candidate YAML from the spreadsheet, and review the diff against the
-   committed file.  The script exists to make this a diff review rather than a
-   retype.  It does not commit anything; it writes to a scratch path and prints
-   the diff.
-4. Carry across by hand anything the spreadsheet does not hold: `derivation`
-   paths, `notes`, and the `claims` mapping where it is richer in the YAML than
-   in the SRM.
-5. Run `tss requirements`.  A non-zero exit means the set is not scorable.
-6. Run `pytest -q tests/test_metadata.py`, which checks that every requirement
-   ID named in a module docstring metadata block exists in the set.  This is
-   what catches a renumbering that was applied to the document but not to the
-   code.
-7. Commit the document change, the spreadsheet change and the YAML change
-   together, with a `Refs:` line naming the requirement IDs.
+1. Change the requirement document and the SRM workbook.  If the change alters
+   a threshold, a goal or a sense, the revision letter goes up; a revision is
+   not edited in place once results have been scored against it.
+2. Run `python scripts/import_srm.py <path>/TSS_SRM_RevX.xlsx`.  It rewrites
+   the catalogue and prints which IDs were added, removed or changed.  Review
+   the `git diff` of `srm_catalog.yaml`: that diff is the change to the
+   requirement set.
+3. For each changed ID, amend its scored entry (threshold, goal, sense, unit,
+   source, notes) or its `not_scored` reason.  Give an added ID one or the
+   other.  Set `revision` to the new letter.
+4. Run `tss requirements`.  A non-zero exit means the set is not scorable or a
+   catalogue ID is unaccounted for.
+5. Run `pytest`.  `tests/unit/test_requirements_catalog.py` fails if the
+   catalogue on disk does not match the workbook in `..\Dissertation`, which is
+   what catches a workbook edited without the import being rerun.
+6. Commit the workbook, the catalogue and the YAML together, with a `Refs:`
+   line naming the requirement IDs.
+
+`python scripts/import_srm.py <workbook> --check` writes nothing and exits 1 if
+the catalogue is out of date, for use in CI.
 
 Results already scored against an earlier revision are not silently
 invalidated.  Each run manifest records the requirement set revision it scored
-against, so an old result remains interpretable; it just says Rev D on it.  When
+against, so an old result remains interpretable; it just says Rev F on it.  When
 a threshold changes, the affected campaigns are rerun and the old results are
 kept until the new ones exist, rather than deleted first.
 
@@ -199,7 +238,7 @@ From the command line:
 
 ```bash
 tss requirements --claim C4
-tss requirements --json > results/requirements_revE.json
+tss requirements --json > results/requirements_revG.json
 ```
 
 The module docstring metadata block described in `CONTRIBUTING.md` closes the

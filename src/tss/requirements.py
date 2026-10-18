@@ -12,13 +12,32 @@ A consequence worth stating: a requirement with ``source: derived`` and no
 ``derivation`` reference will fail :func:`validate`.  An untraceable number
 cannot be used to score a result.
 
-Keeping the YAML in step with ``TSS_Science_Requirements_RevE.docx`` and
-``TSS_SRM_RevE.xlsx`` is a manual step for now.  ``scripts/import_srm.py``
-exists to reduce that to a diff review rather than a retype.
+The catalogue and the scored set
+--------------------------------
+The SRM workbook (``TSS_SRM_RevG.xlsx``) is the requirement set of record.
+``scripts/import_srm.py`` transcribes every requirement in it into
+``config/requirements/srm_catalog.yaml``, a generated file that carries the
+workbook's wording and is never edited by hand.  ``requirements.yaml`` names
+that catalogue under ``catalog:`` and then does two things with it:
+
+* it carries, as scored entries, the requirements a simulation run can score,
+  with the numbers, senses and units the catalogue states in prose; and
+* it lists every other catalogue ID under ``not_scored``, each with a category
+  from :data:`NOT_SCORED_CATEGORIES` and a reason.
+
+:meth:`RequirementSet.validate` fails if a catalogue ID is in neither place, in
+both, or if a scored ID is missing from the catalogue.  So the scored subset can
+be smaller than the full set, and it is, but it cannot shrink silently: a
+requirement that is not scored says why, and the L5 report prints it.
+
+Taking in a new SRM revision is then a diff review rather than a retype: rerun
+``import_srm.py``, read the diff of the catalogue, and amend the scored entries
+whose text changed.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +45,14 @@ from typing import Any, Literal
 
 from tss.config import load_yaml, resolve_path
 
-__all__ = ["Requirement", "RequirementSet", "load_requirements", "Verdict"]
+__all__ = [
+    "Requirement",
+    "RequirementSet",
+    "NotScored",
+    "NOT_SCORED_CATEGORIES",
+    "load_requirements",
+    "Verdict",
+]
 
 Verdict = Literal["goal", "threshold", "fail", "not_evaluated"]
 
@@ -36,6 +62,30 @@ Verdict = Literal["goal", "threshold", "fail", "not_evaluated"]
 #: achieved value must lie inside ``[lower, upper]``; ``bool`` is a capability
 #: that is either demonstrated or not.
 SENSES = ("min", "max", "range", "bool")
+
+#: Why a catalogue requirement is not scored by a simulation run.
+#:
+#: ``flowed_down``  scored through the derived requirements it names in
+#:                  ``scored_through``, so scoring it again would count one
+#:                  measurement twice.
+#: ``pending``      scorable in simulation, but no tier produces its metric
+#:                  yet; ``work_packages`` names who will.
+#: ``analysis``     verified by analysis, inspection or a stand-alone study,
+#:                  not by a per-run score.
+#: ``bench``        verified on hardware or in orbit.
+#: ``mission``      a mission-level requirement, verified by orbit design and
+#:                  propagation rather than by an instrument run.
+#: ``software``     a requirement on tss-sim itself, verified by its tests.
+#: ``tbd``          the value is not yet set.
+NOT_SCORED_CATEGORIES: tuple[str, ...] = (
+    "flowed_down",
+    "pending",
+    "analysis",
+    "bench",
+    "mission",
+    "software",
+    "tbd",
+)
 
 _RANK = {"fail": 0, "threshold": 1, "goal": 2}
 
@@ -80,7 +130,7 @@ class Requirement:
             lo = band.get("f_min_hz")
             hi = band.get("f_max_hz")
             sel = [
-                v for f, v in zip(freq, vals)
+                v for f, v in zip(freq, vals, strict=True)
                 if (lo is None or f >= float(lo)) and (hi is None or f < float(hi))
             ]
             yield band, sel
@@ -189,14 +239,54 @@ class Requirement:
         raise ValueError(f"{self.id}: unknown sense {self.sense!r}")
 
 
-class RequirementSet(Mapping[str, Requirement]):
-    """An immutable, indexable collection of requirements."""
+@dataclass(frozen=True)
+class NotScored:
+    """A catalogue requirement that a simulation run does not score, and why."""
 
-    def __init__(self, requirements: Iterable[Requirement], *, revision: str = "",
-                 source: Path | None = None) -> None:
+    id: str
+    category: str
+    reason: str
+    scored_through: tuple[str, ...] = ()
+    work_packages: tuple[str, ...] = ()
+
+    def as_record(self, catalog_entry: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        """A JSON-serialisable record for the assessment and the report."""
+        entry = catalog_entry or {}
+        return {
+            "id": self.id,
+            "category": self.category,
+            "reason": self.reason,
+            "scored_through": list(self.scored_through),
+            "work_packages": list(self.work_packages),
+            "requirement": str(entry.get("requirement", "")),
+            "verification_methods": list(entry.get("verification_methods", []) or []),
+        }
+
+
+class RequirementSet(Mapping[str, Requirement]):
+    """An immutable, indexable collection of scored requirements.
+
+    Iterating, indexing and :meth:`score` cover the scored entries only.  The
+    catalogue the set belongs to, and the entries it deliberately does not
+    score, are carried beside them in :attr:`catalog` and :attr:`not_scored`.
+    """
+
+    def __init__(
+        self,
+        requirements: Iterable[Requirement],
+        *,
+        revision: str = "",
+        source: Path | None = None,
+        catalog: Mapping[str, Mapping[str, Any]] | None = None,
+        catalog_info: Mapping[str, Any] | None = None,
+        not_scored: Iterable[NotScored] = (),
+    ) -> None:
         self._by_id = {r.id: r for r in requirements}
         self.revision = revision
         self.source = source
+        self.catalog: dict[str, Mapping[str, Any]] = dict(catalog or {})
+        self.catalog_info: dict[str, Any] = dict(catalog_info or {})
+        self.not_scored: dict[str, NotScored] = {n.id: n for n in not_scored}
 
     def __getitem__(self, key: str) -> Requirement:
         return self._by_id[key]
@@ -223,6 +313,32 @@ class RequirementSet(Mapping[str, Requirement]):
         """
         return {rid: req.evaluate(achieved.get(rid)) for rid, req in self._by_id.items()}
 
+    def not_scored_records(self) -> dict[str, dict[str, Any]]:
+        """Every deliberately unscored catalogue requirement, in catalogue order."""
+        order = list(self.catalog) or sorted(self.not_scored)
+        return {
+            rid: self.not_scored[rid].as_record(self.catalog.get(rid))
+            for rid in order
+            if rid in self.not_scored
+        }
+
+    def coverage(self) -> dict[str, Any]:
+        """How much of the catalogue the scored set covers, and how the rest is held."""
+        by_category = Counter(n.category for n in self.not_scored.values())
+        unaccounted = sorted(set(self.catalog) - set(self._by_id) - set(self.not_scored))
+        return {
+            "catalog_revision": str(self.catalog_info.get("revision", "")),
+            "catalog_workbook": str(self.catalog_info.get("source_workbook", "")),
+            "catalog_sha256": str(self.catalog_info.get("source_sha256", "")),
+            "n_catalog": len(self.catalog),
+            "n_scored": len(self._by_id),
+            "n_not_scored": len(self.not_scored),
+            "not_scored_by_category": {
+                cat: int(by_category.get(cat, 0)) for cat in NOT_SCORED_CATEGORIES
+            },
+            "unaccounted": unaccounted,
+        }
+
     def validate(self) -> list[str]:
         """Return a list of problems, empty if the set is well formed."""
         problems: list[str] = []
@@ -247,11 +363,61 @@ class RequirementSet(Mapping[str, Requirement]):
                     val = getattr(req, field_name)
                     if val is not None and (not isinstance(val, (list, tuple)) or len(val) != 2):
                         problems.append(f"{rid}: {field_name} must be [lower, upper] for a range")
+
+        for rid, entry in self.not_scored.items():
+            if entry.category not in NOT_SCORED_CATEGORIES:
+                problems.append(
+                    f"{rid}: not_scored category {entry.category!r} not in {NOT_SCORED_CATEGORIES}"
+                )
+            if not entry.reason.strip():
+                problems.append(f"{rid}: not_scored without a reason")
+            if rid in self._by_id:
+                problems.append(f"{rid}: both scored and listed under not_scored")
+            if entry.category == "flowed_down":
+                if not entry.scored_through:
+                    problems.append(f"{rid}: flowed_down must name what it is scored through")
+                for target in entry.scored_through:
+                    if target not in self._by_id:
+                        problems.append(
+                            f"{rid}: scored_through {target}, which is not a scored requirement"
+                        )
+            if entry.category == "pending" and not entry.work_packages:
+                problems.append(f"{rid}: pending must name the work package that will score it")
+
+        if self.catalog:
+            for rid in self._by_id:
+                if rid not in self.catalog:
+                    problems.append(f"{rid}: scored but not in the catalogue")
+            for rid in self.not_scored:
+                if rid not in self.catalog:
+                    problems.append(f"{rid}: listed under not_scored but not in the catalogue")
+            for rid in self.coverage()["unaccounted"]:
+                problems.append(
+                    f"{rid}: in the catalogue but neither scored nor listed under not_scored"
+                )
+        elif self.not_scored:
+            problems.append("not_scored is given but no catalogue is named")
         return problems
 
 
+def _not_scored_from(block: Mapping[str, Any]) -> list[NotScored]:
+    out: list[NotScored] = []
+    for rid, body in (block or {}).items():
+        body = body or {}
+        out.append(
+            NotScored(
+                id=str(rid),
+                category=str(body.get("category", "")),
+                reason=str(body.get("reason", "")),
+                scored_through=tuple(body.get("scored_through", ()) or ()),
+                work_packages=tuple(body.get("work_packages", ()) or ()),
+            )
+        )
+    return out
+
+
 def load_requirements(name: str | Path = "requirements/requirements") -> RequirementSet:
-    """Load the requirement set from YAML."""
+    """Load the requirement set from YAML, with its catalogue when one is named."""
     path = resolve_path(name)
     data = load_yaml(path)
     entries = data.get("requirements", {})
@@ -272,4 +438,19 @@ def load_requirements(name: str | Path = "requirements/requirements") -> Require
         )
         for rid, body in entries.items()
     ]
-    return RequirementSet(reqs, revision=data.get("revision", ""), source=path)
+
+    catalog: dict[str, Mapping[str, Any]] = {}
+    catalog_info: dict[str, Any] = {}
+    if data.get("catalog"):
+        doc = load_yaml(resolve_path(str(data["catalog"])))
+        catalog = dict(doc.get("requirements", {}) or {})
+        catalog_info = {k: v for k, v in doc.items() if k != "requirements"}
+
+    return RequirementSet(
+        reqs,
+        revision=data.get("revision", ""),
+        source=path,
+        catalog=catalog,
+        catalog_info=catalog_info,
+        not_scored=_not_scored_from(data.get("not_scored", {})),
+    )

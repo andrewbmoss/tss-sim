@@ -126,6 +126,10 @@ class StandardAssessment(AssessmentBase):
             "requirements_revision": self.requirements.revision,
             "requirements_source": str(self.requirements.source),
             "n_requirements": len(self.requirements),
+            # How the scored set sits inside the full catalogue, and every
+            # catalogue requirement this run does not score, with the reason.
+            "coverage": self.requirements.coverage(),
+            "not_scored": self.requirements.not_scored_records(),
         }
         for prefix, source in (("l3", ionogram.flags), ("l4", retrieved.flags)):
             for key, value in (source or {}).items():

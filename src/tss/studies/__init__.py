@@ -437,9 +437,8 @@ def _sweep_from_config(
     faster ``k_f_hz_per_s`` or a narrower band, which is a design decision and
     not something a driver should make silently.
     """
-    from tss.interfaces import SweepSchedule
-
     from tss import sweep_law
+    from tss.interfaces import SweepSchedule
 
     block = dict(config.get("sweep", {}))
     f_start = float(block.get("f_start_hz", 3.3e5))

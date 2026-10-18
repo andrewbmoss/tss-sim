@@ -48,8 +48,8 @@ from typing import Any
 
 import numpy as np
 
-from tss.constants import C_LIGHT, beat_frequency
 from tss import sweep_law
+from tss.constants import C_LIGHT, beat_frequency
 from tss.interfaces import SweepSchedule
 
 __all__ = [

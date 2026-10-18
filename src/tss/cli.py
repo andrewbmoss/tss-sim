@@ -104,6 +104,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 claims = ",".join(r.claims) or "-"
                 print(f"  {r.id:8s} {r.title[:44]:44s} thr={r.threshold!s:>16s} "
                       f"goal={r.goal!s:>16s} {r.unit:8s} [{claims}]")
+            cov = reqs.coverage()
+            if cov["n_catalog"]:
+                held = ", ".join(
+                    f"{n} {cat}" for cat, n in cov["not_scored_by_category"].items() if n
+                )
+                print(f"\ncatalogue Rev {cov['catalog_revision']} "
+                      f"({cov['catalog_workbook']}): {cov['n_catalog']} requirements, "
+                      f"{cov['n_scored']} scored, {cov['n_not_scored']} not scored ({held})")
         if problems:
             print(f"\n{len(problems)} problem(s):", file=sys.stderr)
             for msg in problems:

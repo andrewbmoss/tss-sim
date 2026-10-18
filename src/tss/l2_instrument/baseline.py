@@ -103,11 +103,10 @@ verdict on INS-11 or INS-24 may be taken from a run made without it.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace as _replace
 from typing import Any
 
 import numpy as np
-
-from dataclasses import replace as _replace
 
 from tss import sweep_law
 from tss.constants import K_BOLTZ
@@ -375,7 +374,10 @@ class BaselineInstrument:
             & np.isfinite(delay)
             & np.isfinite(amp_db)
             & (delay > 0.0)
-            & np.array([str(f) not in ("evanescent", "penetrating") for f in flags_in.ravel()[: freq.size]])
+            & np.array(
+                [str(f) not in ("evanescent", "penetrating") for f in flags_in.ravel()[: freq.size]],
+                dtype=bool,
+            )
         )
 
         duration_s = sweep_duration_s(sweep)

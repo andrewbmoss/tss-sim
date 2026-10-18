@@ -18,15 +18,17 @@
 #   derivation     required when source is `derived`; names the derivation
 #   notes          anything a reader needs in order to not misread the entry
 #
-# STATUS: this file carries the claim-bearing requirements of Table 3.1 of the
-# proposal, with INS-01 split into INS-01a and INS-01b, plus SCI-05 and SCI-07,
-# which Rev G scores in simulation against truth (SW-01).  The full Rev G set is
-# twenty-eight measurement, twenty-eight instrument, ten mission and four
-# software requirements, held in TSS_Science_Requirements_RevG.docx and
-# TSS_SRM_RevG.xlsx.  The software requirements SW-01..SW-04 apply to this
-# repository and are verified by its tests, not scored here.  SCI-28 is not
-# carried because its value is TBD (Open Item 14): an entry with no threshold
-# fails validation.
+# STATUS (2026-10-17): the full Rev G set is accounted for.  The catalogue named
+# under `catalog:` is generated from TSS_SRM_RevG.xlsx by scripts/import_srm.py
+# and holds all seventy requirements: twenty-eight measurement, twenty-eight
+# instrument, ten mission and four software.  Every one of them is either a
+# scored entry under `requirements:` or listed under `not_scored:` with a
+# category and a reason, and `tss requirements` fails if one is in neither.
+# The scored entries are the claim-bearing requirements of Table 3.1 of the
+# proposal (INS-01 split into INS-01a and INS-01b), SCI-05 and SCI-07, which
+# Rev G scores in simulation against truth (SW-01), and INS-03.  SCI-15 was in
+# Table 3.1 and missing from this file until 2026-10-17.  The categories of
+# `not_scored` are documented in tss/requirements.py.
 #
 # Rev G (2026-09-28): INS-01 split so each edge can be scored; INS-02 cap scoped
 # above the X-mode cutoff; INS-09 given a frame and a Doppler mode; INS-11
@@ -40,13 +42,16 @@
 # later restored at 3.7e-9 in Rev G, 3.2e-9 after 2026-10-06); each entry's notes
 # record the value it used to carry.  With a null goal the best verdict is
 # "threshold", so scores on those entries can drop from "goal" to "threshold"
-# with no change in performance.  scripts/import_srm.py exists to bring the remainder across
-# as a diff review rather than a retype.  Until that is run, a campaign scored
-# against this file is scored against the claim-bearing subset and no more.
+# with no change in performance.
+#
+# To take in a new SRM revision: run `python scripts/import_srm.py <workbook>`,
+# review the diff of srm_catalog.yaml, amend the scored entries and the
+# not_scored reasons whose text changed, and run `tss requirements`.
 
-revision: "G (partial import: Table 3.1 subset plus SCI-05, SCI-07)"
+revision: "G"
 source_document: "TSS_Science_Requirements_RevG.docx"
 source_matrix: "TSS_SRM_RevG.xlsx"
+catalog: requirements/srm_catalog
 
 requirements:
 
@@ -107,6 +112,24 @@ requirements:
       cap binds only above 3 MHz.  The cap is dropped in configuration A2,
       where polarization separates the O and X traces.
 
+  INS-03:
+    title: Frequency steps per ionogram
+    sense: min
+    unit: steps
+    threshold: 159
+    goal: 211
+    claims: [C2]
+    work_packages: [WP0, WP4]
+    source: derived
+    derivation: "Requirements Rev G INS-03: the INS-02 step law run over the INS-01a and INS-01b band, 0.33 to 20 MHz, in configuration A1: 159 steps at min(0.05 f, 150 kHz), 211 at the 0.025 f goal"
+    notes: >-
+      Configuration A1 values.  Configuration A2 is 85 threshold and 167 goal,
+      because it drops the 150 kHz cap, and needs its own entry when an A2
+      campaign exists; scored against this entry an A2 sweep would fail.
+      Scored from frequency_step_count, the number of ionogram columns the
+      sweep produced.  The count follows from INS-01a and INS-02 together, so a
+      sweep that starts above 0.33 MHz fails this as well as INS-01a.
+
   INS-04:
     title: Unambiguous range
     sense: min
@@ -119,7 +142,14 @@ requirements:
     derivation: "SCI-08: apparent range at least 1.5 times the maximum true range so foF2 and fxF2 can be read (Franklin and MacLean 1969); 1.5 x (900 - 200) km over the MIS-01 envelope (Rev G, amended 2026-09-29)"
     notes: >-
       Raised from 1000 km, which served only spacecraft at or below 800 km, to
-      1050 km for the 900 km top of MIS-01 with hmF2 at 200 km.
+      1050 km for the 900 km top of MIS-01 with hmF2 at 200 km.  Known artefact
+      (code review, 2026-10-17): the metric unambiguous_range_m is c fs / (4 K_f)
+      with the sample rate the L2 baseline tier picked for the run, and that
+      tier picks fs as 2.5 times the largest beat among the simulated echoes.
+      The scored value is therefore 1.25 times the deepest simulated echo, not
+      a property of the instrument, and a verdict on this entry says nothing
+      about the design until L2 takes its digitiser rate from the instrument
+      configuration (INS-06).
 
   INS-05:
     title: Virtual range resolution
@@ -385,6 +415,27 @@ requirements:
     work_packages: [WP4, WP7]
     source: "Plasma bubble depletion envelope of about 300 km (302 +/- 41 km measured; GOLD sees a few to 10 degrees of longitude); Requirements Rev G Finding F7 and sec. 5.5"
 
+  SCI-15:
+    title: Line-of-sight Doppler velocity accuracy
+    sense: max
+    unit: m/s
+    threshold: 100.0
+    goal: 50.0
+    claims: [C3]
+    work_packages: [WP5]
+    source: "Requirements Rev G SCI-15: drifts above 1 km/s outside the high-latitude convection region (Chartier 2022); substorm V* above 500 m/s (Poole 1985); RPI's +/-1 kHz requirement against aliasing from satellite motion (Reinisch et al. 2001)"
+    notes: >-
+      Scored as the 1-sigma accuracy of the line-of-sight velocity of an
+      isolated echo, in the Earth-fixed frame after the ephemeris-predicted
+      platform term is removed, in the Doppler observing mode (metric
+      los_velocity_accuracy_mps).  Two parts of SCI-15 are not scored by this
+      entry: the unambiguous interval (+/-1 km/s threshold, +/-1.5 km/s goal),
+      and at goal the 50 m/s resolution between scatterers in one range cell;
+      the goal value carried here is the 50 m/s accuracy.  The ionogram mode
+      need not deliver SCI-15.  Not evaluated until the WP5 Doppler-mode tier
+      reports the metric.  Carried in Table 3.1 of the proposal and absent from
+      this file until 2026-10-17.
+
   SCI-23:
     title: Zonal drift accuracy of a depletion
     sense: max
@@ -404,3 +455,251 @@ requirements:
       resolution, and INS-15 and INS-26 no longer derive from it.  The mapped
       metric drift_resolution_mps should be renamed for accuracy when WP5
       produces it.
+
+# Every catalogue requirement that is not scored above, with the reason.  The
+# categories are defined in tss/requirements.py (NOT_SCORED_CATEGORIES).
+# `flowed_down` names the scored entries that carry it; `pending` names the
+# work package that will produce its metric.
+
+not_scored:
+
+  # -- scored through the instrument requirements derived from them ----------
+  SCI-03:
+    category: flowed_down
+    scored_through: [INS-01a, INS-01b]
+    reason: >-
+      Sets the sounding band through f_N = 8.98 sqrt(Ne); the band is scored as
+      INS-01a and INS-01b.
+  SCI-04:
+    category: flowed_down
+    scored_through: [INS-02]
+    reason: >-
+      dNe/Ne = 2 df/f, so the 10 and 5 per cent precision is the INS-02 step
+      law, scored from the same metric (frequency_step_fraction_max).
+  SCI-06:
+    category: flowed_down
+    scored_through: [INS-05]
+    reason: >-
+      The virtual range resolution part is scored per band as INS-05.  The
+      height sampling part (20 km threshold, 10 km goal) is not yet a metric.
+  SCI-08:
+    category: flowed_down
+    scored_through: [INS-04]
+    reason: >-
+      Apparent range of at least 1.5 times the true range is INS-04.  See the
+      INS-04 note on why its present metric is a simulation artefact.
+  SCI-14:
+    category: flowed_down
+    scored_through: [INS-08]
+    reason: >-
+      O and X detection and labelling above f_x is INS-08.  The Z-trace part
+      below f_x is not modelled (no Z branch in L1).
+  SCI-16:
+    category: flowed_down
+    scored_through: [INS-09]
+    reason: >-
+      The one-cell residual range bias is the ionogram-mode part of INS-09.
+      SCI-16's 0.5-cell goal is not carried, because INS-09 states no goal.
+  SCI-19:
+    category: flowed_down
+    scored_through: [INS-10]
+    reason: >-
+      The 10 dB trace-detection threshold is INS-10.  The 20 dB goal applies
+      only where phase or Doppler is measured and belongs to the WP5
+      Doppler-mode tier.
+  SCI-21:
+    category: flowed_down
+    scored_through: [INS-11]
+    reason: >-
+      The 60 dB instantaneous and 90 dB gain-controlled dynamic range is
+      INS-11.  Survival at +120 dB and narrowband excision are bench items.
+
+  # -- scorable in simulation, metric not yet produced ------------------------
+  SCI-01:
+    category: pending
+    work_packages: [WP6]
+    reason: >-
+      The profile is scored through SCI-05 and SCI-07.  The NmF2 and hmF2
+      errors that SW-01 asks L5 for are not implemented.
+  SCI-13:
+    category: pending
+    work_packages: [WP1]
+    reason: >-
+      Needs storm-day L0 states and every metric reported by Kp class (SW-04).
+      The meaning of degraded but valid is Open Item 8.
+  SCI-18:
+    category: pending
+    work_packages: [WP6]
+    reason: >-
+      Needs a per-point uncertainty from L4 and the fraction of points within
+      their 1 sigma of truth (SW-01).  L4 does not yet propagate uncertainty.
+  SCI-22:
+    category: pending
+    work_packages: [WP10]
+    reason: >-
+      Needs the depletion generator of tss.l0_ionosphere.perturbations, which
+      is a stub.
+  SCI-25:
+    category: pending
+    work_packages: [WP10, WP2]
+    reason: >-
+      Needs off-vertical echoes from a ray-traced L1 tier and a depletion wall
+      (Open Item 10).  The ray-traced tier is a stub.
+  SCI-27:
+    category: pending
+    work_packages: [WP11]
+    reason: >-
+      Goal level only: not required at threshold in any configuration.  Needs
+      the six-component vector receive signal model; L2's extra channels are
+      placeholders.
+  INS-06:
+    category: pending
+    work_packages: [WP3]
+    reason: >-
+      The L2 baseline tier picks its sample rate from the deepest simulated
+      echo, not from the instrument, so there is no designed digitiser rate to
+      score (see the INS-04 note).  Scorable once fs is an instrument setting.
+  INS-16:
+    category: pending
+    work_packages: [WP10]
+    reason: >-
+      The off-vertical flag needs ray-traced off-vertical truth (Open Item 10).
+  INS-17:
+    category: pending
+    work_packages: [WP10]
+    reason: >-
+      Needs a simulated crossing of a depleted flux tube, which needs the
+      depletion generator.
+
+  # -- verified by analysis, inspection or a stand-alone study ----------------
+  SCI-02:
+    category: analysis
+    reason: >-
+      The hmF2 distribution against the MIS-01 envelope, from the band-edge
+      run (study min_frequency).  The goal of 1400 km is a WP0 closure task.
+  SCI-20:
+    category: analysis
+    reason: >-
+      The noise reference L2 uses (Franklin and MacLean 1969).  Checked by the
+      V3 replication franklin_maclean_1969_sky_noise and by WP12, not per run.
+  INS-13:
+    category: analysis
+    reason: >-
+      Data-volume arithmetic.  Adding a downlink allocation and an on-board
+      processing requirement is a WP0 closure task.
+  INS-19:
+    category: analysis
+    reason: Data-volume arithmetic for the vector configuration.
+  INS-20:
+    category: analysis
+    reason: >-
+      A declaration of the resonant length and the efficiency of shorter
+      antennas, made by the antenna model and the antenna_scale study.
+  INS-21:
+    category: analysis
+    reason: >-
+      An architectural constraint verified by schematic review.  L2 assumes it
+      (oscillator single_reference), which is what earns the range-correlation
+      credit.
+  INS-27:
+    category: analysis
+    reason: >-
+      Programmability of the sweep, verified by command-set review and bench
+      capture.  The simulator already takes the sweep law as configuration.
+
+  # -- verified on hardware or in orbit ----------------------------------------
+  SCI-17:
+    category: bench
+    reason: GNSS receiver specification and a PPS timing test on the prototype.
+  INS-12:
+    category: bench
+    reason: PPS against GNSS timing.
+  INS-22:
+    category: bench
+    reason: >-
+      Spectrum analyser on the radiated chirp.  Its effect on the de-chirped
+      residual enters simulation through the WP3 leakage model, which is a stub.
+  INS-25:
+    category: bench
+    reason: >-
+      Time-frequency analysis of the chirp.  The L2 tier generates the ideal
+      sweep law and ignores nonlinearity_ppm.
+
+  # -- mission level ---------------------------------------------------------------
+  SCI-10:
+    category: mission
+    reason: Constellation revisit; a single spacecraft cannot meet it (Open Item 6).
+  SCI-11:
+    category: mission
+    reason: Latitude, longitude and local-time coverage, by orbit propagation.
+  SCI-12:
+    category: mission
+    reason: Mission duration against the solar cycle.
+  SCI-24:
+    category: mission
+    reason: Post-sunset revisit, by constellation coverage (Open Item 6).
+  SCI-26:
+    category: mission
+    reason: Local-time coverage of the bubble sector, by orbit propagation.
+  MIS-01:
+    category: mission
+    reason: >-
+      Orbit altitude.  The campaign configurations sample it (500 and 800 km);
+      none yet sits at the 900 km governing case.
+  MIS-02:
+    category: mission
+    reason: Inclination by orbit class.
+  MIS-03:
+    category: mission
+    reason: Nodal precession through 24 h of local time.
+  MIS-04:
+    category: mission
+    reason: Mission duration.
+  MIS-05:
+    category: mission
+    reason: Constellation size (Open Item 6).
+  MIS-06:
+    category: mission
+    reason: >-
+      Inter-satellite geometry for oblique links; studied by route_two_network
+      and the Chartier reproduction, not scored per run.
+  MIS-07:
+    category: mission
+    reason: Local-time sampling of the bubble sector.
+  MIS-08:
+    category: mission
+    reason: Configuration declaration.
+  MIS-09:
+    category: mission
+    reason: Antenna declaration.
+  MIS-10:
+    category: mission
+    reason: >-
+      Phasing of the second look, by orbit propagation; the route_two study
+      uses it.
+
+  # -- requirements on tss-sim itself ---------------------------------------------
+  SW-01:
+    category: software
+    reason: >-
+      Retrieval scoring against truth.  Implemented for the density and height
+      errors over the topside; NmF2, hmF2 and 1 sigma coverage are not (see
+      SCI-01 and SCI-18).
+  SW-02:
+    category: software
+    reason: >-
+      Measured ionospheres as L0 truth, including the archived-trace check
+      against ISIS-1.  Data sources exist; the L0 tiers and the trace check do
+      not.
+  SW-03:
+    category: software
+    reason: >-
+      Absolute density and a mode-mislabel injection.  Not implemented.
+  SW-04:
+    category: software
+    reason: Storm-time L0 states and metrics by Kp class.  Not implemented.
+
+  # -- value not yet set ----------------------------------------------------------------
+  SCI-28:
+    category: tbd
+    reason: Value TBD (Open Item 14).
