@@ -53,9 +53,10 @@ EPOCH = "2026-01-01T12:00:00Z"
 SEED = 20261017
 
 #: Tiers held to every rule.  ``iri2020`` needs PyIRI; without it its tests
-#: skip rather than fail.
+#: skip rather than fail.  ``iri`` is held to them on its PyIRI route, which
+#: needs no MATLAB; its PHaRLAP route is checked in tests/unit/test_l0_iri.py.
 IMPLEMENTED: dict[str, tuple[str, ...]] = {
-    "l0": ("chapman", "analytic", "iri2020"),
+    "l0": ("chapman", "analytic", "iri2020", "iri"),
     "l1": ("analytic",),
     "l2": ("baseline",),
     "l3": ("baseline",),
@@ -75,7 +76,10 @@ EXTERNAL: tuple[tuple[str, str], ...] = (
     ("l0", "matlab_iri"),
 )
 #: Constructor arguments a tier cannot run without.
-KWARGS: dict[tuple[str, str], dict[str, object]] = {("l0", "iri2020"): {"f107": 120.0}}
+KWARGS: dict[tuple[str, str], dict[str, object]] = {
+    ("l0", "iri2020"): {"f107": 120.0},
+    ("l0", "iri"): {"model": "pyiri", "f107": 120.0},
+}
 
 
 def _build(layer: str, name: str):

@@ -66,6 +66,9 @@ __all__ = [
     "validate_alt_grid",
     "R12_TO_F107_NOTE",
     "r12_to_f107",
+    "IRI_F107_COEFFS",
+    "iri_f107_from_r12",
+    "iri_r12_from_f107",
 ]
 
 R12_TO_F107_NOTE = (
@@ -84,6 +87,31 @@ def r12_to_f107(r12: float | np.ndarray) -> np.ndarray | float:
     """
     return 63.7 + 0.728 * r12 + 0.00089 * r12**2
 
+
+
+#: IRI's own relation between the 12-month sunspot number and F10.7,
+#: ``F10.7 = 63.75 + R12 (0.728 + 0.00089 R12)``.  The PHaRLAP ``iri2020`` mex
+#: uses it to turn a user R12 into the F10.7 IRI runs on, and PyIRI uses it the
+#: other way.  It differs from :func:`r12_to_f107` only in the constant (63.75
+#: against Davies' 63.7, 0.05 SFU); the ``iri`` tier converts with this one so
+#: that a stated F10.7 reaches the Fortran code unchanged.
+IRI_F107_COEFFS: tuple[float, float, float] = (63.75, 0.728, 0.00089)
+
+
+def iri_f107_from_r12(r12: float | np.ndarray) -> np.ndarray | float:
+    """F10.7, SFU, for a 12-month sunspot number, by IRI's own relation."""
+    a, b, c = IRI_F107_COEFFS
+    return a + b * r12 + c * r12**2
+
+
+def iri_r12_from_f107(f107: float | np.ndarray) -> np.ndarray | float:
+    """The R12 that :func:`iri_f107_from_r12` maps to ``f107``: its positive root.
+
+    Below 63.75 SFU the root is negative, which no caller should accept; it is
+    returned rather than clipped so that the caller's range check sees it.
+    """
+    a, b, c = IRI_F107_COEFFS
+    return (-b + np.sqrt(b * b - 4.0 * c * (a - np.asarray(f107, dtype=float)))) / (2.0 * c)
 
 class ProfileLike(Protocol):
     """Anything with the legacy profile interface: ``ne(h)`` and ``te(h)``."""

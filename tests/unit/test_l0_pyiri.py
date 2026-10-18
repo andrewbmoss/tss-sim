@@ -19,7 +19,6 @@ pytest.importorskip("PyIRI")
 import PyIRI  # noqa: E402
 import PyIRI.sh_library as sh  # noqa: E402
 
-from tss.config import load_campaign  # noqa: E402
 from tss.constants import plasma_frequency  # noqa: E402
 from tss.registry import build  # noqa: E402
 
@@ -93,6 +92,8 @@ def test_solar_activity_raises_the_peak():
     assert high > 1.5 * low
 
 
-def test_the_baseline_campaign_states_its_solar_level():
-    l0 = load_campaign("baseline").config["tiers"]["l0"]
-    assert l0["name"] == "iri2020" and l0["f107"] == 120.0
+def test_the_iri_tier_on_pyiri_returns_what_the_pyiri_tier_returns():
+    when = [dt.datetime(2024, 3, 1, 12)]
+    direct = _tier(f107=120.0).profiles([42.6], [-71.5], when, ALT)
+    chosen = build("l0", "iri", model="pyiri", f107=120.0).profiles([42.6], [-71.5], when, ALT)
+    assert np.array_equal(direct, chosen)

@@ -1,12 +1,19 @@
-# The reference campaign.  IRI-2020 truth, analytic propagation, the baseline
+# The reference campaign.  IRI-2020 truth (PHaRLAP), analytic propagation, the baseline
 # instrument, scored against the full claim-bearing requirement subset.
 name: baseline
 tiers:
   l0:
-    name: iri2020
+    name: iri
+    # Which IRI-2020 code answers: pharlap (Fortran IRI-2020 in the PHaRLAP
+    # mex, through MATLAB; the default) or pyiri (PyIRI 0.1.7).  PyIRI's NeQuick
+    # topside thickness follows the NeQuick G law, not IRI-2020's, and puts its
+    # topside at 0.43 of IRI-2020's at 900 km; ISIS-1 sides with IRI-2020
+    # (docs/topside-model-campaign.md).  Stated here so the choice is visible.
+    model: pharlap
     topside: NeQuick
     # Daily F10.7, SFU.  A stated campaign choice of moderate activity, not the
-    # observed value for the epoch: PyIRI takes no epoch-driven index.
+    # observed value for the epoch.  PHaRLAP is given the R12 IRI's own relation
+    # maps to it (71.1), so either model runs at F10.7 = 120.
     f107: 120.0
   l1: analytic
   l2: baseline

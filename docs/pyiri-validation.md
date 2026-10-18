@@ -61,3 +61,7 @@ comes from in IRI-2020's implementation has not yet been traced.
 Until the difference is traced, a result made on `iri2020` should name the
 tier, and a band-edge or topside-shape result should be checked on
 `matlab_iri` as well.
+
+The difference was traced on 2026-10-18 to PyIRI's topside thickness law
+(`docs/topside-model-campaign.md`).  Campaigns now name `l0: iri`, whose
+`model` option defaults to PHaRLAP; `model: pyiri` selects this tier.

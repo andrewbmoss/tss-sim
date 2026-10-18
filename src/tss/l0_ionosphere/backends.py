@@ -30,6 +30,9 @@ Backends
                   Python and vectorised.  Needs a stated daily F10.7.
 ``iri_wrapper``   the ``iri2020`` / ``iri2016`` Fortran wrappers (Hirsch et al.),
                   one call per sample point.
+``iri``           IRI-2020 with the implementation a configuration option,
+                  ``model: pharlap`` (the default, ``matlab_iri``) or
+                  ``model: pyiri`` (``iri2020``).  Campaigns should name this.
 ``matlab_iri``    IRI-2020 through the PHaRLAP mex, driven from MATLAB in batch
                   mode by ``matlab/tss/tss_iri_profiles.m`` and read back from
                   the CSV contract that file documents.  This is the likely path
@@ -82,6 +85,8 @@ from tss.l0_ionosphere.base import (
     IonosphereBase,
     collision_frequency,
     default_te_k,
+    iri_f107_from_r12,
+    iri_r12_from_f107,
     parse_epoch,
     r12_to_f107,
     validate_alt_grid,
@@ -94,6 +99,9 @@ __all__ = [
     "PyIRIBackend",
     "IRIWrapperBackend",
     "MatlabIRIBackend",
+    "IRIBackend",
+    "IRI_MODELS",
+    "IRI_DEFAULT_MODEL",
     "make_backend",
     "r12_to_f107",
     "IRI_TOPSIDE_OPTIONS",
@@ -863,6 +871,167 @@ class MatlabIRIBackend(Backend):
         }
 
 
+# ---------------------------------------------------------------------------
+#: The IRI-2020 implementations the ``iri`` tier chooses between, by the name a
+#: campaign uses, and the registered tier that answers for each.
+IRI_MODELS: dict[str, str] = {"pharlap": "matlab_iri", "pyiri": "iri2020"}
+
+#: The implementation the ``iri`` tier uses when a campaign does not name one.
+IRI_DEFAULT_MODEL = "pharlap"
+
+
+@register("l0", "iri")
+class IRIBackend(Backend):
+    """IRI-2020, with the implementation chosen by configuration.
+
+    ``model`` names the code that answers::
+
+        l0: {name: iri, f107: 120}                  # PHaRLAP, the default
+        l0: {name: iri, model: pyiri, f107: 120}    # PyIRI
+
+    ``pharlap`` (the default)
+        The Fortran IRI-2020 inside PHaRLAP's ``iri2020`` mex, run through
+        MATLAB by :class:`MatlabIRIBackend` (the ``matlab_iri`` tier).
+    ``pyiri``
+        PyIRI's Python reimplementation, :class:`PyIRIBackend` (the
+        ``iri2020`` tier).
+
+    PHaRLAP is the default because it is the reference code and because the
+    two do not agree in the topside.  PyIRI 0.1.7 sets the NeQuick topside
+    thickness with the NeQuick G law, H0 = k B2bot / v, where IRI-2020 uses
+    H0 = k' B2bot with k' = (k e^{2(k-1)} + 1) / (e^{2(k-1)} + 1).  Its H0 is
+    0.63 to 0.66 of IRI-2020's, and at 900 km and F10.7 = 120 its density is
+    0.43 of IRI-2020's for that reason alone; with IRI-2020's law in its place
+    the two agree to 0.6 to 2.5 per cent.  Against 5,118 ISIS-1 topside
+    profiles IRI-2020's law is the closer of the two (median fitted H0 0.93 of
+    it; PyIRI's 2.3 to 3.0 dB low).  ``docs/topside-model-campaign.md`` has the
+    trace.  PyIRI stays available because it needs no MATLAB and is
+    vectorised, which suits regression runs and quick looks; a topside or
+    band-edge result should not be made on it.
+
+    Solar activity is stated once, as ``f107`` (daily F10.7, SFU) or as
+    ``r12``, not both.  Whichever the chosen code does not take is converted
+    with IRI's own relation (:data:`~tss.l0_ionosphere.base.IRI_F107_COEFFS`),
+    the one the PHaRLAP mex applies to a user R12, so ``f107: 120`` runs both
+    implementations at F10.7 = 120 (R12 = 71.1 for PHaRLAP).  There is no
+    default, for the reason :class:`PyIRIBackend` gives.
+
+    ``topside`` is passed through: PHaRLAP gives ``NeQuick``, ``IRI-2001`` and
+    ``IRI-2001 corrected``; PyIRI only ``NeQuick``.  Every other keyword goes to
+    the chosen implementation unchanged, so ``pharlap_root``, ``timeout``,
+    ``iri_options`` or ``probe`` reach :class:`MatlabIRIBackend` and
+    ``foF2_coeff`` or ``hmF2_model`` reach :class:`PyIRIBackend`.  An option
+    the chosen implementation does not take is an error, not silently dropped.
+
+    The choice is recorded: ``label`` (and so ``IonosphereState.source``) and
+    ``provenance`` name it, and :meth:`describe` carries ``model``, the
+    implementing tier and that tier's own settings.  Attributes this class
+    does not have, such as ``extra`` or ``last_info`` on the PHaRLAP route,
+    are read from the implementation.
+    """
+
+    MODELS: dict[str, str] = IRI_MODELS
+    DEFAULT_MODEL: str = IRI_DEFAULT_MODEL
+
+    def __init__(
+        self,
+        model: str = IRI_DEFAULT_MODEL,
+        topside: str = "NeQuick",
+        f107: float | None = None,
+        r12: float | None = None,
+        *,
+        geomagnetic_model: str = "auto",
+        **options: Any,
+    ) -> None:
+        super().__init__(geomagnetic_model=geomagnetic_model)
+        key = str(model).strip().lower()
+        if key not in IRI_MODELS:
+            raise ValueError(
+                f"model must be one of {tuple(IRI_MODELS)}, got {model!r}"
+            )
+        if (f107 is None) == (r12 is None):
+            raise ValueError(
+                "the iri tier needs one solar index, f107 (daily F10.7, SFU) or "
+                "r12, and not both: e.g. l0: {name: iri, f107: 120}"
+            )
+        stated = "f107" if f107 is not None else "r12"
+        if f107 is not None:
+            f107_v = float(f107)
+            r12_v = float(iri_r12_from_f107(f107_v))
+        else:
+            r12_v = float(r12)
+            f107_v = float(iri_f107_from_r12(r12_v))
+
+        if key == "pharlap":
+            if not 1.0 <= r12_v <= 200.0:
+                lo, hi = iri_f107_from_r12(1.0), iri_f107_from_r12(200.0)
+                raise ValueError(
+                    f"{stated} = {f107 if f107 is not None else r12} gives R12 = "
+                    f"{r12_v:.1f}; the PHaRLAP route takes R12 in 1..200, which "
+                    f"is F10.7 {lo:.1f}..{hi:.1f} SFU"
+                )
+            impl_cls: type[Backend] = MatlabIRIBackend
+            solar: dict[str, float] = {"r12": r12_v}
+        else:
+            impl_cls = PyIRIBackend
+            solar = {"f107": f107_v}
+
+        try:
+            impl = impl_cls(
+                topside=topside, geomagnetic_model=geomagnetic_model, **solar, **options
+            )
+        except TypeError as exc:
+            raise TypeError(
+                f"l0/iri model={key} passes its options to {impl_cls.__name__}, "
+                f"which refused them: {exc}"
+            ) from exc
+
+        self.impl = impl
+        self.model = key
+        self.topside = topside
+        self.f107 = f107_v
+        self.r12 = r12_v
+        self.solar_index_stated = stated
+        self.label = f"{impl.label} [l0/iri model={key}]"
+        self.provenance = (
+            f"l0/iri model={key} -> l0/{IRI_MODELS[key]}; stated {stated}, "
+            f"F10.7={f107_v:.2f} R12={r12_v:.2f} by IRI's relation; {impl.provenance}"
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        # Only reached when ordinary lookup fails.  ``impl`` itself is excluded
+        # so that a half-built or unpickled object raises instead of recursing.
+        if name == "impl":
+            raise AttributeError(name)
+        return getattr(self.impl, name)
+
+    def profiles(
+        self,
+        lat_deg: Sequence[float],
+        lon_deg: Sequence[float],
+        when: Sequence[dt.datetime],
+        alt_grid_m: np.ndarray,
+        **opts: Any,
+    ) -> np.ndarray:
+        """Electron density, m^-3, ``[n_samples, n_alt]``, from the chosen code."""
+        return self.impl.profiles(lat_deg, lon_deg, when, alt_grid_m, **opts)
+
+    def _extra_for_point(self, index: int) -> dict[str, float]:
+        return self.impl._extra_for_point(index)
+
+    def _settings(self) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "implementation": f"l0/{IRI_MODELS[self.model]}",
+            "implementation_class": type(self.impl).__name__,
+            "topside": self.topside,
+            "solar_index_stated": self.solar_index_stated,
+            "f107": self.f107,
+            "r12": self.r12,
+            "implementation_settings": dict(self.impl._settings()),
+        }
+
+
 def _matlab_g(value: float) -> str:
     """Format a number the way MATLAB's ``%g`` would, for name and argument use."""
     text = f"{float(value):g}"
@@ -875,7 +1044,7 @@ def make_backend(name: str, **kw: Any) -> Backend:
     Kept so that scripts written against ``iri_adapter.make_backend`` keep
     working.  New code should go through :func:`tss.registry.build`, which knows
     the layer as well as the name, and whose names are the registered tier names
-    ``analytic``, ``iri2020``, ``iri_wrapper`` and ``matlab_iri``.
+    ``analytic``, ``iri``, ``iri2020``, ``iri_wrapper`` and ``matlab_iri``.
     """
     return {
         "analytic": AnalyticBackend,

@@ -60,3 +60,7 @@ profiles, fit / IRI law 0.79, evenly split.
 
 `l0: iri2020` (PyIRI) must not be used for band-edge or topside-shape results until its H0 is
 corrected; `matlab_iri` is the reference. Raise the H0 step with the PyIRI developers.
+
+Since 2026-10-18 campaigns choose the implementation with the `iri` tier's `model` option,
+which defaults to PHaRLAP (`l0: {name: iri, f107: 120}`); `model: pyiri` remains for quick
+runs that need no MATLAB.  The `baseline` campaign uses `model: pharlap`.

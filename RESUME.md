@@ -21,7 +21,7 @@ not, and what comes next.
 
 | Layer | Implemented tiers | Stubs | What it does not yet model |
 |---|---|---|---|
-| L0 | chapman, analytic, iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
+| L0 | chapman, analytic, iri (IRI-2020, `model: pharlap` by default or `pyiri`), iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
 | L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
 | L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | leakage (WP3, critical path) | leakage, oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels |
 | L3 | baseline: per-step transform, leading-edge trace, connected-trace filter, SNR measurement at given cells | motion_separated (WP5) | O/X labelling, robust extraction (CFAR, a search limit at the design range), Doppler separation |
@@ -103,6 +103,34 @@ about 3 per cent and hmF2 to about 2 km, but the topside density at 500 to
 spacecraft is about 35 per cent lower at 900 km.  Traced on 2026-10-18 (`docs/topside-model-campaign.md`): PyIRI 0.1.7 applies the NeQuick G thickness step (H0 = k B2bot / v) on top of the NeQuick 2 shape factor, which IRI-2020 does not, so its H0 is 0.63-0.66 of IRI-2020's; ISIS-1 sides with IRI-2020. Do not use `iri2020` for band-edge or topside-shape work until corrected.  The
 `iri2016` wrapper is installed but not built (it needs ninja on first call), so
 `matlab_iri` is the only Fortran IRI route that works today.
+
+## IRI implementation as a configuration option (2026-10-18)
+
+Campaigns name `l0: {name: iri, f107: ...}`.  The `model` key picks the code:
+`pharlap` (the default; Fortran IRI-2020 in the PHaRLAP mex via MATLAB, i.e.
+`matlab_iri`) or `pyiri` (`iri2020`).  The solar index is stated once, `f107`
+or `r12`, and converted with IRI's own relation (63.75 + 0.728 R12 +
+0.00089 R12^2), so `f107: 120` runs PHaRLAP at R12 = 71.1 and IRI reports
+F10.7 = 120 back.  Other keys go to the chosen implementation, and an option
+it does not take is an error.  `label`, `provenance` and `describe()` record
+the model.  `baseline` now runs `model: pharlap`, so it needs MATLAB and
+PHaRLAP; `smoke` and the contract suite still need neither.  The `iri2020`
+and `matlab_iri` tier names are unchanged.  Tests: `tests/unit/test_l0_iri.py`
+(the PHaRLAP run is `-m pharlap`).
+
+The switch changes the baseline result.  `tss run baseline` (strict, clean tree)
+on PHaRLAP against the same campaign with `--set tiers.l0.model=pyiri`:
+
+| Configuration | INS-10 worst SNR at truth echoes, PHaRLAP | PyIRI | Fails, PHaRLAP | PyIRI |
+|---|---|---|---|---|
+| leo_500km_single | 12.3 dB | 25.9 dB | INS-08 | INS-08 |
+| leo_800km_single | 7.0 dB | 18.7 dB | INS-08, INS-10 | INS-08 |
+| leo_500km_small_antenna | 4.1 dB | 9.5 dB | INS-08, INS-10 | INS-08, INS-10 |
+
+So at 800 km INS-10 fails once the topside is IRI-2020's.  Not yet traced
+(which echo sets the minimum, and whether it is the denser topside raising the
+plasma frequency at the spacecraft).  The PyIRI column reproduces the
+pre-change baseline exactly.
 
 ## Open findings of the 2026-10-17 review
 

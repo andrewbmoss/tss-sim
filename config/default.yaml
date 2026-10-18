@@ -11,7 +11,12 @@ paths:
   figures: results/figures
 
 # Which implementation answers for each layer.  `tss tiers` lists what is
-# registered.  A campaign overrides any of these.
+# registered.  A campaign overrides any of these.  For IRI-2020 truth at L0 a
+# campaign names the `iri` tier, whose `model` option picks the code and
+# defaults to PHaRLAP:
+#   l0: {name: iri, f107: 120}                 # PHaRLAP IRI-2020 (default)
+#   l0: {name: iri, model: pyiri, f107: 120}   # PyIRI; topside H0 differs
+# The default here stays `chapman` so that a run needs neither MATLAB nor PyIRI.
 tiers:
   l0: chapman
   l1: analytic

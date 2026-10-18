@@ -110,17 +110,18 @@ present.
 | Tier | Module | Fidelity | Status |
 | --- | --- | --- | --- |
 | `chapman` | `src/tss/l0_ionosphere/chapman.py` | Closed-form alpha-Chapman with a parametrised topside scale height.  Fast, smooth, used for V1 limiting cases and the fast tier of the trade study. | Delivered |
-| `iri2020` | `src/tss/l0_ionosphere/iri2020.py` | Empirical climatology, the reference truth for most campaigns. | Delivered |
+| `iri` | `src/tss/l0_ionosphere/backends.py` | IRI-2020 with the implementation a configuration option: `model: pharlap` (the default, through `matlab_iri`) or `model: pyiri` (through `iri2020`).  The reference truth for most campaigns. | Delivered |
+| `iri2020` | `src/tss/l0_ionosphere/backends.py` | IRI-2020 through PyIRI 0.1.7.  Its topside H0 follows the NeQuick G law, not IRI-2020's; see `docs/topside-model-campaign.md`. | Delivered |
 | `tabulated` | `src/tss/l0_ionosphere/tabulated.py` | Reads a stored profile, including the hand-scaled ISIS-1 profiles used by V4. | Delivered |
 | `matlab_iri` | `src/tss/l0_ionosphere/matlab_iri.py` | Reads the `.mat` output of the MATLAB IRI batch generator.  Used for the 1.2 million profile band-edge set, which is generated MATLAB-side. | Delivered |
 | `nequick2` | `src/tss/l0_ionosphere/nequick.py` | NeQuick 2, giving a second independent topside formulation.  Needed for V2 cross-fidelity at L0. | Planned, WP1 |
 | `perturbed` | `src/tss/l0_ionosphere/perturbations.py` | Wraps another L0 tier and superposes travelling disturbances, gradients and depletions. | Planned, WP1 |
 | `bubble` | `src/tss/l0_ionosphere/bubbles.py` | Equatorial plasma depletion structures. | Planned, WP10, goal level |
 
-**Fidelity ladder at L0.**  `chapman` for analytic tractability, `iri2020` or
+**Fidelity ladder at L0.**  `chapman` for analytic tractability, `iri` or
 `nequick2` for realism, `perturbed` on top of either for structure, `tabulated`
 for real measured profiles.  The ladder is used by V2: an answer that changes
-materially between `iri2020` and `nequick2` is an answer that depends on the
+materially between `iri` and `nequick2` is an answer that depends on the
 topside model rather than on the instrument, and has to be reported that way.
 
 ## L1  Propagation
