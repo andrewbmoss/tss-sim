@@ -104,6 +104,13 @@ spacecraft is about 35 per cent lower at 900 km.  Traced on 2026-10-18 (`docs/to
 `iri2016` wrapper is installed but not built (it needs ninja on first call), so
 `matlab_iri` is the only Fortran IRI route that works today.
 
+Re-run against ISIS-1 with each epoch's own indices (R12 = -1, so IRI reads R12, IG12, daily and
+81-day F10.7 and ap from its index files, foF2 storm model on; PyIRI at the daily F10.7):
+`scripts/topside_campaign.py isis-epoch`, `docs/topside-model-campaign.md`.  At solar maximum nothing
+changes (IRI-2020 within 0.07 dB, PyIRI within 0.31 dB, fitted H0 still 0.93 of the IRI law).  At
+solar minimum the user-R12 route's derived IG12 (9 for R12 15) is well below the file's (17), which
+put the binned densities 16% low: worth checking in the band-edge study.
+
 ## IRI implementation as a configuration option (2026-10-18)
 
 Campaigns name `l0: {name: iri, f107: ...}`.  The `model` key picks the code:

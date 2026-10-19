@@ -7,6 +7,8 @@ on the two implementations of IRI-2020's NeQuick topside.
     python scripts/topside_campaign.py grid    OUT_DIR
     python scripts/topside_campaign.py isis    OUT_DIR --crc CRC.asc --t1 T1.csv
     python scripts/topside_campaign.py analyse OUT_DIR
+    python scripts/topside_campaign.py isis-epoch    OUT_DIR --crc CRC.asc --t1 T1.csv
+    python scripts/topside_campaign.py analyse-epoch OUT_DIR
 
 ``grid`` runs both models over a global grid: latitude -80 to 80 deg in 10 deg
 steps, longitude -180 to 150 deg in 30 deg steps, every 3 h of universal time,
@@ -102,8 +104,9 @@ def h0_pyiri(fof2_mhz, m3000, hmf2_km, r12):
     """PyIRI 0.1.7 (sh_library.thickness_F2): H0 = k B2bot / v(x).
 
     x = (k B2bot - 150)/100 and v = 0.041163 x^2 - 0.183981 x + 1.424472 is the
-    auxiliary step of the NeQuick topside thickness as NeQuick G specifies it
-    (European Commission 2016; JRC reference code,
+    auxiliary step of the original NeQuick topside thickness (Coisson et al.
+    2008, JASTP 70, eqs. 4-6), which the revision to this k dropped and NeQuick
+    G kept (European Commission 2016; JRC reference code,
     NeQuickG_JRC_iono_F2_layer.c, F2_layer_exosphere_adjust).
     """
     bb = b2bot(fof2_mhz, m3000)
@@ -688,6 +691,218 @@ def cmd_analyse(out: Path) -> None:
     make_figures(out, s, P, Q, aux, iaux)
 
 
+# ---------------------------------------------------------------- isis-epoch
+#: Configurations of scripts/topside_isis_epoch_iri.m, in its order.
+EPOCH_CONFS = ("binned_NeQuick", "epoch_NeQuick_quiet", "epoch_NeQuick",
+               "epoch_NeQuick_allstorm", "epoch_IRI2001", "epoch_IRI2001corr")
+#: iono_extra columns (0-based) that carry the indices IRI ran on.
+EXI = dict(r12=32, ig12=38, f107d=40, storm_ratio=44, f107_81=45, ap_now=50,
+           ap_daily=51, kp=82, m3000=35, nmf2=0, hmf2=1)
+#: The F10.7 PyIRI is given, three ways.
+PYIRI_F107 = ("f107_daily", "f107_81", "f107_from_r12")
+
+
+def isis_points(order) -> np.ndarray:
+    """year, month, day, hour, minute, lat, lon, h_sat, R12 bucket per profile."""
+    rows = []
+    for x in order:
+        d = dt.date(x["year"], 1, 1) + dt.timedelta(days=int(x["doy"]) - 1)
+        ut = float(x["ut_hour"])
+        hh, mm = int(ut), int(round((ut - int(ut)) * 60.0))
+        if mm == 60:
+            hh, mm = hh + 1, 0
+        rows.append([d.year, d.month, d.day, hh, mm, float(x["lat"]),
+                     (float(x["lon"]) + 180.0) % 360.0 - 180.0, float(x["h_sat_km"]),
+                     x["rz_bucket"]])
+    return np.array(rows, dtype=float)
+
+
+def cmd_isis_epoch(out: Path, crc: Path, t1: Path, matlab: str = "matlab",
+                   reuse_iri: bool = False) -> None:
+    """Both codes at the ISIS-1 points with the epoch's own solar and storm indices.
+
+    Fortran IRI-2020 runs with R12 = -1, so it reads R12, IG12, daily and
+    81-day F10.7 and ap for each epoch from its own index files, once per
+    configuration in :data:`EPOCH_CONFS` (storm models off, IRI's epoch default
+    of the foF2 storm model on, and every storm model on; and the two IRI-2001
+    topsides).  The binned configuration repeats T1 as a control.  PyIRI has no
+    storm model and takes one F10.7 per call; it is run with the epoch's daily
+    F10.7, its 81-day mean, and the F10.7 that IRI's relation gives for the
+    epoch's R12, each as IRI itself reported them.
+    """
+    import scipy.io as sio
+
+    out.mkdir(parents=True, exist_ok=True)
+    order, T = load_isis_selection(crc, t1)
+    pts = isis_points(order)
+    n = len(order)
+    mat = out / "iri_epoch.mat"
+    if not (reuse_iri and mat.is_file()):
+        np.savetxt(out / "isis_points.csv", pts, delimiter=",", fmt="%.6g")
+        sd = str(ROOT / "scripts").replace("\\", "/")
+        pc, oc = (str(x).replace("\\", "/") for x in (out / "isis_points.csv", mat))
+        call = (f"addpath('{sd}'); topside_isis_epoch_iri('{pc}','{oc}',"
+                f"'{PHARLAP.replace(chr(92), '/')}')")
+        t0 = time.time()
+        subprocess.run([matlab, "-batch", call], check=True)
+        print(f"IRI-2020 at ISIS-1 points, {len(EPOCH_CONFS)} configurations, "
+              f"{time.time() - t0:.0f} s")
+    M = sio.loadmat(mat)
+    names = [str(c[0]) for c in M["conf_names"].ravel()]
+    if tuple(names) != EPOCH_CONFS:
+        raise RuntimeError(f"unexpected configurations in {mat}: {names}")
+    ne_iri = np.asarray(M["ne_sat"], dtype=float)
+    ex = np.asarray(M["extra"], dtype=float)[:, :, EPOCH_CONFS.index("epoch_NeQuick")]
+    idx = {k: ex[:, c] for k, c in EXI.items()}
+    f107 = {"f107_daily": idx["f107d"], "f107_81": idx["f107_81"],
+            "f107_from_r12": f107_from_r12(idx["r12"])}
+
+    PyIRI, sh = _pyiri()
+    res = {}
+    t0 = time.time()
+    for var in PYIRI_F107:
+        ne_py = np.full(n, np.nan)
+        par = {k: np.full(n, np.nan) for k in ("Nm", "fo", "M3000", "hm", "B_top")}
+        groups: dict = {}
+        for i in range(n):
+            groups.setdefault((int(pts[i, 0]), int(pts[i, 1]), int(pts[i, 2]),
+                               round(float(f107[var][i]), 1)), []).append(i)
+        for (yy, mo, dd, fv), ii in groups.items():
+            ii = np.asarray(ii)
+            ut = pts[ii, 3] + pts[ii, 4] / 60.0
+            ut_u, ti = np.unique(ut, return_inverse=True)
+            h_u, hi = np.unique(pts[ii, 7], return_inverse=True)
+            F2, _F1, _E, _Es, _sun, _mag, edp = sh.IRI_density_1day(
+                yy, mo, dd, ut_u, pts[ii, 6], pts[ii, 5], h_u, fv, **PYIRI_OPTS)
+            g = np.arange(ii.size)
+            ne_py[ii] = np.asarray(edp)[ti, hi, g]
+            for k in par:
+                par[k][ii] = np.asarray(F2[k])[ti, g]
+        res[var] = ne_py
+        for k, v in par.items():
+            res[f"{var}_{k}"] = v
+        print(f"  PyIRI {var}: {len(groups)} calls, {time.time() - t0:.0f} s", flush=True)
+
+    obs = {k: np.full(n, np.nan) for k in ("nmf2_obs", "hmf2_obs", "h0_fit", "depth_km")}
+    for i, x in enumerate(order):
+        h, ne = np.asarray(x["h_km"], float), np.asarray(x["ne_cm3"], float) * 1.0e6
+        j = int(np.argmax(ne))
+        obs["nmf2_obs"][i], obs["hmf2_obs"][i] = ne[j], h[j]
+        obs["depth_km"][i] = h[0] - h[j]
+        use = (h >= h[j] + 30.0) & np.isfinite(ne) & (ne > 0)
+        if use.sum() >= 4 and obs["depth_km"][i] >= 150.0:
+            obs["h0_fit"][i], _ = fit_h0(h[use], ne[use], h[j], ne[j])
+
+    np.savez_compressed(
+        out / "isis_epoch.npz", pyiri_version=PyIRI.__version__,
+        conf_names=np.array(EPOCH_CONFS),
+        year=pts[:, 0], month=pts[:, 1], day=pts[:, 2], ut=pts[:, 3] + pts[:, 4] / 60.0,
+        lat=pts[:, 5], lon=pts[:, 6], h_sat=pts[:, 7], rz_bucket=pts[:, 8],
+        lt=np.array([x["lt_hour"] for x in order], float),
+        rz12_crc=np.array([x["rz12"] for x in order], float),
+        ne_sat_obs=np.array([x["ne_sat_cm3"] for x in order], float) * 1.0e6,
+        fn_obs=T["fn_obs_MHz"], fn_t1_nequick=T["fn_NeQuick_MHz"],
+        fn_t1_iri2001=T["fn_IRI2001_MHz"], fn_t1_iri2001corr=T["fn_IRI2001corr_MHz"],
+        ne_iri=ne_iri, **{f"idx_{k}": v for k, v in idx.items()},
+        **{f"pyiri_{k}": v for k, v in res.items()}, **obs)
+    print(f"wrote {out / 'isis_epoch.npz'}")
+
+
+def _band_masks(hs):
+    for lo, hi in BANDS:
+        yield f"{int(lo)}-{int(hi)}", (hs >= lo) & ((hs < hi) if hi < 900 else (hs <= hi))
+
+
+def isis_epoch_analysis(out: Path) -> dict:
+    """Medians, tails and storm splits for the epoch-driven ISIS-1 comparison."""
+    J = dict(np.load(out / "isis_epoch.npz", allow_pickle=False))
+    hs, fn_obs = J["h_sat"], J["fn_obs"]
+    rz = J["rz12_crc"]
+    kp = J["idx_kp"]
+    db = lambda fn: 20.0 * np.log10(fn / fn_obs)  # noqa: E731
+    models = {"t1_binned_NeQuick": J["fn_t1_nequick"],
+              "t1_binned_IRI2001": J["fn_t1_iri2001"],
+              "t1_binned_IRI2001corr": J["fn_t1_iri2001corr"]}
+    for c, name in enumerate(J["conf_names"]):
+        models[f"iri_{name}"] = fp_mhz(J["ne_iri"][:, c])
+    for var in PYIRI_F107:
+        models[f"pyiri_{var}"] = fp_mhz(J[f"pyiri_{var}"])
+    old = out.parent / "run" / "isis_pyiri.npz"
+    if old.is_file():
+        prev = np.load(old)
+        if np.allclose(prev["h_sat"], hs):
+            models["pyiri_binned"] = fp_mhz(prev["ne_sat_pyiri"])
+
+    # the thickness laws on the measured peak, with the epoch's R12 and IRI's M3000
+    r12, m3 = J["idx_r12"], J["idx_m3000"]
+    nm, hm = J["nmf2_obs"], J["hmf2_obs"]
+    fo = np.sqrt(nm / 1.24e10)
+    h0i, h0p = h0_iri(fo, m3, hm, r12), h0_pyiri(fo, m3, hm, r12)
+    models["obs_peak_iri_law"] = fp_mhz(nm * topside_shape(hs, hm, h0i))
+    models["obs_peak_pyiri_law"] = fp_mhz(nm * topside_shape(hs, hm, h0p))
+    fit_ok = np.isfinite(J["h0_fit"]) & (J["depth_km"] >= 150.0)
+
+    regimes = {"solar_max": rz >= 100, "solar_min": rz <= 30, "all": np.ones_like(rz, bool)}
+    s = {"n": int(hs.size), "indices": {}, "bands": {}, "storm": {}, "h0_fit": {}}
+    sm = regimes["solar_max"]
+    s["indices"] = {
+        "r12_epoch_minus_crc": [float(np.percentile(r12 - rz, q)) for q in (5, 50, 95)],
+        "r12_epoch_minus_bucket": [float(np.percentile(r12 - J["rz_bucket"], q)) for q in (5, 50, 95)],
+        "solar_max_f107_daily": [float(np.percentile(J["idx_f107d"][sm], q)) for q in (5, 50, 95)],
+        "solar_max_f107_81": [float(np.percentile(J["idx_f107_81"][sm], q)) for q in (5, 50, 95)],
+        "solar_max_f107_from_r12": [float(np.percentile(f107_from_r12(r12[sm]), q)) for q in (5, 50, 95)],
+        "solar_max_f107_bucket": [float(np.percentile(f107_from_r12(J["rz_bucket"][sm]), q)) for q in (5, 50, 95)],
+        "solar_max_f107_daily_over_188": float(np.mean(J["idx_f107d"][sm] > 188.0)),
+        "kp_fraction": {"lt3": float(np.mean(kp < 3)), "3_to_4": float(np.mean((kp >= 3) & (kp < 4))),
+                        "ge4": float(np.mean(kp >= 4)), "ge5": float(np.mean(kp >= 5))},
+        "storm_ratio_foF2": [float(np.nanpercentile(J["idx_storm_ratio"], q)) for q in (5, 50, 95)],
+        "n_kp_ge4_solar_max": int(np.sum(sm & (kp >= 4))),
+    }
+    for rname, reg in regimes.items():
+        s["bands"][rname] = {}
+        for bname, bm in _band_masks(hs):
+            m = reg & bm
+            if m.sum() < 20:
+                continue
+            mo = m & fit_ok
+            row = {"n": int(m.sum()), "n_fit": int(mo.sum()), "median_db": {}, "p05_mhz":
+                   {"observed": float(np.percentile(fn_obs[m], 5))}}
+            for k, fn in models.items():
+                mm = mo if k.startswith("obs_peak") else m
+                row["median_db"][k] = float(np.nanmedian(db(fn)[mm]))
+                if not k.startswith("obs_peak"):
+                    row["p05_mhz"][k] = float(np.nanpercentile(fn[m], 5))
+            s["bands"][rname][bname] = row
+    # storm activity, solar maximum, all altitudes 500-900 km together
+    classes = {"kp_lt3": kp < 3, "kp_3_4": (kp >= 3) & (kp < 4), "kp_ge4": kp >= 4}
+    for cname, cm in classes.items():
+        m = sm & cm
+        if m.sum() < 20:
+            continue
+        s["storm"][cname] = {"n": int(m.sum()),
+                             "median_db": {k: float(np.nanmedian(db(fn)[m])) for k, fn in models.items()
+                                           if not k.startswith("obs_peak")}}
+    r_i, r_p = J["h0_fit"] / h0i, J["h0_fit"] / h0p
+    lat = J["lat"]
+    groups = {"all": fit_ok, "solar_max": fit_ok & sm, "solar_min": fit_ok & (rz <= 30),
+              "solar_max_kp_lt3": fit_ok & sm & (kp < 3), "solar_max_kp_ge4": fit_ok & sm & (kp >= 4),
+              "abs_lat_ge_60": fit_ok & (np.abs(lat) >= 60)}
+    for name, m in groups.items():
+        if m.sum() < 10:
+            continue
+        s["h0_fit"][name] = {
+            "n": int(m.sum()),
+            "fit_over_iri_law": [float(np.percentile(r_i[m], q)) for q in (10, 50, 90)],
+            "fit_over_pyiri_law": [float(np.percentile(r_p[m], q)) for q in (10, 50, 90)],
+            "fraction_closer_to_iri_law": float(np.mean(np.abs(np.log(r_i[m])) < np.abs(np.log(r_p[m])))),
+        }
+    ctrl = np.abs(models["iri_binned_NeQuick"] / models["t1_binned_NeQuick"] - 1.0)
+    s["control_binned_vs_t1_max_rel"] = float(np.nanmax(ctrl))
+    s["control_binned_vs_t1_p99_rel"] = float(np.nanpercentile(ctrl, 99))
+    (out / "summary_epoch.json").write_text(json.dumps(_jsonable(s), indent=1))
+    return s
+
+
 # ------------------------------------------------------------------- main
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -700,13 +915,25 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("out_dir", type=Path)
     i.add_argument("--crc", type=Path, required=True)
     i.add_argument("--t1", type=Path, required=True)
+    e = sub.add_parser("isis-epoch")
+    e.add_argument("out_dir", type=Path)
+    e.add_argument("--crc", type=Path, required=True)
+    e.add_argument("--t1", type=Path, required=True)
+    e.add_argument("--matlab", default="matlab")
+    e.add_argument("--reuse-iri", action="store_true")
     a = sub.add_parser("analyse")
     a.add_argument("out_dir", type=Path)
+    ea = sub.add_parser("analyse-epoch")
+    ea.add_argument("out_dir", type=Path)
     args = ap.parse_args(argv)
     if args.cmd == "grid":
         cmd_grid(args.out_dir, args.matlab, args.skip_iri)
     elif args.cmd == "isis":
         cmd_isis(args.out_dir, args.crc, args.t1)
+    elif args.cmd == "isis-epoch":
+        cmd_isis_epoch(args.out_dir, args.crc, args.t1, args.matlab, args.reuse_iri)
+    elif args.cmd == "analyse-epoch":
+        isis_epoch_analysis(args.out_dir)
     else:
         cmd_analyse(args.out_dir)
     return 0
