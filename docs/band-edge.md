@@ -115,3 +115,70 @@ Indices IRI ran on (median over the samples) and the governing cell, O1 at
   threshold (0.33 MHz) and goal (0.26 MHz) stand; its notes are to record the
   0.28 MHz deep-minimum edge, the roughly 90 per cent coverage a 0.33 MHz start
   gives in 2008-09 and 2019-20 conditions, and that the tolerance is nearly used.
+
+## Phase 3: SCI-02 threshold, the spacecraft's height above the F2 peak (2026-10-20)
+
+SCI-02's threshold is coverage from the spacecraft down to and including the F2
+peak, for h_sat 500-900 km and hmF2 anywhere in 200-500 km; MIS-01 adds that
+the spacecraft must be above the peak at all times sampled.  Phase 3 reads that
+off the per-sample hmF2 the band-edge runs keep, with
+`tss.studies.sci02_margin` and `scripts/sci02_threshold.py`:
+
+    python scripts/sci02_threshold.py OUT revG=<band_edge_reference> \
+        solarmin_epoch=<band_edge_solarmin_epoch> storm_epoch=<sci02_storm_epoch> \
+        storm_m3000=<sci02_storm_m3000>
+
+Outputs are kept in `data/reference/sci02_threshold` (94 cells, 1.88 million
+samples).  hmF2 is a bottomside quantity and is identical, to the metre, across
+the three topside models in every cell of every run, so one topside per cell is
+read.
+
+Two runs were added for the storm check (3.3), because a user R12 turns IRI's
+storm models off and the Phase 2 runs are all at solar minimum:
+
+* `sci02_storm_epoch`: epoch indices, foF2 storm model on, 500 and 600 km, O1
+  and O2, over the cycle 23 maximum (2000-07 to 2001-06, median R12 111) and
+  densely over the Halloween storms (2003-10-15, 41 days, 1,128 samples per
+  cell at Kp 7-9), each with hmF2_storm off and on.  16 cases, 21 minutes.
+* `sci02_storm_m3000`: the same 500 km cells with IRI's older hmF2 route
+  (M3000F2), the only one through which the foF2 storm model can reach hmF2.
+  8 cases, 10 minutes.
+
+Results:
+
+| h_sat | solar | samples below the peak | within 50 km | within 100 km | smallest margin |
+|---|---|---|---|---|---|
+| 500 km | maximum (R12 120; 2000-01; 2003) | 0-0.07 % | 0-1.2 % | 0.4-8.4 % | -36 km |
+| 500 km | minimum (R12 10; 1986-2019 epochs) | 0 | 0 | 0 | 108 km |
+| 600 km | maximum | 0 | 0 | 0-0.08 % | 68 km |
+| 700-900 km | any | 0 | 0 | 0 | 182 km |
+
+* **Envelope.** Across all 94 cells the 0.1 and 99.9 percentiles of hmF2 lie
+  inside 200-500 km (200.7 km in O1 / 800 km / 2008-09; 496 km in O2 / 500 km /
+  2000-01).  The extremes are 194 km (solar minimum, 2008-09) and 536 km (solar
+  maximum, O2); at most 0.065 per cent of a cell's samples fall below 200 km
+  and 0.075 per cent above 500 km.  At 194 km the 900 km true range is 706 km,
+  so SCI-08's 1.5 times is 1059 km against INS-04's 1050 km: 9 km, in under 0.1
+  per cent of solar-minimum samples.
+* **Above the peak.** Met everywhere from 600 to 900 km, at every solar level.
+  At 500 km it is met at solar minimum (margin at least 108 km) but not "at all
+  times" at solar maximum: 0.03-0.07 per cent of samples have the peak above
+  the spacecraft, by up to 36 km, and 4-8 per cent are within 100 km.  These
+  are afternoon and evening samples: in O2 / 500 km / R12 120, 18-21 LT has
+  0.28 per cent below the peak and 21 per cent within 100 km.
+* **Storms.** IRI cannot verify SCI-02 under storm conditions.  With the
+  default hmF2 model (Shubin-COSMIC) hmF2 is identical with hmF2_storm off and
+  on, and flat across Kp bins (median 303-323 km from Kp 0-3 to Kp 7-9 at solar
+  maximum), because that model does not take foF2.  Through M3000F2 the storm
+  model lowers hmF2 slightly (0.1 percentile 232 to 215 km, minimum 211 km, at
+  Kp 7-9 in the Halloween window) and raises it nowhere.  Neither route has the
+  storm-time uplift by penetration electric fields, which is the case that
+  would put the peak above a 500 km spacecraft; that needs measured hmF2
+  (COSMIC, Digisonde) rather than IRI.
+* **Verdict.** SCI-02's threshold is met over 600-900 km, and its 200-500 km
+  hmF2 envelope holds at the 0.1/99.9 per cent level, in IRI climatology at
+  every solar level.  At 500 km and solar maximum, MIS-01's "above the F2 peak
+  at all times sampled" fails in 0.03-0.07 per cent of samples, and the
+  storm-time case is not verified.  Whether to restate MIS-01 as a fraction of
+  samples, raise its floor for solar-maximum missions, or accept the 500 km
+  exceedance is a decision for the requirements revision (G3).

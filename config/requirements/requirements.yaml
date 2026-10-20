@@ -575,9 +575,17 @@ not_scored:
   # -- verified by analysis, inspection or a stand-alone study ----------------
   SCI-02:
     category: analysis
+    work_packages: [WP0]
     reason: >-
       The hmF2 distribution against the MIS-01 envelope, from the band-edge
-      run (study min_frequency).  The goal of 1400 km is a WP0 closure task.
+      runs (study min_frequency; scripts/sci02_threshold.py).  WP0 Phase 3
+      (2026-10-20): threshold met over 600-900 km at every solar level; hmF2
+      0.1/99.9 percentiles inside 200-500 km in all 94 cells (extremes 194 and
+      536 km).  At 500 km and solar maximum the peak is above the spacecraft
+      in 0.03-0.07 per cent of samples (by up to 36 km), so MIS-01's "at all
+      times sampled" is not met there; storm-time hmF2 uplift is outside IRI
+      and not verified.  docs/band-edge.md, Phase 3.  The goal of 1400 km is a
+      WP0 closure task (Phase 4).
   SCI-20:
     category: analysis
     reason: >-

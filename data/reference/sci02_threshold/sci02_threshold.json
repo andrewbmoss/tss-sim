@@ -1,0 +1,130 @@
+{
+ "verdicts": {
+  "revG": {
+   "n_cells": 20,
+   "above_peak": false,
+   "worst_below_peak": {
+    "cell": "revG:O2/500 km/max",
+    "fraction": 0.0004,
+    "min_margin_km": -36.007
+   },
+   "worst_within_100km": {
+    "cell": "revG:O2/500 km/max",
+    "fraction": 0.0736
+   },
+   "in_envelope": true,
+   "lowest_hmf2_p001": {
+    "cell": "revG:O1/900 km/min",
+    "km": 203.262964,
+    "min_km": 197.416
+   },
+   "highest_hmf2_p999": {
+    "cell": "revG:O2/700 km/max",
+    "km": 493.5094080000016,
+    "max_km": 517.351
+   }
+  },
+  "solarmin_epoch": {
+   "n_cells": 50,
+   "above_peak": true,
+   "worst_below_peak": {
+    "cell": "solarmin_epoch:O1/500 km/min1986",
+    "fraction": 0.0,
+    "min_margin_km": 107.613
+   },
+   "worst_within_100km": {
+    "cell": "solarmin_epoch:O1/500 km/min1986",
+    "fraction": 0.0
+   },
+   "in_envelope": true,
+   "lowest_hmf2_p001": {
+    "cell": "solarmin_epoch:O1/800 km/min2008",
+    "km": 200.703998,
+    "min_km": 194.161
+   },
+   "highest_hmf2_p999": {
+    "cell": "solarmin_epoch:O2/900 km/min1986",
+    "km": 369.2371280000005,
+    "max_km": 381.576
+   }
+  },
+  "storm_epoch": {
+   "n_cells": 16,
+   "above_peak": false,
+   "worst_below_peak": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "fraction": 0.0007,
+    "min_margin_km": -22.802375
+   },
+   "worst_within_100km": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "fraction": 0.08365
+   },
+   "in_envelope": true,
+   "lowest_hmf2_p001": {
+    "cell": "storm_epoch:O1/600 km/max2000",
+    "km": 222.026370109375,
+    "min_km": 211.429453125
+   },
+   "highest_hmf2_p999": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "km": 495.7703966562557,
+    "max_km": 522.802375
+   }
+  },
+  "storm_m3000": {
+   "n_cells": 8,
+   "above_peak": true,
+   "worst_below_peak": {
+    "cell": "storm_m3000:O1/500 km/hall2003m",
+    "fraction": 0.0,
+    "min_margin_km": 63.64703125
+   },
+   "worst_within_100km": {
+    "cell": "storm_m3000:O2/500 km/max2000mh",
+    "fraction": 0.07895
+   },
+   "in_envelope": true,
+   "lowest_hmf2_p001": {
+    "cell": "storm_m3000:O1/500 km/hall2003mh",
+    "km": 225.3201796875,
+    "min_km": 211.496484375
+   },
+   "highest_hmf2_p999": {
+    "cell": "storm_m3000:O2/500 km/max2000mh",
+    "km": 466.4875419062504,
+    "max_km": 494.218375
+   }
+  },
+  "all": {
+   "n_cells": 94,
+   "above_peak": false,
+   "worst_below_peak": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "fraction": 0.0007,
+    "min_margin_km": -22.802375
+   },
+   "worst_within_100km": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "fraction": 0.08365
+   },
+   "in_envelope": true,
+   "lowest_hmf2_p001": {
+    "cell": "solarmin_epoch:O1/800 km/min2008",
+    "km": 200.703998,
+    "min_km": 194.161
+   },
+   "highest_hmf2_p999": {
+    "cell": "storm_epoch:O2/500 km/max2000",
+    "km": 495.7703966562557,
+    "max_km": 522.802375
+   }
+  }
+ },
+ "topside_hmf2_max_abs_diff_m": {
+  "revG": 0.0,
+  "solarmin_epoch": 0.0,
+  "storm_epoch": 0.0,
+  "storm_m3000": 0.0
+ }
+}

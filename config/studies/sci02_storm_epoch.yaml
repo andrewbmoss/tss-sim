@@ -1,0 +1,39 @@
+# WP0 Phase 3.3: SCI-02 threshold under storm conditions at solar maximum.
+#
+# SCI-02's threshold asks for coverage from the spacecraft down to hmF2 for
+# h_sat 500-900 km and hmF2 anywhere in 200-500 km, and MIS-01 asks that the
+# spacecraft be above the F2 peak at all times sampled.  The governing cells
+# are the lowest orbits at solar maximum (Phase 1: hmF2 reaches 536 km at
+# O2 / 500 km / R12 = 120).  The Rev G run cannot show storm effects, because a
+# user R12 turns IRI's storm models off.  This plan runs on the epoch's own
+# indices (R12 = -1) with the foF2 storm model on, and each window twice: with
+# hmF2 computed without the storm-modified foF2 (IRI's default) and with it
+# (hmF2_storm on).
+#
+#   max2000    2000-07-01, 365 days: the cycle 23 maximum (R12 about 115-120),
+#              including the Bastille Day storm (2000-07-15) and 2001-03-31.
+#   hall2003   2003-10-15, 41 days: the Halloween storms (2003-10-29 to 31,
+#              Kp 9) and 2003-11-20, sampled densely so storm time is not a
+#              few dozen samples.
+#
+# hmF2 does not depend on the topside model (checked on the Phase 1 and 2
+# samples: identical across the three), so only NeQuick runs.  16 cases,
+# about 20 minutes.
+name: sci02_storm_epoch
+altitudes_km: [500, 600]
+orbit_classes: [O1, O2]
+topsides: [NeQuick]
+solar:
+  - {name: max2000, mode: epoch, epoch_start: "2000-07-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: max2000h, mode: epoch, epoch_start: "2000-07-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "on", foE_storm: "off", topside_storm: "off"}}
+  - {name: hall2003, mode: epoch, epoch_start: "2003-10-15T00:00:00", duration_days: 41.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: hall2003h, mode: epoch, epoch_start: "2003-10-15T00:00:00", duration_days: 41.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "on", foE_storm: "off", topside_storm: "off"}}
+samples: 20000
+seed: 17
+alt_grid_km: [150, 1000, 10]
+chunk: 20000
+keep_samples: true

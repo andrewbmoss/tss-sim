@@ -1,0 +1,28 @@
+# WP0 Phase 3.3, second part: does IRI's hmF2 respond to storms at all?
+#
+# sci02_storm_epoch showed that with the default hmF2 model (Shubin-COSMIC)
+# hmF2 is identical with hmF2_storm off and on, and flat across Kp bins: that
+# model does not take foF2, so the foF2 storm model cannot reach it.  IRI's
+# older M3000F2 route (BSE-1979) computes hmF2 from M(3000)F2 and the
+# foF2/foE ratio, and hmF2_storm on feeds it the storm-modified foF2.  This
+# plan reruns the 500 km cells with that route, storm off and on, so the
+# model's own storm response in hmF2 is measured rather than assumed.
+# 8 cases, about 11 minutes.
+name: sci02_storm_m3000
+altitudes_km: [500]
+orbit_classes: [O1, O2]
+topsides: [NeQuick]
+solar:
+  - {name: max2000m, mode: epoch, epoch_start: "2000-07-01T00:00:00", duration_days: 365.0,
+     iri_options: {hmF2_model: "M3000F2", foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: max2000mh, mode: epoch, epoch_start: "2000-07-01T00:00:00", duration_days: 365.0,
+     iri_options: {hmF2_model: "M3000F2", foF2_storm: "on", hmF2_storm: "on", foE_storm: "off", topside_storm: "off"}}
+  - {name: hall2003m, mode: epoch, epoch_start: "2003-10-15T00:00:00", duration_days: 41.0,
+     iri_options: {hmF2_model: "M3000F2", foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: hall2003mh, mode: epoch, epoch_start: "2003-10-15T00:00:00", duration_days: 41.0,
+     iri_options: {hmF2_model: "M3000F2", foF2_storm: "on", hmF2_storm: "on", foE_storm: "off", topside_storm: "off"}}
+samples: 20000
+seed: 17
+alt_grid_km: [150, 1000, 10]
+chunk: 20000
+keep_samples: true
