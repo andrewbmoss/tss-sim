@@ -164,8 +164,21 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   direction, orbit sampling against the harness's own draws, the plan loader,
   an end-to-end stand-in run, and two `-m pharlap` cases that match the
   reference to 1e-4).  Suite 632 passed, 1 skipped; `-m pharlap` 4 passed.
+* Reference regression: the full 60-case rerun reproduces the Rev G summary to
+  2.4e-7 relative in every percentile; governing value O1 / 900 km / solar min /
+  NeQuick 0.3342 MHz (95 %), 0.2700 MHz (99 %).  Details in docs/band-edge.md.
+* Phase 2 (running overnight 2026-10-19/20): plan `band_edge_solarmin_epoch`,
+  epoch-driven solar minima 1986, 1996, 2008-09, 2019-20 (foF2 storm on) and
+  2008-09 storm off; `scripts/band_edge_compare.py` applies the INS-01a decision
+  rule against the reference run.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
-  (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).
+  (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
+  UHF AAC Clyde Space PULSAR-UTRX (9.6 kbps GFSK, 27-33 dBm, 3-5.1 W Tx);
+  S-band Innoflight SCR-104 (up to 4.5 Mbps, BPSK/QPSK/OQPSK, up to 2 W RF);
+  X-band Innoflight SCR-106 (7.9-8.5 GHz Tx, up to 105 Mbps per SatCatalog,
+  132 Mbps per SatNow, 20 mW-2.5 W RF, 5-30 W DC, 250 g).  Public datasheet
+  values only; the Innoflight datasheets are on request.  Capacity is to be
+  set from a link budget per station, not from the maximum rate.
 
 ## Open findings of the 2026-10-17 review
 

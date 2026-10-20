@@ -1,0 +1,41 @@
+# WP0 Phase 2: INS-01a re-closed with epoch-driven solar minimum.
+#
+# The Rev G run (band_edge_reference) set solar minimum with a user R12 of 10,
+# for which the PHaRLAP mex derives IG12 = -12.349 + R12 (1.468 - 0.002677 R12)
+# = 2.1 and turns the foF2 storm model off.  Here IRI runs on each sample's own
+# indices from ig_rz.dat and apf107.dat (R12 = -1), over the twelve months
+# centred on each solar minimum inside the index files' span (1958-01-01 to
+# 2024-12-09).  From ig_rz.dat (PHaRLAP 4.7.4), the twelve-month means are:
+#
+#   window              R12 min (month)   R12 mean   IG12 mean
+#   1986-03 .. 1987-02  12.3 (1986-09)    14.6        8.9
+#   1995-11 .. 1996-10   8.0 (1996-05)     9.3        1.6
+#   2008-05 .. 2009-04   1.7 (2008-11)     2.3       -9.2
+#   2019-06 .. 2020-05   1.8 (2019-12)     3.1      -10.2
+#
+# Every window runs with IRI's epoch default, the foF2 storm model on.  The
+# deepest minimum, 2008-09, also runs with every storm model off, which splits
+# the index effect from the storm effect.  Same altitudes, classes, topsides,
+# samples, seed and grid as band_edge_reference, so each case differs from its
+# Rev G counterpart only in its solar input and its year.  150 cases, about
+# three hours.
+name: band_edge_solarmin_epoch
+altitudes_km: [500, 600, 700, 800, 900]
+orbit_classes: [O1, O2]
+topsides: [NeQuick, IRI-2001, IRI-2001 corrected]
+solar:
+  - {name: min1986, mode: epoch, epoch_start: "1986-03-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: min1996, mode: epoch, epoch_start: "1995-11-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: min2008, mode: epoch, epoch_start: "2008-05-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: min2019, mode: epoch, epoch_start: "2019-06-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: min2008q, mode: epoch, epoch_start: "2008-05-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "off", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+samples: 20000
+seed: 17
+alt_grid_km: [150, 1000, 10]
+chunk: 20000
+keep_samples: true

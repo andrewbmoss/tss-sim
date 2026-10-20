@@ -46,6 +46,26 @@ same samples as the harness's `orbits.py`, and a `-m pharlap` test that reruns
 two cases and matches the reference to 1e-4.  The full 60-case comparison is a
 run of the reference plan (about an hour) and is recorded below.
 
-## Reference regression
+## Reference regression (2026-10-19)
 
-(Filled in by the Phase 1 run.)
+`tss study min_frequency` (plan `band_edge_reference`, 60 cases, 1.2 million
+samples, 77 min on the development machine) against
+`data/reference/band_edge/minfreq_summary.csv`:
+
+* The same 60 cases in the same order, with identical sample counts and no
+  dropped samples.
+* Every percentile column (f_min at 90, 95 and 99 per cent; fN at the
+  spacecraft at the 5th, 50th and 95th percentile and its median) agrees to
+  within 2.4e-7 relative.  foF2 and hmF2 medians and the band ratio agree to
+  within 1.8e-6, the precision of the extras file (six significant figures).
+* The ensemble governing value is unchanged: O1, 900 km, solar minimum,
+  NeQuick, **0.3342 MHz** at 95 per cent (0.2700 MHz at 99 per cent); the
+  unsafe maximum combination would give 0.4766 MHz.
+* The completeness curves agree to the four decimals they are written with in
+  9,336 of 9,600 values.  The rest differ by at most 0.0075, all in cases with
+  a few samples whose hmF2 is at or above the spacecraft (8 of 20,000 in O2,
+  500 km, solar maximum, IRI-2001, where hmF2 reaches 536 km).  For those the
+  completeness span is clamped to 1 m and the value turns on the sixth
+  significant figure of hmF2, which the extras file rounds and the harness's
+  file did not.  They are a property of the samples where SCI-02's threshold is
+  at issue, not a change in arithmetic, and Phase 3 treats them as such.
