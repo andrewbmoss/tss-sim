@@ -121,9 +121,11 @@ IRI_TOPSIDE_OPTIONS = ("NeQuick", "IRI-2001", "IRI-2001 corrected")
 #: the longer header names ``nmf2_m3, hmf2_km, solar_zenith_deg, dip_lat_deg,
 #: modip_deg, spread_f_prob, rz12, f107_daily, kp, ap, ig12, f107_81day,
 #: ap_daily, fof2_storm_ratio``, in this order.  The short names are kept
-#: because the study code reads them.  The last four were added on 2026-10-19
-#: so that an epoch-driven run records the indices IRI actually used; a file
-#: written before then has only the first ten and is read with the rest NaN.
+#: because the study code reads them.  Four were added on 2026-10-19 so that an
+#: epoch-driven run records the indices IRI actually used, and the O+/H+
+#: transition height (``h_oplus_hplus_km``, from IRI's ion composition) on
+#: 2026-10-20 for SCI-02's goal.  A file written before then has ten or
+#: fourteen and is read with the rest NaN.
 EXTRA_COLUMNS = (
     "nmf2",
     "hmf2_km",
@@ -139,6 +141,7 @@ EXTRA_COLUMNS = (
     "f107_81",
     "ap_daily",
     "fof2_storm_ratio",
+    "h_oplus_hplus_km",
 )
 
 #: Where PHaRLAP lives on the machine this study was developed against.  Passed
@@ -911,7 +914,8 @@ class MatlabIRIBackend(Backend):
         table = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
         if table.shape[0] != n_points or table.shape[1] < 8 + 10:
             return np.asarray(table, dtype=float)
-        # A file from before 2026-10-19 carries ten extras; pad the rest with NaN
+        # A file from before 2026-10-19 carries ten extras, and one from before
+        # 2026-10-20 fourteen; pad the rest with NaN
         # so that a column is never read from the wrong position.
         out = np.full((table.shape[0], len(EXTRA_COLUMNS)), np.nan)
         k = min(len(EXTRA_COLUMNS), table.shape[1] - 8)

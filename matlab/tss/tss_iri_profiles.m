@@ -69,10 +69,15 @@ function info = tss_iri_profiles(outdir, points, alt_km, varargin)
 %     point_id, the same epoch and location columns, then nmf2_m3, hmf2_km,
 %     solar_zenith_deg, dip_lat_deg, modip_deg, spread_f_prob, rz12,
 %     f107_daily, kp, ap, ig12, f107_81day, ap_daily, fof2_storm_ratio
-%     (iono_extra 1, 2, 23, 26, 27, 48, 33, 41, 83, 51, 39, 46, 52, 45).  These
-%     come from IRI's iono_extra and are more accurate than reading them off
-%     the sampled altitude grid.  The last four were added on 2026-10-19 for
-%     epoch-driven runs; a reader that knows only the first ten still works.
+%     (iono_extra 1, 2, 23, 26, 27, 48, 33, 41, 83, 51, 39, 46, 52, 45), then
+%     h_oplus_hplus_km.  The first fourteen come from IRI's iono_extra and are
+%     more accurate than reading them off the sampled altitude grid.  Four
+%     were added on 2026-10-19 for epoch-driven runs.  h_oplus_hplus_km (added
+%     2026-10-20 for SCI-02's goal) is the O+/H+ transition height: the lowest
+%     height above hmF2 at which IRI's H+ density (iono row 6) reaches its O+
+%     density (row 5), interpolated linearly in log(H+/O+) between grid
+%     heights; NaN when the transition lies above the grid.  A reader that
+%     knows only the first ten or fourteen columns still works.
 %
 %   <study>_alt_km_<tag>.csv
 %     one column, alt_km, the authoritative grid.
@@ -179,7 +184,7 @@ else
 end
 
 ne    = nan(n, na);
-extra = nan(n, 14);
+extra = nan(n, 15);
 nfail = 0;
 progress_every = max(round(a.Progress), 0);
 
@@ -200,7 +205,8 @@ for k = 1:n
         e = iono_extra;
         extra(k,:) = [pick(e,1), pick(e,2), pick(e,23), pick(e,26), pick(e,27), ...
                       pick(e,48), pick(e,33), pick(e,41), pick(e,83), pick(e,51), ...
-                      pick(e,39), pick(e,46), pick(e,52), pick(e,45)];
+                      pick(e,39), pick(e,46), pick(e,52), pick(e,45), ...
+                      oh_transition(alt, iono(5, 1:na), iono(6, 1:na), pick(e,2))];
     catch ME
         % One bad point must not lose a half-hour batch.  Record it and move on.
         nfail = nfail + 1;
@@ -234,7 +240,8 @@ write_numeric_csv(info.ne_csv, [meta_names, ne_names], ...
 
 extra_names = {'nmf2_m3', 'hmf2_km', 'solar_zenith_deg', 'dip_lat_deg', ...
                'modip_deg', 'spread_f_prob', 'rz12', 'f107_daily', 'kp', 'ap', ...
-               'ig12', 'f107_81day', 'ap_daily', 'fof2_storm_ratio'};
+               'ig12', 'f107_81day', 'ap_daily', 'fof2_storm_ratio', ...
+               'h_oplus_hplus_km'};
 % Nine significant figures: at six, hmF2 is rounded to about a metre, which
 % moved the completeness of samples whose peak sits at the spacecraft
 % (docs/band-edge.md, reference regression, 2026-10-19).
@@ -416,6 +423,27 @@ end
 f = fieldnames(extra);
 for k = 1:numel(f)
     o.(f{k}) = extra.(f{k});
+end
+end
+
+% -----------------------------------------------------------------------
+function h = oh_transition(alt, op, hp, hmf2)
+%OH_TRANSITION  Lowest height above hmF2 where H+ reaches O+, in km.
+%   Linear in log(H+/O+) between the two grid heights that bracket the
+%   crossing.  NaN if the ratio never reaches 1 on the grid, if hmF2 is not
+%   valid, or if the ion densities are missing (IRI's -1).
+h = NaN;
+if ~isfinite(hmf2), return; end
+ok = op > 0 & hp > 0 & alt > hmf2;
+if ~any(ok), return; end
+a = alt(ok);
+r = log(hp(ok) ./ op(ok));
+k = find(r >= 0, 1);
+if isempty(k), return; end
+if k == 1
+    h = a(1);
+else
+    h = a(k-1) + (a(k) - a(k-1)) * (0 - r(k-1)) / (r(k) - r(k-1));
 end
 end
 

@@ -106,7 +106,17 @@ SUMMARY_COLUMNS = (
 EXTRA_SUMMARY_COLUMNS = (
     "solar_mode", "epoch_start", "duration_days", "fn_sat_p01_MHz", "hmf2_p001_km",
     "hmf2_p999_km", "frac_hsat_minus_hmf2_lt_100km", "samples_file",
+    # Added 2026-10-20 for SCI-02's goal (WP0 Phase 4): the profile a sweep
+    # starting at INS-01a's 0.33 MHz threshold retrieves, and IRI's O+/H+
+    # transition height against the spacecraft.
+    "coverage_at_ins01a", "mean_alt_completeness_at_ins01a", "p05_alt_completeness_at_ins01a",
+    "oh_transition_p05_km", "oh_transition_p50_km", "oh_transition_p95_km",
+    "frac_oh_transition_valid", "frac_oh_transition_below_hsat",
 )
+
+#: INS-01a's threshold (Rev G, kept at G1 on 2026-10-20): the sweep start the
+#: goal-altitude completeness is scored at.
+INS01A_THRESHOLD_HZ = 0.33e6
 
 #: The default plan, which reproduces the Rev G band-edge run.
 DEFAULT_PLAN = "band_edge_reference"
@@ -333,6 +343,53 @@ def summarize(params, ne, alt_grid_m, h_sat, coverages=(0.90, 0.95, 0.99), f_min
     return rows, curve
 
 
+def goal_metrics(params, ne, alt_grid_m, h_sat, f_start_hz=INS01A_THRESHOLD_HZ):
+    """Completeness at a fixed sweep start and the O+/H+ transition, for one case.
+
+    The completeness is that of :func:`completeness` at ``f_start_hz``: what a
+    sweep that starts at INS-01a's threshold retrieves at this altitude.  The
+    transition height comes from the ``h_oplus_hplus_km`` extra the MATLAB
+    generator writes from 2026-10-20; a backend or file without it gives NaN.
+    "Below h_sat" counts a sample whose transition lies under the spacecraft,
+    the condition SCI-02's goal of h_sat up to 1400 km is there to reach; a
+    NaN transition (above the grid) counts as not below.
+    """
+    fn = np.asarray(params["fn_sat"], dtype=float)
+    ok = np.isfinite(fn) & np.isfinite(np.asarray(params["fof2"], dtype=float))
+    c = completeness(f_start_hz, params, ne, alt_grid_m, h_sat)
+    alt_c = np.asarray(c["altitude_completeness"], dtype=float)[ok]
+    out = {
+        "coverage_at_ins01a": coverage_fraction(fn[ok], f_start_hz),
+        "mean_alt_completeness_at_ins01a": float(np.mean(alt_c)) if alt_c.size else float("nan"),
+        "p05_alt_completeness_at_ins01a": (float(np.percentile(alt_c, 5)) if alt_c.size
+                                           else float("nan")),
+    }
+    oh = None
+    ex = params.get("extra")
+    if ex is not None:
+        from tss.l0_ionosphere.backends import EXTRA_COLUMNS
+        ex = np.asarray(ex, dtype=float)
+        k = list(EXTRA_COLUMNS).index("h_oplus_hplus_km")
+        if ex.ndim == 2 and ex.shape[1] > k:
+            oh = ex[:, k]
+    if oh is None or not np.isfinite(oh).any():
+        out.update(oh_transition_p05_km=float("nan"), oh_transition_p50_km=float("nan"),
+                   oh_transition_p95_km=float("nan"),
+                   frac_oh_transition_valid=0.0 if oh is not None else float("nan"),
+                   frac_oh_transition_below_hsat=float("nan"))
+        return out
+    v = oh[np.isfinite(oh)]
+    out.update(
+        oh_transition_p05_km=float(np.percentile(v, 5)),
+        oh_transition_p50_km=float(np.percentile(v, 50)),
+        oh_transition_p95_km=float(np.percentile(v, 95)),
+        frac_oh_transition_valid=float(np.mean(np.isfinite(oh))),
+        frac_oh_transition_below_hsat=float(np.mean(np.where(np.isfinite(oh),
+                                                              oh * 1e3 < h_sat, False))),
+    )
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Plans and backends
 # ---------------------------------------------------------------------------
@@ -475,6 +532,7 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
                     hmf2_p999_km=float(np.nanpercentile(hm, 99.9)) / 1e3,
                     frac_hsat_minus_hmf2_lt_100km=float(np.nanmean((h_sat - hm) < 100e3)),
                     samples_file=f"samples/{fname}" if keep_samples else "",
+                    **goal_metrics(p, ne, alt_grid, h_sat),
                 )
                 rows.append(rec)
                 for c in curve:

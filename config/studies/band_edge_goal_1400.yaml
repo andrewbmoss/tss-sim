@@ -1,0 +1,34 @@
+# WP0 Phase 4: SCI-02's goal, h_sat up to 1400 km.
+#
+# SCI-02's goal extends its threshold to spacecraft up to 1400 km, "to capture
+# the O+/H+ transition level".  This plan runs the Rev G band-edge harness
+# above the MIS-01 envelope, 1000 to 1400 km in 100 km steps, so that the
+# goal's lower band edge, the profile a sweep starting at INS-01a's 0.33 MHz
+# retrieves there, and the transition height against the spacecraft can be
+# read off the same samples.
+#
+# Solar minimum runs twice, because Phase 2 showed the user-R12 route sits at a
+# 1996-like minimum and the 2008-09 and 2019-20 minima lower the edge by 11-16
+# per cent: once as Rev G did (R12 = 10) and on the 2008-09 and 2019-20 epochs
+# with the foF2 storm model on.  Solar maximum is Rev G's R12 = 120.  Grid to
+# 2000 km, IRI's ceiling; 186 heights.  The O+/H+ transition height is the
+# h_oplus_hplus_km extra (tss_iri_profiles.m, 2026-10-20), written for every
+# sample.  Seed and samples as band_edge_reference.  120 cases, about 3-4 h.
+name: band_edge_goal_1400
+altitudes_km: [1000, 1100, 1200, 1300, 1400]
+orbit_classes: [O1, O2]
+topsides: [NeQuick, IRI-2001, IRI-2001 corrected]
+solar:
+  - {name: min, mode: r12, r12: 10}
+  - {name: max, mode: r12, r12: 120}
+  - {name: min2008, mode: epoch, epoch_start: "2008-05-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+  - {name: min2019, mode: epoch, epoch_start: "2019-06-01T00:00:00", duration_days: 365.0,
+     iri_options: {foF2_storm: "on", hmF2_storm: "off", foE_storm: "off", topside_storm: "off"}}
+samples: 20000
+seed: 17
+epoch_start: "2015-01-01T00:00:00"
+duration_days: 365.25
+alt_grid_km: [150, 2000, 10]
+chunk: 20000
+keep_samples: true

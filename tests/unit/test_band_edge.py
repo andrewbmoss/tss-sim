@@ -251,3 +251,50 @@ def test_two_cases_reproduce_the_rev_g_run(tmp_path, cls, alt_km, solar, r12, to
                 "f_min_for_99pct_coverage_MHz", "fn_sat_median_MHz", "fof2_median_MHz",
                 "hmf2_median_km"):
         assert summ[key] == pytest.approx(float(ref[key]), rel=1e-4), key
+
+
+def _chapman_case(n_scale, h_sat, alt):
+    """Profiles whose density at h_sat scales by ``n_scale`` per sample."""
+    from tss.studies.min_frequency import profile_parameters
+
+    base = 1e12 * np.exp(-(alt - 300e3) / 150e3)
+    base[alt < 300e3] = 1e12 * np.exp(-((alt[alt < 300e3] - 300e3) / 60e3) ** 2)
+    ne = np.asarray(n_scale)[:, None] * base[None, :]
+    return ne, profile_parameters(ne, alt, h_sat)
+
+
+def test_goal_metrics_completeness_and_transition():
+    """Phase 4 additions: completeness at a fixed start and the O+/H+ transition."""
+    from tss.l0_ionosphere.backends import EXTRA_COLUMNS
+    from tss.studies.min_frequency import INS01A_THRESHOLD_HZ, goal_metrics
+
+    alt = np.arange(150e3, 2001e3, 10e3)
+    h_sat = 1400e3
+    ne, params = _chapman_case([0.25, 0.8, 1.25, 4.0], h_sat, alt)
+    f_start = float(np.median(params["fn_sat"]))
+    extra = np.full((4, len(EXTRA_COLUMNS)), np.nan)
+    k = list(EXTRA_COLUMNS).index("h_oplus_hplus_km")
+    extra[:, k] = [800.0, 1200.0, 1600.0, np.nan]
+    params["extra"] = extra
+    g = goal_metrics(params, ne, alt, h_sat, f_start_hz=f_start)
+    assert g["coverage_at_ins01a"] == pytest.approx(0.5)
+    assert 0.0 < g["mean_alt_completeness_at_ins01a"] < 1.0
+    assert g["frac_oh_transition_valid"] == pytest.approx(0.75)
+    assert g["frac_oh_transition_below_hsat"] == pytest.approx(0.5)   # 800 and 1200 km
+    assert g["oh_transition_p50_km"] == pytest.approx(1200.0)
+    # A start below every fN_sat retrieves the whole topside.
+    g0 = goal_metrics(params, ne, alt, h_sat, f_start_hz=1.0)
+    assert g0["coverage_at_ins01a"] == 1.0
+    assert g0["p05_alt_completeness_at_ins01a"] == pytest.approx(1.0)
+    assert INS01A_THRESHOLD_HZ == 0.33e6
+
+
+def test_goal_metrics_without_transition_column():
+    from tss.studies.min_frequency import goal_metrics
+
+    alt = np.arange(150e3, 1001e3, 10e3)
+    ne, params = _chapman_case([1.0, 2.0], 900e3, alt)
+    params["extra"] = None
+    g = goal_metrics(params, ne, alt, 900e3)
+    assert np.isnan(g["oh_transition_p50_km"])
+    assert np.isnan(g["frac_oh_transition_below_hsat"])
