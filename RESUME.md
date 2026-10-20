@@ -139,6 +139,34 @@ So at 800 km INS-10 fails once the topside is IRI-2020's.  Not yet traced
 plasma frequency at the spacecraft).  The PyIRI column reproduces the
 pre-change baseline exactly.
 
+## WP0 closure, Phase 0 and Phase 1 (2026-10-19)
+
+Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
+
+* Phase 0: the Rev G band-edge run (MinFreqStudy, 2026-09-07) is frozen in
+  `data/reference/band_edge` with source hashes.  PHaRLAP's index files allow
+  epoch-driven runs from 1958-01-01 to 2024-12-09 (`apf107.dat` ends there).
+* Phase 1: `tss study min_frequency` is now the MinFreqStudy harness, ported
+  (`src/tss/studies/min_frequency.py`, plans in `config/studies`, doc
+  `docs/band-edge.md`).  The placeholder it replaces ran 400-800 km on a coarse
+  grid and silently skipped IRI.  It writes the harness's summary columns plus
+  SCI-02 columns, the ensemble (minimum across topsides), completeness curves
+  and per-sample scalars.
+* The `iri` tier and `MatlabIRIBackend` gained an epoch mode (`epoch_indices:
+  true`, R12 = -1), with the epochs checked against the index files before
+  MATLAB starts, and the extras now carry IG12, 81-day F10.7, daily Ap and the
+  foF2 storm ratio.
+* Fixed on the way: `iri_options` never reached MATLAB intact (the JSON string
+  lost its quotes on the `-batch` command line); they now go as a JSON file.
+  Nothing before today passed non-empty options, so no earlier result is
+  affected.
+* Tests: `tests/unit/test_band_edge.py` (the harness's 18 checks, the ensemble
+  direction, orbit sampling against the harness's own draws, the plan loader,
+  an end-to-end stand-in run, and two `-m pharlap` cases that match the
+  reference to 1e-4).  Suite 632 passed, 1 skipped; `-m pharlap` 4 passed.
+* G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
+  (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).
+
 ## Open findings of the 2026-10-17 review
 
 * L3 searches every bin out to each column's unambiguous range, about

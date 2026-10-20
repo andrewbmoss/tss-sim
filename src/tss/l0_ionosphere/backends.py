@@ -107,6 +107,7 @@ __all__ = [
     "IRI_TOPSIDE_OPTIONS",
     "EXTRA_COLUMNS",
     "PHARLAP_DEFAULT",
+    "iri_index_span",
 ]
 
 #: Topside models the PHaRLAP iri2020 wrapper actually exposes, spelled exactly
@@ -118,8 +119,11 @@ IRI_TOPSIDE_OPTIONS = ("NeQuick", "IRI-2001", "IRI-2001 corrected")
 
 #: Column order of the per-point extras.  The MATLAB generator writes these with
 #: the longer header names ``nmf2_m3, hmf2_km, solar_zenith_deg, dip_lat_deg,
-#: modip_deg, spread_f_prob, rz12, f107_daily, kp, ap``, in this order.  The
-#: short names are kept because the study code reads them.
+#: modip_deg, spread_f_prob, rz12, f107_daily, kp, ap, ig12, f107_81day,
+#: ap_daily, fof2_storm_ratio``, in this order.  The short names are kept
+#: because the study code reads them.  The last four were added on 2026-10-19
+#: so that an epoch-driven run records the indices IRI actually used; a file
+#: written before then has only the first ten and is read with the rest NaN.
 EXTRA_COLUMNS = (
     "nmf2",
     "hmf2_km",
@@ -131,6 +135,10 @@ EXTRA_COLUMNS = (
     "f107",
     "kp",
     "ap",
+    "ig12",
+    "f107_81",
+    "ap_daily",
+    "fof2_storm_ratio",
 )
 
 #: Where PHaRLAP lives on the machine this study was developed against.  Passed
@@ -141,6 +149,34 @@ PHARLAP_DEFAULT = os.environ.get(
     "TSS_PHARLAP_PATH",
     os.environ.get("PHARLAP_ROOT", r"C:\Users\Andrew\PhD\Chartier Verification\pharlap_4.7.4"),
 )
+
+
+def iri_index_span(pharlap_root: str | None = None) -> tuple[dt.date, dt.date]:
+    """First and last dates on which IRI's own index files can drive a run.
+
+    An epoch-driven call (R12 = -1) reads R12 and IG12 from ``ig_rz.dat`` by
+    month and F10.7 and ap from ``apf107.dat`` by day, and the PHaRLAP wrapper
+    raises for a date outside either file.  The span is the overlap: from the
+    later of the two first dates to the earlier of the two last.  ``ig_rz.dat``
+    gives its span in its third line as ``month,year,month,year``; the last line
+    of ``apf107.dat`` is its last day.
+    """
+    import calendar
+
+    root = Path(pharlap_root or PHARLAP_DEFAULT) / "dat" / "iri2020"
+    ig_lines = (root / "ig_rz.dat").read_text().splitlines()
+    m0, y0, m1, y1 = (int(v) for v in ig_lines[2].strip().rstrip(",").split(",")[:4])
+    ig_first = dt.date(y0, m0, 1)
+    ig_last = dt.date(y1, m1, calendar.monthrange(y1, m1)[1])
+
+    def _apf_date(line: str) -> dt.date:
+        yy, mm, dd = int(line[0:3]), int(line[3:6]), int(line[6:9])
+        return dt.date(1900 + yy if yy >= 58 else 2000 + yy, mm, dd)
+
+    apf = [ln for ln in (root / "apf107.dat").read_text().splitlines() if ln.strip()]
+    first = max(ig_first, _apf_date(apf[0]))
+    last = min(ig_last, _apf_date(apf[-1]))
+    return first, last
 
 
 def _repo_root() -> Path:
@@ -567,6 +603,20 @@ class MatlabIRIBackend(Backend):
     storm model being forced off.  Storm sensitivity is a separate run against
     real epochs.
 
+    EPOCH MODE (added 2026-10-19)
+    -----------------------------
+    ``solar_mode="epoch"`` passes R12 = -1, so IRI runs on each sample's own
+    R12, IG12, daily and 81-day F10.7 and ap from its index files, and the
+    storm models follow ``iri_options`` (PHaRLAP turns the foF2 storm model on
+    by default in this mode; a campaign should say which it wants).  The abort
+    that kept this route closed is prevented rather than risked:
+    :meth:`profiles` checks every epoch against :func:`iri_index_span` before
+    MATLAB starts and raises naming the first epoch outside it.  The reason it
+    is needed is the solar-minimum finding of 2026-10-18: with a user R12 the
+    mex derives IG12 from R12 by formula (9.1 at R12 = 15), while the index
+    file gives 17.3 for the solar-minimum ISIS-1 epochs, and the densities move
+    by about 16 per cent.
+
     AVAILABILITY
     ------------
     Both MATLAB and PHaRLAP are checked with :func:`tss.data.local_models.require`
@@ -599,17 +649,23 @@ class MatlabIRIBackend(Backend):
         manifest: bool = False,
         probe: bool = True,
         geomagnetic_model: str = "auto",
+        solar_mode: str = "r12",
     ) -> None:
         super().__init__(geomagnetic_model=geomagnetic_model)
         if topside not in IRI_TOPSIDE_OPTIONS:
             raise ValueError(
                 f"topside must be one of {IRI_TOPSIDE_OPTIONS}, got {topside!r}"
             )
-        if not (1.0 <= r12 <= 200.0):
+        if solar_mode not in ("r12", "epoch"):
+            raise ValueError(f"solar_mode must be 'r12' or 'epoch', got {solar_mode!r}")
+        if solar_mode == "epoch":
+            r12 = -1.0
+        elif not (1.0 <= r12 <= 200.0):
             raise ValueError(
-                "R12 must be in 1..200; -1 (epoch-driven) is deliberately not "
-                "supported here -- see the docstring"
+                "R12 must be in 1..200 for a user-specified solar level; use "
+                "solar_mode='epoch' for IRI's own indices -- see the docstring"
             )
+        self.solar_mode = solar_mode
         self.topside = topside
         self.r12 = float(r12)
         self.matlab = matlab
@@ -619,17 +675,28 @@ class MatlabIRIBackend(Backend):
         self.pharlap_root = pharlap_root or PHARLAP_DEFAULT
         self.timeout = timeout
         self.study = study
-        self.tag = tag or self.default_tag(topside, self.r12)
+        self.tag = tag or (
+            self.default_tag(topside, self.r12) if solar_mode == "r12"
+            else f"{str(topside).replace(' ', '-').replace('.', '').lower()}_epoch"
+        )
         self.progress = int(progress)
         self.manifest = bool(manifest)
         self.extra: np.ndarray | None = None
         self.last_info: dict[str, Any] = {}
-        self.label = f"IRI-2020(topside={topside}, R12={r12:g})"
-        self.provenance = (
-            f"PHaRLAP iri2020 mex via {self.script_dir}/tss_iri_profiles.m; "
-            f"R12={r12:g} -> F10.7={r12_to_f107(r12):.1f}; "
-            f"foF2 storm model off (forced by user R12)"
-        )
+        if solar_mode == "epoch":
+            self.label = f"IRI-2020(topside={topside}, epoch indices)"
+            self.provenance = (
+                f"PHaRLAP iri2020 mex via {self.script_dir}/tss_iri_profiles.m; "
+                "R12 = -1: R12, IG12, F10.7 and ap from ig_rz.dat and apf107.dat by "
+                f"epoch; storm models per iri_options {json.dumps(self.iri_options)}"
+            )
+        else:
+            self.label = f"IRI-2020(topside={topside}, R12={r12:g})"
+            self.provenance = (
+                f"PHaRLAP iri2020 mex via {self.script_dir}/tss_iri_profiles.m; "
+                f"R12={r12:g} -> F10.7={r12_to_f107(r12):.1f}; "
+                f"foF2 storm model off (forced by user R12)"
+            )
         self.availability: dict[str, Any] = {}
         if probe:
             self._require_local_models()
@@ -729,6 +796,8 @@ class MatlabIRIBackend(Backend):
                 "lat_deg, lon_deg and when must be the same length; got "
                 f"{len(lats)}, {len(lons)}, {len(epochs)}"
             )
+        if self.solar_mode == "epoch":
+            self._check_epochs_in_span(epochs)
 
         os.makedirs(self.workdir, exist_ok=True)
         rows = [
@@ -784,7 +853,15 @@ class MatlabIRIBackend(Backend):
         deliberately put on the path, PHaRLAP included, and the failure it causes
         surfaces far from its cause.
         """
-        opts_json = json.dumps(self.iri_options) if self.iri_options else ""
+        # The options go to MATLAB as a JSON file, not as a JSON string: the
+        # double quotes of a string on the -batch command line are removed by
+        # Windows argument parsing, and jsondecode then fails (2026-10-19).
+        opts_json = ""
+        if self.iri_options:
+            opts_path = os.path.join(self.workdir, "iri_options.json")
+            with open(opts_path, "w", encoding="utf-8") as fh:
+                json.dump(self.iri_options, fh)
+            opts_json = opts_path
         parts = [
             f"addpath('{_matlab_quote(self.script_dir)}');",
             "tss_iri_profiles(",
@@ -832,9 +909,14 @@ class MatlabIRIBackend(Backend):
         except FileNotFoundError:
             return None
         table = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
-        if table.shape[0] != n_points or table.shape[1] < 8 + len(EXTRA_COLUMNS):
+        if table.shape[0] != n_points or table.shape[1] < 8 + 10:
             return np.asarray(table, dtype=float)
-        return np.asarray(table[:, 8 : 8 + len(EXTRA_COLUMNS)], dtype=float)
+        # A file from before 2026-10-19 carries ten extras; pad the rest with NaN
+        # so that a column is never read from the wrong position.
+        out = np.full((table.shape[0], len(EXTRA_COLUMNS)), np.nan)
+        k = min(len(EXTRA_COLUMNS), table.shape[1] - 8)
+        out[:, :k] = table[:, 8 : 8 + k]
+        return out
 
     def _extra_for_point(self, index: int) -> dict[str, float]:
         """IRI's own NmF2 and hmF2 and the rest, when the extras were written.
@@ -855,18 +937,33 @@ class MatlabIRIBackend(Backend):
             out["fof2_hz"] = float(plasma_frequency(out["nmf2"]))
         return out
 
+    def _check_epochs_in_span(self, epochs: Sequence[dt.datetime]) -> None:
+        """Raise before MATLAB starts if any epoch is outside the index files."""
+        first, last = iri_index_span(self.pharlap_root)
+        days = [w.date() if isinstance(w, dt.datetime) else w for w in epochs]
+        bad = [d for d in days if not (first <= d <= last)]
+        if bad:
+            raise ValueError(
+                f"{len(bad)} of {len(days)} epochs fall outside IRI's index files "
+                f"({first} to {last}), for example {bad[0]}; an epoch-driven run "
+                "would abort there"
+            )
+
     def _settings(self) -> dict[str, Any]:
+        epoch = self.solar_mode == "epoch"
         return {
             "topside": self.topside,
-            "r12": self.r12,
-            "f107_from_r12": float(r12_to_f107(self.r12)),
+            "solar_mode": self.solar_mode,
+            "r12": None if epoch else self.r12,
+            "f107_from_r12": None if epoch else float(r12_to_f107(self.r12)),
             "iri_options": dict(self.iri_options),
             "pharlap_root": self.pharlap_root,
             "script_dir": self.script_dir,
             "workdir": self.workdir,
             "study": self.study,
             "tag": self.tag,
-            "storm_model": "off, forced by user R12",
+            "storm_model": ("per iri_options (PHaRLAP default: foF2 storm on)" if epoch
+                            else "off, forced by user R12"),
             "availability": dict(self.availability),
         }
 
@@ -916,6 +1013,10 @@ class IRIBackend(Backend):
     implementations at F10.7 = 120 (R12 = 71.1 for PHaRLAP).  There is no
     default, for the reason :class:`PyIRIBackend` gives.
 
+    ``epoch_indices=True`` instead runs PHaRLAP on each epoch's own indices
+    (R12 = -1; :class:`MatlabIRIBackend` epoch mode), with neither ``f107`` nor
+    ``r12`` stated.  PyIRI has no such mode and refuses it.
+
     ``topside`` is passed through: PHaRLAP gives ``NeQuick``, ``IRI-2001`` and
     ``IRI-2001 corrected``; PyIRI only ``NeQuick``.  Every other keyword goes to
     the chosen implementation unchanged, so ``pharlap_root``, ``timeout``,
@@ -940,6 +1041,7 @@ class IRIBackend(Backend):
         f107: float | None = None,
         r12: float | None = None,
         *,
+        epoch_indices: bool = False,
         geomagnetic_model: str = "auto",
         **options: Any,
     ) -> None:
@@ -949,6 +1051,29 @@ class IRIBackend(Backend):
             raise ValueError(
                 f"model must be one of {tuple(IRI_MODELS)}, got {model!r}"
             )
+        if epoch_indices:
+            if f107 is not None or r12 is not None:
+                raise ValueError("epoch_indices=True takes the indices from the epoch; "
+                                 "do not also state f107 or r12")
+            if key != "pharlap":
+                raise ValueError("epoch_indices needs model: pharlap; PyIRI takes only a stated F10.7")
+            try:
+                impl = MatlabIRIBackend(topside=topside, geomagnetic_model=geomagnetic_model,
+                                        solar_mode="epoch", **options)
+            except TypeError as exc:
+                raise TypeError(
+                    f"l0/iri model={key} passes its options to MatlabIRIBackend, "
+                    f"which refused them: {exc}"
+                ) from exc
+            self.impl = impl
+            self.model = key
+            self.topside = topside
+            self.f107 = None
+            self.r12 = None
+            self.solar_index_stated = "epoch"
+            self.label = f"{impl.label} [l0/iri model={key}]"
+            self.provenance = f"l0/iri model={key} -> l0/{IRI_MODELS[key]}; {impl.provenance}"
+            return
         if (f107 is None) == (r12 is None):
             raise ValueError(
                 "the iri tier needs one solar index, f107 (daily F10.7, SFU) or "

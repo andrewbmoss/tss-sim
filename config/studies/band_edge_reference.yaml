@@ -1,0 +1,27 @@
+# The band-edge run that set INS-01a in Requirements Rev G.
+#
+# Reproduces Dissertation/MinFreqStudy (run 2026-09-07, out/minfreq_summary.csv,
+# kept in data/reference/band_edge): IRI-2020 through PHaRLAP, 20,000 samples
+# drawn uniformly over a year along each orbit, five altitudes, two orbit
+# classes, a user R12 for solar minimum and maximum, and the three topside
+# models the PHaRLAP wrapper exposes.  60 cases, 1.2 million profiles, about an
+# hour.  The loop order and the seed are the harness's, so each case draws the
+# same samples it did.
+name: band_edge_reference
+altitudes_km: [500, 600, 700, 800, 900]
+orbit_classes: [O1, O2]
+topsides: [NeQuick, IRI-2001, IRI-2001 corrected]
+solar:
+  # A user R12; the mex derives F10.7 and IG12 from it and turns the foF2
+  # storm model off.  See the 2026-10-18 finding on IG12 at solar minimum.
+  - {name: min, mode: r12, r12: 10}
+  - {name: max, mode: r12, r12: 120}
+samples: 20000
+seed: 17
+# The epoch only sets the season; with a user R12 the year is inert.
+epoch_start: "2015-01-01T00:00:00"
+duration_days: 365.25
+# km: first, last, step.  The harness's grid; 86 heights.
+alt_grid_km: [150, 1000, 10]
+chunk: 20000
+keep_samples: true

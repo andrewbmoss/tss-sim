@@ -146,3 +146,53 @@ def test_pharlap_route_runs_at_the_stated_solar_level():
     extra = tier._extra_for_point(0)
     assert extra["f107"] == pytest.approx(120.0, abs=0.05)
     assert 1.0e11 < extra["nmf2"] < 5.0e12 and 200.0 < extra["hmf2_km"] < 450.0
+
+
+# --- epoch mode (2026-10-19) ---------------------------------------------------
+def test_epoch_indices_run_pharlap_on_the_epochs_own_indices():
+    tier = build("l0", "iri", epoch_indices=True, probe=False)
+    assert tier.solar_index_stated == "epoch" and tier.f107 is None and tier.r12 is None
+    assert tier.impl.solar_mode == "epoch" and tier.impl.r12 == -1.0
+    assert "epoch" in tier.label and tier.impl.tag == "nequick_epoch"
+    record = dict(tier.describe())
+    json.dumps(record)
+    assert record["implementation_settings"]["solar_mode"] == "epoch"
+
+
+def test_epoch_indices_refuse_a_stated_index_and_pyiri():
+    with pytest.raises(ValueError, match="do not also state"):
+        build("l0", "iri", epoch_indices=True, f107=120.0, probe=False)
+    with pytest.raises(ValueError, match="pharlap"):
+        build("l0", "iri", model="pyiri", epoch_indices=True)
+
+
+def test_an_epoch_outside_the_index_files_fails_before_matlab(monkeypatch):
+    from tss.l0_ionosphere import backends
+
+    monkeypatch.setattr(backends, "iri_index_span",
+                        lambda root=None: (dt.date(1958, 1, 1), dt.date(2024, 12, 9)))
+    tier = build("l0", "iri", epoch_indices=True, probe=False)
+    monkeypatch.setattr(backends.subprocess, "run",
+                        lambda *a, **k: pytest.fail("MATLAB must not start"))
+    with pytest.raises(ValueError, match="outside IRI's index files"):
+        tier.profiles([0.0], [0.0], [dt.datetime(2025, 6, 1)], ALT)
+
+
+def test_the_index_span_is_read_from_the_files(tmp_path):
+    from tss.l0_ionosphere.backends import iri_index_span
+
+    d = tmp_path / "dat" / "iri2020"
+    d.mkdir(parents=True)
+    (d / "ig_rz.dat").write_text("12,10,2024,\n\n1,1958,11,2026,\n1.0,\n")
+    (d / "apf107.dat").write_text(" 58  1  1 80\n 24 12  9  3\n")
+    assert iri_index_span(str(tmp_path)) == (dt.date(1958, 1, 1), dt.date(2024, 12, 9))
+
+
+@pytest.mark.pharlap
+def test_epoch_mode_reports_the_indices_it_ran_on():
+    tier = build("l0", "iri", epoch_indices=True, iri_options={"foF2_storm": "on"})
+    when = [dt.datetime(2008, 7, 1, 12), dt.datetime(1969, 3, 1, 12)]
+    tier.profiles([42.6, 42.6], [-71.5, -71.5], when, ALT)
+    lo, hi = tier._extra_for_point(0), tier._extra_for_point(1)
+    assert lo["rz12"] < 20 < 80 < hi["rz12"]
+    assert np.isfinite(lo["ig12"]) and np.isfinite(lo["f107_81"]) and np.isfinite(lo["ap_daily"])

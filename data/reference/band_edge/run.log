@@ -1,0 +1,63 @@
+O1  500 km  solar min  NeQuick       fN med  1.91 MHz  f_min(95%)  0.79 MHz  foF2 med  4.19 MHz
+O2  500 km  solar min  NeQuick       fN med  2.57 MHz  f_min(95%)  1.06 MHz  foF2 med  5.64 MHz
+O1  600 km  solar min  NeQuick       fN med  1.41 MHz  f_min(95%)  0.59 MHz  foF2 med  4.16 MHz
+O2  600 km  solar min  NeQuick       fN med  1.88 MHz  f_min(95%)  0.78 MHz  foF2 med  5.60 MHz
+O1  700 km  solar min  NeQuick       fN med  1.13 MHz  f_min(95%)  0.47 MHz  foF2 med  4.22 MHz
+O2  700 km  solar min  NeQuick       fN med  1.48 MHz  f_min(95%)  0.61 MHz  foF2 med  5.62 MHz
+O1  800 km  solar min  NeQuick       fN med  0.92 MHz  f_min(95%)  0.39 MHz  foF2 med  4.18 MHz
+O2  800 km  solar min  NeQuick       fN med  1.20 MHz  f_min(95%)  0.50 MHz  foF2 med  5.61 MHz
+O1  900 km  solar min  NeQuick       fN med  0.78 MHz  f_min(95%)  0.33 MHz  foF2 med  4.17 MHz
+O2  900 km  solar min  NeQuick       fN med  1.01 MHz  f_min(95%)  0.42 MHz  foF2 med  5.59 MHz
+O1  500 km  solar max  NeQuick       fN med  4.45 MHz  f_min(95%)  2.24 MHz  foF2 med  7.18 MHz
+O2  500 km  solar max  NeQuick       fN med  6.19 MHz  f_min(95%)  2.78 MHz  foF2 med 10.19 MHz
+O1  600 km  solar max  NeQuick       fN med  3.31 MHz  f_min(95%)  1.68 MHz  foF2 med  7.19 MHz
+O2  600 km  solar max  NeQuick       fN med  4.50 MHz  f_min(95%)  2.03 MHz  foF2 med 10.17 MHz
+O1  700 km  solar max  NeQuick       fN med  2.60 MHz  f_min(95%)  1.32 MHz  foF2 med  7.32 MHz
+O2  700 km  solar max  NeQuick       fN med  3.45 MHz  f_min(95%)  1.59 MHz  foF2 med 10.17 MHz
+O1  800 km  solar max  NeQuick       fN med  2.08 MHz  f_min(95%)  1.08 MHz  foF2 med  7.24 MHz
+O2  800 km  solar max  NeQuick       fN med  2.77 MHz  f_min(95%)  1.30 MHz  foF2 med 10.17 MHz
+O1  900 km  solar max  NeQuick       fN med  1.74 MHz  f_min(95%)  0.90 MHz  foF2 med  7.25 MHz
+O2  900 km  solar max  NeQuick       fN med  2.29 MHz  f_min(95%)  1.07 MHz  foF2 med 10.15 MHz
+O1  500 km  solar min  IRI-2001      fN med  1.92 MHz  f_min(95%)  0.88 MHz  foF2 med  4.19 MHz
+O2  500 km  solar min  IRI-2001      fN med  2.83 MHz  f_min(95%)  1.44 MHz  foF2 med  5.64 MHz
+O1  600 km  solar min  IRI-2001      fN med  1.43 MHz  f_min(95%)  0.66 MHz  foF2 med  4.16 MHz
+O2  600 km  solar min  IRI-2001      fN med  2.23 MHz  f_min(95%)  1.17 MHz  foF2 med  5.60 MHz
+O1  700 km  solar min  IRI-2001      fN med  1.21 MHz  f_min(95%)  0.55 MHz  foF2 med  4.22 MHz
+O2  700 km  solar min  IRI-2001      fN med  1.96 MHz  f_min(95%)  1.03 MHz  foF2 med  5.62 MHz
+O1  800 km  solar min  IRI-2001      fN med  1.09 MHz  f_min(95%)  0.50 MHz  foF2 med  4.18 MHz
+O2  800 km  solar min  IRI-2001      fN med  1.85 MHz  f_min(95%)  0.95 MHz  foF2 med  5.61 MHz
+O1  900 km  solar min  IRI-2001      fN med  1.03 MHz  f_min(95%)  0.48 MHz  foF2 med  4.17 MHz
+O2  900 km  solar min  IRI-2001      fN med  1.78 MHz  f_min(95%)  0.91 MHz  foF2 med  5.59 MHz
+O1  500 km  solar max  IRI-2001      fN med  5.03 MHz  f_min(95%)  2.85 MHz  foF2 med  7.18 MHz
+O2  500 km  solar max  IRI-2001      fN med  5.73 MHz  f_min(95%)  3.12 MHz  foF2 med 10.19 MHz
+O1  600 km  solar max  IRI-2001      fN med  3.92 MHz  f_min(95%)  2.36 MHz  foF2 med  7.19 MHz
+O2  600 km  solar max  IRI-2001      fN med  3.97 MHz  f_min(95%)  2.43 MHz  foF2 med 10.17 MHz
+O1  700 km  solar max  IRI-2001      fN med  3.25 MHz  f_min(95%)  2.05 MHz  foF2 med  7.32 MHz
+O2  700 km  solar max  IRI-2001      fN med  3.11 MHz  f_min(95%)  2.08 MHz  foF2 med 10.17 MHz
+O1  800 km  solar max  IRI-2001      fN med  2.88 MHz  f_min(95%)  1.88 MHz  foF2 med  7.24 MHz
+O2  800 km  solar max  IRI-2001      fN med  2.71 MHz  f_min(95%)  1.89 MHz  foF2 med 10.17 MHz
+O1  900 km  solar max  IRI-2001      fN med  2.69 MHz  f_min(95%)  1.77 MHz  foF2 med  7.25 MHz
+O2  900 km  solar max  IRI-2001      fN med  2.51 MHz  f_min(95%)  1.77 MHz  foF2 med 10.15 MHz
+O1  500 km  solar min  IRI-2001 corrected  fN med  1.90 MHz  f_min(95%)  0.87 MHz  foF2 med  4.19 MHz
+O2  500 km  solar min  IRI-2001 corrected  fN med  2.76 MHz  f_min(95%)  1.38 MHz  foF2 med  5.64 MHz
+O1  600 km  solar min  IRI-2001 corrected  fN med  1.40 MHz  f_min(95%)  0.61 MHz  foF2 med  4.16 MHz
+O2  600 km  solar min  IRI-2001 corrected  fN med  2.08 MHz  f_min(95%)  1.05 MHz  foF2 med  5.60 MHz
+O1  700 km  solar min  IRI-2001 corrected  fN med  1.14 MHz  f_min(95%)  0.48 MHz  foF2 med  4.22 MHz
+O2  700 km  solar min  IRI-2001 corrected  fN med  1.69 MHz  f_min(95%)  0.87 MHz  foF2 med  5.62 MHz
+O1  800 km  solar min  IRI-2001 corrected  fN med  0.95 MHz  f_min(95%)  0.40 MHz  foF2 med  4.18 MHz
+O2  800 km  solar min  IRI-2001 corrected  fN med  1.47 MHz  f_min(95%)  0.75 MHz  foF2 med  5.61 MHz
+O1  900 km  solar min  IRI-2001 corrected  fN med  0.82 MHz  f_min(95%)  0.35 MHz  foF2 med  4.17 MHz
+O2  900 km  solar min  IRI-2001 corrected  fN med  1.29 MHz  f_min(95%)  0.66 MHz  foF2 med  5.59 MHz
+O1  500 km  solar max  IRI-2001 corrected  fN med  4.99 MHz  f_min(95%)  2.83 MHz  foF2 med  7.18 MHz
+O2  500 km  solar max  IRI-2001 corrected  fN med  5.65 MHz  f_min(95%)  3.04 MHz  foF2 med 10.19 MHz
+O1  600 km  solar max  IRI-2001 corrected  fN med  3.84 MHz  f_min(95%)  2.24 MHz  foF2 med  7.19 MHz
+O2  600 km  solar max  IRI-2001 corrected  fN med  3.79 MHz  f_min(95%)  2.24 MHz  foF2 med 10.17 MHz
+O1  700 km  solar max  IRI-2001 corrected  fN med  3.07 MHz  f_min(95%)  1.81 MHz  foF2 med  7.32 MHz
+O2  700 km  solar max  IRI-2001 corrected  fN med  2.79 MHz  f_min(95%)  1.79 MHz  foF2 med 10.17 MHz
+O1  800 km  solar max  IRI-2001 corrected  fN med  2.52 MHz  f_min(95%)  1.54 MHz  foF2 med  7.24 MHz
+O2  800 km  solar max  IRI-2001 corrected  fN med  2.23 MHz  f_min(95%)  1.50 MHz  foF2 med 10.17 MHz
+O1  900 km  solar max  IRI-2001 corrected  fN med  2.15 MHz  f_min(95%)  1.35 MHz  foF2 med  7.25 MHz
+O2  900 km  solar max  IRI-2001 corrected  fN med  1.90 MHz  f_min(95%)  1.31 MHz  foF2 med 10.15 MHz
+
+wrote out/minfreq_summary.csv and out/completeness_curves.csv
+wrote figures to out/

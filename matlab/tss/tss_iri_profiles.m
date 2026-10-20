@@ -18,10 +18,14 @@ function info = tss_iri_profiles(outdir, points, alt_km, varargin)
 %     'Topside'      'NeQuick' (default), 'IRI-2001' or 'IRI-2001 corrected'.
 %                    These are the only topside models the PHaRLAP iri2020
 %                    wrapper exposes.  IRI's Gulyaeva option is not reachable.
-%     'R12'          user specified yearly smoothed sunspot number, 1 to 200.
-%                    Default 105.  See WHY R12 below.
-%     'IriOptions'   struct, or a JSON string, of extra iri_options fields
-%                    merged over the explicit defaults set here.
+%     'R12'          user specified yearly smoothed sunspot number, 1 to 200,
+%                    or -1 to run on each epoch's own indices from IRI's index
+%                    files (ig_rz.dat, apf107.dat).  Default 105.  See WHY R12
+%                    below; the caller must check the epochs lie inside the
+%                    files' span, because the wrapper errors outside it.
+%     'IriOptions'   struct, a JSON string, or the path of a JSON file, of
+%                    extra iri_options fields merged over the explicit defaults
+%                    set here.
 %     'PharlapRoot'  installation root.  Default: TSS_PHARLAP_PATH, then
 %                    PHARLAP_ROOT, then a short list of known locations.
 %     'Study'        study name used in the file names.  Default 'iri'.
@@ -64,8 +68,11 @@ function info = tss_iri_profiles(outdir, points, alt_km, varargin)
 %   <study>_extra_<tag>.csv
 %     point_id, the same epoch and location columns, then nmf2_m3, hmf2_km,
 %     solar_zenith_deg, dip_lat_deg, modip_deg, spread_f_prob, rz12,
-%     f107_daily, kp, ap.  These come from IRI's iono_extra and are more
-%     accurate than reading them off the sampled altitude grid.
+%     f107_daily, kp, ap, ig12, f107_81day, ap_daily, fof2_storm_ratio
+%     (iono_extra 1, 2, 23, 26, 27, 48, 33, 41, 83, 51, 39, 46, 52, 45).  These
+%     come from IRI's iono_extra and are more accurate than reading them off
+%     the sampled altitude grid.  The last four were added on 2026-10-19 for
+%     epoch-driven runs; a reader that knows only the first ten still works.
 %
 %   <study>_alt_km_<tag>.csv
 %     one column, alt_km, the authoritative grid.
@@ -106,7 +113,7 @@ p.addRequired('outdir',  @(x) ischar(x) || isstring(x));
 p.addRequired('points',  @(x) isnumeric(x) || ischar(x) || isstring(x) || istable(x));
 p.addRequired('alt_km',  @(x) isnumeric(x) || ischar(x) || isstring(x));
 p.addParameter('Topside', 'NeQuick', @(x) ischar(x) || isstring(x));
-p.addParameter('R12', 105, @(x) isnumeric(x) && isscalar(x));
+p.addParameter('R12', 105, @(x) isnumeric(x) && isscalar(x) && (x == -1 || (x >= 1 && x <= 200)));
 p.addParameter('IriOptions', struct(), @(x) isstruct(x) || ischar(x) || isstring(x));
 p.addParameter('PharlapRoot', '', @(x) ischar(x) || isstring(x));
 p.addParameter('Study', 'iri', @(x) ischar(x) || isstring(x));
@@ -153,18 +160,26 @@ end
 
 tag = char(a.Tag);
 if isempty(tag)
-    tag = sprintf('%s_r12-%g', lower(strrep(strrep(topside, ' ', '-'), '.', '')), R12);
+    if R12 == -1
+        tag = sprintf('%s_epoch', lower(strrep(strrep(topside, ' ', '-'), '.', '')));
+    else
+        tag = sprintf('%s_r12-%g', lower(strrep(strrep(topside, ' ', '-'), '.', '')), R12);
+    end
 end
 study = char(a.Study);
 stem  = @(what, ext) fullfile(outdir, sprintf('%s_%s_%s.%s', study, what, tag, ext));
 
 fprintf('tss_iri_profiles: %d points x %d altitudes (%.0f-%.0f km step %.0f)\n', ...
         n, na, ht_start, alt(end), ht_step);
-fprintf('                  topside = %s, R12 = %g (F10.7 ~ %.1f)\n', ...
-        topside, R12, 63.7 + 0.728*R12 + 0.00089*R12^2);
+if R12 == -1
+    fprintf('                  topside = %s, indices from the epoch (R12 = -1)\n', topside);
+else
+    fprintf('                  topside = %s, R12 = %g (F10.7 ~ %.1f)\n', ...
+            topside, R12, 63.7 + 0.728*R12 + 0.00089*R12^2);
+end
 
 ne    = nan(n, na);
-extra = nan(n, 10);
+extra = nan(n, 14);
 nfail = 0;
 progress_every = max(round(a.Progress), 0);
 
@@ -184,7 +199,8 @@ for k = 1:n
 
         e = iono_extra;
         extra(k,:) = [pick(e,1), pick(e,2), pick(e,23), pick(e,26), pick(e,27), ...
-                      pick(e,48), pick(e,33), pick(e,41), pick(e,83), pick(e,51)];
+                      pick(e,48), pick(e,33), pick(e,41), pick(e,83), pick(e,51), ...
+                      pick(e,39), pick(e,46), pick(e,52), pick(e,45)];
     catch ME
         % One bad point must not lose a half-hour batch.  Record it and move on.
         nfail = nfail + 1;
@@ -217,7 +233,8 @@ write_numeric_csv(info.ne_csv, [meta_names, ne_names], ...
     [(1:n).', pts], ne, '%.6e');
 
 extra_names = {'nmf2_m3', 'hmf2_km', 'solar_zenith_deg', 'dip_lat_deg', ...
-               'modip_deg', 'spread_f_prob', 'rz12', 'f107_daily', 'kp', 'ap'};
+               'modip_deg', 'spread_f_prob', 'rz12', 'f107_daily', 'kp', 'ap', ...
+               'ig12', 'f107_81day', 'ap_daily', 'fof2_storm_ratio'};
 write_numeric_csv(info.extra_csv, [meta_names, extra_names], ...
     [(1:n).', pts], extra, '%.6g');
 
@@ -385,6 +402,12 @@ function o = merge_options(o, extra)
 if isempty(extra), return; end
 if ischar(extra) || isstring(extra)
     if strlength(string(extra)) == 0, return; end
+    % A path to a JSON file is read first.  The Python side passes options this
+    % way because a JSON string on the -batch command line loses its double
+    % quotes to Windows argument parsing (found 2026-10-19).
+    if isfile(char(extra))
+        extra = fileread(char(extra));
+    end
     extra = jsondecode(char(extra));
 end
 f = fieldnames(extra);
