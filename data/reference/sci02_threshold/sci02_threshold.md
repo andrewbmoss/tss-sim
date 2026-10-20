@@ -331,6 +331,9 @@ Fractions in per cent of samples.  margin = h_sat - hmF2.
  "revG": {
   "n_cells": 20,
   "above_peak": false,
+  "above_peak_fraction_required": 0.999,
+  "min_fraction_above_peak": 0.9996,
+  "above_peak_fraction_met": true,
   "worst_below_peak": {
    "cell": "revG:O2/500 km/max",
    "fraction": 0.0004,
@@ -355,6 +358,9 @@ Fractions in per cent of samples.  margin = h_sat - hmF2.
  "solarmin_epoch": {
   "n_cells": 50,
   "above_peak": true,
+  "above_peak_fraction_required": 0.999,
+  "min_fraction_above_peak": 1.0,
+  "above_peak_fraction_met": true,
   "worst_below_peak": {
    "cell": "solarmin_epoch:O1/500 km/min1986",
    "fraction": 0.0,
@@ -379,6 +385,9 @@ Fractions in per cent of samples.  margin = h_sat - hmF2.
  "storm_epoch": {
   "n_cells": 16,
   "above_peak": false,
+  "above_peak_fraction_required": 0.999,
+  "min_fraction_above_peak": 0.9993,
+  "above_peak_fraction_met": true,
   "worst_below_peak": {
    "cell": "storm_epoch:O2/500 km/max2000",
    "fraction": 0.0007,
@@ -403,6 +412,9 @@ Fractions in per cent of samples.  margin = h_sat - hmF2.
  "storm_m3000": {
   "n_cells": 8,
   "above_peak": true,
+  "above_peak_fraction_required": 0.999,
+  "min_fraction_above_peak": 1.0,
+  "above_peak_fraction_met": true,
   "worst_below_peak": {
    "cell": "storm_m3000:O1/500 km/hall2003m",
    "fraction": 0.0,
@@ -427,6 +439,9 @@ Fractions in per cent of samples.  margin = h_sat - hmF2.
  "all": {
   "n_cells": 94,
   "above_peak": false,
+  "above_peak_fraction_required": 0.999,
+  "min_fraction_above_peak": 0.9993,
+  "above_peak_fraction_met": true,
   "worst_below_peak": {
    "cell": "storm_epoch:O2/500 km/max2000",
    "fraction": 0.0007,

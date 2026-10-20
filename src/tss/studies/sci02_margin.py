@@ -40,6 +40,11 @@ import numpy as np
 
 MARGINS_KM = (0.0, 50.0, 100.0)
 ENVELOPE_KM = (200.0, 500.0)
+#: MIS-01 as Andrew restated it on 2026-10-20 (G3): the spacecraft above the
+#: F2 peak in at least this fraction of the band-edge samples, in place of
+#: Rev G's "at all times sampled".  99.9 per cent matches the 0.1/99.9
+#: percentile reading of SCI-02's hmF2 envelope.
+MIS01_ABOVE_PEAK_FRACTION = 0.999
 LT_EDGES_H = tuple(range(0, 25, 3))
 # Kp bins: quiet, unsettled/active, minor-moderate storm, strong-severe storm.
 KP_EDGES = (0.0, 3.0, 5.0, 7.0, 9.01)
@@ -157,11 +162,15 @@ def cell_tables(samples_dir: Path, run: str, topside: str = "nequick"):
     return cells, lt_rows, kp_rows
 
 
-def verdict(cells: list[dict[str, Any]], altitudes_km=(500.0, 900.0)) -> dict[str, Any]:
+def verdict(cells: list[dict[str, Any]], altitudes_km=(500.0, 900.0),
+            min_fraction_above: float = MIS01_ABOVE_PEAK_FRACTION) -> dict[str, Any]:
     """The SCI-02 threshold reading of a set of cell rows.
 
-    * ``above_peak``: no sample in the h_sat range has hmF2 at or above the
-      spacecraft (MIS-01, "above the F2 peak at all times sampled").
+    * ``above_peak``: no sample in the h_sat range has hmF2 above the
+      spacecraft (Rev G's MIS-01, "above the F2 peak at all times sampled").
+    * ``above_peak_fraction_met``: in every cell at least
+      ``min_fraction_above`` of the samples have the spacecraft above the peak
+      (MIS-01 as restated on 2026-10-20).
     * ``in_envelope``: the 0.1 and 99.9 percentiles of hmF2 lie in 200-500 km.
     The worst cells are named so the reading can be checked.
     """
@@ -180,6 +189,9 @@ def verdict(cells: list[dict[str, Any]], altitudes_km=(500.0, 900.0)) -> dict[st
     return {
         "n_cells": len(rows),
         "above_peak": worst_below["frac_margin_lt_0km"] == 0.0,
+        "above_peak_fraction_required": min_fraction_above,
+        "min_fraction_above_peak": 1.0 - worst_below["frac_margin_lt_0km"],
+        "above_peak_fraction_met": (1.0 - worst_below["frac_margin_lt_0km"]) >= min_fraction_above,
         "worst_below_peak": {"cell": name(worst_below),
                              "fraction": worst_below["frac_margin_lt_0km"],
                              "min_margin_km": worst_below["min_margin_km"]},

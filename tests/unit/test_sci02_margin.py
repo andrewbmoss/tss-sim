@@ -61,6 +61,8 @@ def test_verdict_names_the_worst_cell():
     v = m.verdict(cells)
     assert v["n_cells"] == 2                       # 1200 km is outside the threshold range
     assert not v["above_peak"]
+    assert v["min_fraction_above_peak"] == pytest.approx(0.5)
+    assert not v["above_peak_fraction_met"]
     assert v["worst_below_peak"]["cell"] == "a:O1/500 km/max"
     assert v["highest_hmf2_p999"]["cell"] == "a:O1/500 km/max"
 
@@ -82,3 +84,19 @@ def test_cell_tables_read_samples(tmp_path):
     assert sum(r["n"] for r in lt) == n and sum(r["n"] for r in kp) == n
     assert cells[0]["frac_margin_lt_0km"] == pytest.approx(np.mean(hm > 500e3))
     assert m.topside_independence(d) == 0.0
+
+
+def test_mis01_fraction_reading():
+    """MIS-01 as restated 2026-10-20: above the peak in at least 99.9 % of samples."""
+    assert m.MIS01_ABOVE_PEAK_FRACTION == 0.999
+    hm = np.full(10000, 300e3)
+    hm[:7] = 520e3                                  # 0.07 %, the Phase 3 worst cell
+    cells = [dict(run="a", orbit_class="O2", altitude_km=500.0, solar="max",
+                  **m.margin_stats(500e3, hm))]
+    v = m.verdict(cells)
+    assert not v["above_peak"]
+    assert v["above_peak_fraction_met"]
+    assert v["min_fraction_above_peak"] == pytest.approx(0.9993)
+    hm[:11] = 520e3                                 # 0.11 % fails
+    cells[0].update(m.margin_stats(500e3, hm))
+    assert not m.verdict(cells)["above_peak_fraction_met"]

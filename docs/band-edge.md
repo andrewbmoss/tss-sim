@@ -179,9 +179,15 @@ Results:
   hmF2 envelope holds at the 0.1/99.9 per cent level, in IRI climatology at
   every solar level.  At 500 km and solar maximum, MIS-01's "above the F2 peak
   at all times sampled" fails in 0.03-0.07 per cent of samples, and the
-  storm-time case is not verified.  Whether to restate MIS-01 as a fraction of
-  samples, raise its floor for solar-maximum missions, or accept the 500 km
-  exceedance is a decision for the requirements revision (G3).
+  storm-time case is not verified.
+* **G3 decision (Andrew, 2026-10-20): state MIS-01 as a fraction of samples.**
+  The fraction is set at 99.9 per cent, the same level as the 0.1/99.9
+  percentile reading of the hmF2 envelope (`MIS01_ABOVE_PEAK_FRACTION` in
+  `tss.studies.sci02_margin`; the verdict reports `above_peak_fraction_met`).
+  Every cell meets it; the worst, O2 / 500 km / 2000-01, is at 99.93 per cent,
+  so the margin is 0.03 per cent of samples, and it is the margin a storm-time
+  uplift IRI does not model would have to fit inside.  The wording enters the
+  requirements document with the WP0 close-out.
 
 ## Phase 4: SCI-02's goal, h_sat 1000-1400 km (2026-10-20)
 

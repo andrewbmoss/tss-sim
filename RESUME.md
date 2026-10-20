@@ -185,7 +185,8 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   0.1/99.9 percentiles inside 200-500 km everywhere.  At 500 km, solar max,
   0.03-0.07 % of samples have the peak above the spacecraft (MIS-01 "at all
   times" not met); IRI's hmF2 has no storm uplift, so storm time is not
-  verified.  MIS-01 wording goes to G3.
+  verified.  G3 decision (Andrew): MIS-01 restated as a fraction of samples,
+  99.9 % (`MIS01_ABOVE_PEAK_FRACTION`); worst cell 99.93 %, met everywhere.
 * Phase 4 (2026-10-20): plan `band_edge_goal_1400`, 120 cases to 2000 km, with
   the O+/H+ transition extra and completeness at a 0.33 MHz start
   (`goal_metrics`); `scripts/goal_knockons.py`; outputs in

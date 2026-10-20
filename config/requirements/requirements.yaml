@@ -582,9 +582,10 @@ not_scored:
       (2026-10-20): threshold met over 600-900 km at every solar level; hmF2
       0.1/99.9 percentiles inside 200-500 km in all 94 cells (extremes 194 and
       536 km).  At 500 km and solar maximum the peak is above the spacecraft
-      in 0.03-0.07 per cent of samples (by up to 36 km), so MIS-01's "at all
-      times sampled" is not met there; storm-time hmF2 uplift is outside IRI
-      and not verified.  docs/band-edge.md, Phase 3.  The goal of 1400 km is a
+      in 0.03-0.07 per cent of samples (by up to 36 km): Rev G's MIS-01 "at
+      all times sampled" is not met there, MIS-01 as restated at G3 (at least
+      99.9 per cent of samples, 2026-10-20) is, with the worst cell at 99.93
+      per cent.  Storm-time hmF2 uplift is outside IRI and not verified.  docs/band-edge.md, Phase 3.  The goal of 1400 km is a
       WP0 closure task (Phase 4).
   SCI-20:
     category: analysis
@@ -654,7 +655,13 @@ not_scored:
     category: mission
     reason: >-
       Orbit altitude.  The campaign configurations sample it (500 and 800 km);
-      none yet sits at the 900 km governing case.
+      none yet sits at the 900 km governing case.  G3 decision (Andrew,
+      2026-10-20): Rev G's "must be above the F2 peak at all times sampled" is
+      to be restated as a fraction of samples, set here at 99.9 per cent
+      (tss.studies.sci02_margin.MIS01_ABOVE_PEAK_FRACTION) to match the
+      0.1/99.9 percentile reading of SCI-02's envelope.  Met in all 94 cells of
+      WP0 Phase 3; the worst is 99.93 per cent (O2, 500 km, solar maximum
+      2000-01).  Goes into the requirements document with the WP0 close-out.
   MIS-02:
     category: mission
     reason: Inclination by orbit class.
