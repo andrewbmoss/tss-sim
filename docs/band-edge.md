@@ -280,3 +280,13 @@ where coverage is at least Y") gives X of about 1000 km for Y = 85 per cent
 and just under 1200 km for Y = 75 per cent in 2019-20 conditions (O1).  Phase 5
 (ISIS-1 at 900-1400 km) is still to come and tests the topside these numbers
 rest on.
+
+**G2 decision (Andrew, 2026-10-20), provisional on the follow-on studies:**
+unless something significant arises in them (Phase 5 first), the requirements
+stay as they are: SCI-02's goal keeps h_sat up to 1400 km, the sweep keeps
+starting at INS-01a's 0.33 MHz, and the INS-04, INS-06, INS-10 and INS-13
+values are not changed for the goal.  The expected exceedances above and
+their impacts (coverage and completeness at a deep minimum, the 1800 km
+range, the 134 kHz sample rate, 580 MB/day, the spreading and SNR cost, and
+the O+/H+ transition reached mainly at solar maximum) are discussed in the
+Technical Volume and the dissertation instead.

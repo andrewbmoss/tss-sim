@@ -585,8 +585,12 @@ not_scored:
       in 0.03-0.07 per cent of samples (by up to 36 km): Rev G's MIS-01 "at
       all times sampled" is not met there, MIS-01 as restated at G3 (at least
       99.9 per cent of samples, 2026-10-20) is, with the worst cell at 99.93
-      per cent.  Storm-time hmF2 uplift is outside IRI and not verified.  docs/band-edge.md, Phase 3.  The goal of 1400 km is a
-      WP0 closure task (Phase 4).
+      per cent.  Storm-time hmF2 uplift is outside IRI and not verified.  docs/band-edge.md, Phase 3.  Goal (h_sat to 1400 km): WP0
+      Phase 4 gives 65 per cent coverage and 0.89 mean altitude completeness
+      at 1400 km from a 0.33 MHz start at a deep minimum (docs/band-edge.md,
+      Phase 4).  G2 (Andrew, 2026-10-20): the requirement stays as it is
+      unless the follow-on studies show something significant; the
+      exceedances are discussed in the Technical Volume and dissertation.
   SCI-20:
     category: analysis
     reason: >-

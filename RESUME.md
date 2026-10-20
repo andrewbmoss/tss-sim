@@ -195,7 +195,9 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   85.6 % to 65.3 % (mean completeness 0.97 to 0.89).  O+/H+ median 820 km (O1)
   and 680 km (O2) at solar min, 1135-1290 km at solar max.  At 1400 km:
   INS-04 1800 km, INS-06 134 kHz (A1), INS-13 580 MB/day, +4.7 dB spreading,
-  INS-10 -5 dB (provisional).  G2 next, after Phase 5.
+  INS-10 -5 dB (provisional).  G2 (Andrew): requirements stay as they are
+  unless the follow-on studies show something significant; the exceedances go
+  into the TV and dissertation.
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
