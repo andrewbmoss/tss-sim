@@ -1,0 +1,103 @@
+{
+ "by_altitude": {
+  "1000.0": {
+   "governing": "O1/min2008",
+   "f_min_95_MHz": 0.24588268456057474,
+   "f_min_99_MHz": 0.18607187891243832,
+   "worst_coverage_at_033": 0.8563,
+   "worst_coverage_cell": "O1/min2008",
+   "worst_mean_alt_completeness_at_033": 0.9697050327494638,
+   "worst_p05_alt_completeness_at_033": 0.740331765415924,
+   "oh_below_hsat_min": 0.1942,
+   "oh_below_hsat_max": 0.95975
+  },
+  "1100.0": {
+   "governing": "O1/min2019",
+   "f_min_95_MHz": 0.21661895289558528,
+   "f_min_99_MHz": 0.16775130721121972,
+   "worst_coverage_at_033": 0.80045,
+   "worst_coverage_cell": "O1/min2019",
+   "worst_mean_alt_completeness_at_033": 0.9513806807451846,
+   "worst_p05_alt_completeness_at_033": 0.6482874622362845,
+   "oh_below_hsat_min": 0.25335,
+   "oh_below_hsat_max": 0.98685
+  },
+  "1200.0": {
+   "governing": "O1/min2019",
+   "f_min_95_MHz": 0.1943464969431494,
+   "f_min_99_MHz": 0.15292289675558657,
+   "worst_coverage_at_033": 0.74715,
+   "worst_coverage_cell": "O1/min2008",
+   "worst_mean_alt_completeness_at_033": 0.9323653048758086,
+   "worst_p05_alt_completeness_at_033": 0.5766367885307233,
+   "oh_below_hsat_min": 0.30655,
+   "oh_below_hsat_max": 0.99725
+  },
+  "1300.0": {
+   "governing": "O1/min2019",
+   "f_min_95_MHz": 0.17993600718303474,
+   "f_min_99_MHz": 0.13806139412063884,
+   "worst_coverage_at_033": 0.7054,
+   "worst_coverage_cell": "O1/min2008",
+   "worst_mean_alt_completeness_at_033": 0.9148203764407244,
+   "worst_p05_alt_completeness_at_033": 0.5295344317240476,
+   "oh_below_hsat_min": 0.375,
+   "oh_below_hsat_max": 0.99995
+  },
+  "1400.0": {
+   "governing": "O1/min2019",
+   "f_min_95_MHz": 0.16423144330311412,
+   "f_min_99_MHz": 0.12821894387250912,
+   "worst_coverage_at_033": 0.65345,
+   "worst_coverage_cell": "O1/min2019",
+   "worst_mean_alt_completeness_at_033": 0.8923306221212127,
+   "worst_p05_alt_completeness_at_033": 0.4774999262060474,
+   "oh_below_hsat_min": 0.45225,
+   "oh_below_hsat_max": 1.0
+  }
+ },
+ "knockons_at_top": {
+  "h_sat_km": 1400.0,
+  "ins04_r_max_km": 1800.0,
+  "ins04_rev_g_km": 1050.0,
+  "ins06_fs_a1_kHz": 134.42135179627064,
+  "ins06_fs_a1_rev_g_kHz": 78.41245521449122,
+  "ins06_fs_a2_kHz": 895.8197340641572,
+  "ins06_fs_a2_rev_g_kHz": 522.561511537425,
+  "ins03_steps_at_033": 159,
+  "sweep_s_at_033": 4.2612000000000005,
+  "ins13_ionogram_kB_at_033": 28.62,
+  "ins13_MB_per_day_sweep_at_033": 580.2985074626865,
+  "ins13_MB_per_day_6p7s_at_033": 369.0698507462686,
+  "ins03_steps_at_goal_edge": 173,
+  "sweep_s_at_goal_edge": 4.6364,
+  "ins13_ionogram_kB_at_goal_edge": 31.14,
+  "ins13_MB_per_day_sweep_at_goal_edge": 580.2985074626865,
+  "ins13_MB_per_day_6p7s_at_goal_edge": 401.5665671641791,
+  "ins13_rev_g_ionogram_kB": 16.695,
+  "ins13_rev_g_MB_per_day_sweep": 338.5074626865671,
+  "range_bins": 180,
+  "spreading_db_vs_900_at_floor": 4.681664120667359,
+  "spreading_db_vs_900_at_median_hmf2": 5.058423591250893,
+  "ins20_half_wave_m_at_goal_edge": 912.7133390854009,
+  "ins20_half_wave_m_at_033": 454.23099696969695,
+  "ins10_provisional": {
+   "h900": {
+    "snr_median_db": 33.64727966883983,
+    "snr_min_db": 27.097378481668414,
+    "f_at_min_MHz": 6.346733668341709,
+    "n_valid": 91
+   },
+   "hsat": {
+    "snr_median_db": 28.53594577327931,
+    "snr_min_db": 21.832534316916423,
+    "f_at_min_MHz": 6.346733668341709,
+    "n_valid": 96
+   },
+   "median_change_db": -5.11133389556052,
+   "min_change_db": -5.264844164751992,
+   "note": "tss.l2_instrument.linkbudget with its analytic ionosphere; true range to a 300 km peak.  Provisional until the INS-10 drop on PHaRLAP is traced."
+  }
+ },
+ "oh_p50_topside_spread_km_max": 1.9999999949504854e-05
+}

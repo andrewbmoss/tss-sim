@@ -182,3 +182,95 @@ Results:
   storm-time case is not verified.  Whether to restate MIS-01 as a fraction of
   samples, raise its floor for solar-maximum missions, or accept the 500 km
   exceedance is a decision for the requirements revision (G3).
+
+## Phase 4: SCI-02's goal, h_sat 1000-1400 km (2026-10-20)
+
+Plan `band_edge_goal_1400`, 120 cases (2 h 49 min): 1000 to 1400 km in 100 km
+steps, O1 and O2, the three topsides, solar minimum as Rev G ran it (R12 10)
+and on the 2008-09 and 2019-20 epochs (foF2 storm on), and solar maximum (R12
+120), on a 150-2000 km grid.  Two things are new in the harness for it: the
+MATLAB generator writes IRI's O+/H+ transition height for every sample (the
+`h_oplus_hplus_km` extra: the lowest height above hmF2 where H+ reaches O+,
+interpolated in log(H+/O+)), and every summary row carries the coverage and
+altitude completeness of a sweep that starts at INS-01a's 0.33 MHz.
+`scripts/goal_knockons.py` turns the run into the tables below; outputs are
+kept in `data/reference/band_edge_goal_1400`.
+
+**Band edge and what a 0.33 MHz start retrieves** (ensemble at the minimum of
+the per-topside percentiles; coverage and completeness for the worst topside;
+NeQuick governs every cell):
+
+| h_sat | governing 95 % edge, MHz | 99 % | coverage at 0.33 MHz | mean altitude completeness | 5th percentile |
+|---|---|---|---|---|---|
+| 1000 km | 0.246 (O1, 2008-09) | 0.186 | 85.6 % | 0.970 | 0.740 |
+| 1100 km | 0.217 (O1, 2019-20) | 0.168 | 80.0 % | 0.951 | 0.648 |
+| 1200 km | 0.194 (O1, 2019-20) | 0.153 | 74.7 % | 0.932 | 0.577 |
+| 1300 km | 0.180 (O1, 2019-20) | 0.138 | 70.5 % | 0.915 | 0.530 |
+| 1400 km | 0.164 (O1, 2019-20) | 0.128 | 65.3 % | 0.892 | 0.477 |
+
+* The edge keeps falling with altitude, by 7-12 per cent per 100 km.  The
+  deep minima sit 15-17 per cent below Rev G's R12 = 10 at every altitude (at
+  1400 km, O1: 0.196 MHz at R12 10, 0.167 and 0.164 MHz in 2008-09 and
+  2019-20), the same shift Phase 2 found at 500-900 km.
+* At solar maximum a 0.33 MHz start retrieves essentially the whole topside
+  at every goal altitude (coverage at least 99.4 per cent; 95 per cent edges
+  0.50-0.92 MHz).  The goal's shortfall is a solar-minimum one, and O2 fares
+  better than O1 (1400 km, 2019-20: coverage 74.9 per cent, edge 0.206 MHz).
+* So with the sweep starting at the threshold edge (G2 option A), a 1400 km
+  spacecraft at a deep minimum gets a complete topside in about two profiles
+  in three, keeps 89 per cent of the h_sat - hmF2 span on average, and in one
+  profile in twenty loses more than half of it.
+
+**O+/H+ transition** (identical across the three topsides to 2e-5 km, so read
+from NeQuick; percentage = samples with the transition below the spacecraft;
+a transition above the 2000 km grid counts as not below):
+
+| class, solar | transition p05 / p50 / p95, km | below at 1000 km | 1200 km | 1400 km | above 2000 km |
+|---|---|---|---|---|---|
+| O1, minimum (all three) | about 540 / 820 / 1450 | 68-69 % | 81 % | 91-92 % | 1 % |
+| O2, minimum (all three) | about 527 / 682 / 990 | 95-96 % | over 99.5 % | 100 % | 0 |
+| O1, maximum | 805-811 / 1280-1290 / 1880-1890 | 19 % | 31 % | 45 % | 27 % |
+| O2, maximum | about 790 / 1135 / 1600-1630 | 39 % | 56 % | 80 % | 0.5 % |
+
+* At solar minimum IRI puts the transition well below the 1000-1400 km
+  "transition level" SCI-02's basis cites: the median is 820 km (O1) and 680
+  km (O2), so a 900 km spacecraft already sits above it in most samples.  At
+  solar maximum it rises to a 1135-1290 km median, and 1400 km is above it in
+  45 per cent (O1) to 80 per cent (O2) of samples.  The altitude buys the
+  transition at solar maximum, which is also where a 0.33 MHz start costs
+  nothing.
+* IRI's ion composition (RBV-2010 and TTS-2005) above 1000 km is the least
+  constrained part of the model; Phase 5's ISIS-1 comparison is about the
+  electron density, not the composition.
+
+**Knock-ons at 1400 km** (Rev G derivations with h_sat = 1400 km in place of
+900 km; `goal_knockons.json`):
+
+| item | Rev G (900 km) | 1400 km |
+|---|---|---|
+| INS-04 / SCI-08, 1.5 x (h_sat - 200 km) | 1050 km | 1800 km |
+| INS-06, 4 K_f R_max / c, A1 (5.6 MHz/s) | 78.4 kHz | 134 kHz |
+| INS-06, A2 (37.3 MHz/s) | 523 kHz | 896 kHz |
+| INS-13 ionogram, 10 km bins, 8 bit | 16.7 kB (105 bins) | 28.6 kB (180 bins) |
+| INS-13 per day at the A1 sweep (4.26 s) | 339 MB | 580 MB |
+| INS-13 per day at INS-07's 6.7 s | 215 MB | 369 MB (401 MB from a 0.164 MHz start) |
+| INS-03, A1 steps to 20 MHz | 159 from 0.33 MHz | 159; 173 from 0.164 MHz (sweep 4.64 s) |
+| Spreading, two-way, against 900 km | - | +4.7 dB (peak at 200 km), +5.1 dB (median hmF2) |
+| INS-20 half-wave length | 454 m at 0.33 MHz | 913 m at 0.164 MHz |
+| INS-10 SNR, provisional (analytic link budget, peak at 300 km) | median 33.6, min 27.1 dB | median 28.5, min 21.8 dB (-5.1 / -5.3 dB) |
+
+At the continuous A1 sweep the daily volume does not depend on the step
+count (each step adds its dwell as well as its column), so a lower start
+costs volume only at a fixed cadence.  INS-10 stays above its 10 dB
+threshold on this model, but the number is a difference against 900 km, not
+a verdict, until the 7 dB drop on PHaRLAP is traced.
+
+**For G2.**  Option A (keep h_sat to 1400 km, sweep from 0.33 MHz, score by
+completeness) costs nothing at the antenna and gives, at a deep minimum, 65
+per cent coverage and 0.89 mean completeness at 1400 km; option B (the goal
+gets its own edge) means 0.164 MHz, a 913 m half-wave and a start nearly four
+times below the 0.6 MHz bottom of the sky-noise reference; option C ("up to X km
+where coverage is at least Y") gives X of about 1000 km for Y = 85 per cent
+and just under 1200 km for Y = 75 per cent in 2019-20 conditions (O1).  Phase 5
+(ISIS-1 at 900-1400 km) is still to come and tests the topside these numbers
+rest on.

@@ -1,0 +1,66 @@
+{
+ "name": "band_edge_goal_1400",
+ "altitudes_km": [
+  1000,
+  1100,
+  1200,
+  1300,
+  1400
+ ],
+ "orbit_classes": [
+  "O1",
+  "O2"
+ ],
+ "topsides": [
+  "NeQuick",
+  "IRI-2001",
+  "IRI-2001 corrected"
+ ],
+ "solar": [
+  {
+   "name": "min",
+   "mode": "r12",
+   "r12": 10
+  },
+  {
+   "name": "max",
+   "mode": "r12",
+   "r12": 120
+  },
+  {
+   "name": "min2008",
+   "mode": "epoch",
+   "epoch_start": "2008-05-01T00:00:00",
+   "duration_days": 365.0,
+   "iri_options": {
+    "foF2_storm": "on",
+    "hmF2_storm": "off",
+    "foE_storm": "off",
+    "topside_storm": "off"
+   }
+  },
+  {
+   "name": "min2019",
+   "mode": "epoch",
+   "epoch_start": "2019-06-01T00:00:00",
+   "duration_days": 365.0,
+   "iri_options": {
+    "foF2_storm": "on",
+    "hmF2_storm": "off",
+    "foE_storm": "off",
+    "topside_storm": "off"
+   }
+  }
+ ],
+ "samples": 20000,
+ "seed": 17,
+ "epoch_start": "2015-01-01T00:00:00",
+ "duration_days": 365.25,
+ "alt_grid_km": [
+  150,
+  2000,
+  10
+ ],
+ "chunk": 20000,
+ "keep_samples": true
+}

@@ -186,6 +186,15 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   0.03-0.07 % of samples have the peak above the spacecraft (MIS-01 "at all
   times" not met); IRI's hmF2 has no storm uplift, so storm time is not
   verified.  MIS-01 wording goes to G3.
+* Phase 4 (2026-10-20): plan `band_edge_goal_1400`, 120 cases to 2000 km, with
+  the O+/H+ transition extra and completeness at a 0.33 MHz start
+  (`goal_metrics`); `scripts/goal_knockons.py`; outputs in
+  `data/reference/band_edge_goal_1400`.  Governing 95 % edge 0.246 MHz at
+  1000 km to 0.164 MHz at 1400 km (O1, deep minimum); a 0.33 MHz start covers
+  85.6 % to 65.3 % (mean completeness 0.97 to 0.89).  O+/H+ median 820 km (O1)
+  and 680 km (O2) at solar min, 1135-1290 km at solar max.  At 1400 km:
+  INS-04 1800 km, INS-06 134 kHz (A1), INS-13 580 MB/day, +4.7 dB spreading,
+  INS-10 -5 dB (provisional).  G2 next, after Phase 5.
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
