@@ -167,10 +167,16 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
 * Reference regression: the full 60-case rerun reproduces the Rev G summary to
   2.4e-7 relative in every percentile; governing value O1 / 900 km / solar min /
   NeQuick 0.3342 MHz (95 %), 0.2700 MHz (99 %).  Details in docs/band-edge.md.
-* Phase 2 (running overnight 2026-10-19/20): plan `band_edge_solarmin_epoch`,
-  epoch-driven solar minima 1986, 1996, 2008-09, 2019-20 (foF2 storm on) and
-  2008-09 storm off; `scripts/band_edge_compare.py` applies the INS-01a decision
-  rule against the reference run.
+* Phase 2 (2026-10-20): plan `band_edge_solarmin_epoch`, epoch-driven solar
+  minima 1986, 1996, 2008-09, 2019-20 (foF2 storm on) and 2008-09 storm off;
+  `scripts/band_edge_compare.py`.  Governing O1 / 900 km / NeQuick: 0.355,
+  0.330, 0.282, 0.279 MHz at 95 % (Rev G 0.334); 0.212 MHz at 99 % in 2019-20
+  (Rev G 0.270).  The Rev G level is a 1996-like minimum; the deep minima lower
+  the edge 11-16 % (95 %) and 16-22 % (99 %) everywhere.  Storm model effect
+  0.0-0.3 %.  Within INS-01a's -20 % tolerance, which Rev G reserved for the
+  models' 19 % tail overstatement against ISIS-1: gate G1 (Andrew).  Results
+  kept in `data/reference/band_edge/phase2_solarmin_epoch`.
+* `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
   UHF AAC Clyde Space PULSAR-UTRX (9.6 kbps GFSK, 27-33 dBm, 3-5.1 W Tx);

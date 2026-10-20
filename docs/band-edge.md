@@ -69,3 +69,45 @@ samples, 77 min on the development machine) against
   significant figure of hmF2, which the extras file rounds and the harness's
   file did not.  They are a property of the samples where SCI-02's threshold is
   at issue, not a change in arithmetic, and Phase 3 treats them as such.
+
+## Phase 2: solar minimum on the epoch's own indices (2026-10-20)
+
+Plan `band_edge_solarmin_epoch`, 150 cases (3 h 6 min): the twelve months
+centred on each solar minimum inside PHaRLAP's index files, with IRI taking
+R12, IG12, F10.7 and ap for every sample from `ig_rz.dat` and `apf107.dat`
+(foF2 storm model on), and 2008-09 again with every storm model off.  Compared
+with the reference run by `scripts/band_edge_compare.py`; the summary,
+ensemble and comparison are kept in `data/reference/band_edge/phase2_solarmin_epoch`.
+
+Indices IRI ran on (median over the samples) and the governing cell, O1 at
+900 km, NeQuick in every window:
+
+| Window | R12 | IG12 | F10.7 | 95 % edge | vs Rev G | 99 % edge | vs Rev G |
+|---|---|---|---|---|---|---|---|
+| Rev G (user R12 10) | 10 | 2.1 | 71.1 | 0.334 | | 0.270 | |
+| 1986-03 to 1987-02 | 13.8 | 8.5 | 71.1 | 0.355 | +6.4 % | 0.281 | +4.0 % |
+| 1995-11 to 1996-10 | 8.7 | 0.9 | 70.5 | 0.330 | -1.2 % | 0.254 | -6.0 % |
+| 2008-05 to 2009-04 | 2.1 | -9.1 | 68.0 | 0.282 | -15.7 % | 0.215 | -20.3 % |
+| 2019-06 to 2020-05 | 2.1 | -10.3 | 69.2 | 0.279 | -16.4 % | 0.212 | -21.3 % |
+
+* The Rev G solar level is a 1996-like minimum.  The two most recent minima
+  were deeper (IG12 about -10 against 2.1) and lower the band edge by 11 to
+  16 per cent at 95 per cent coverage and 16 to 22 per cent at 99 per cent, in
+  every cell, both orbit classes, all altitudes.
+* The storm model does not matter at solar minimum: with it on, the 2008-09
+  edge is 0.0 to 0.3 per cent higher than with every storm model off.  The
+  whole shift is the solar index.
+* NeQuick is the minimum model in every cell, as in Rev G.
+* Decision rule of the WP0 plan: the lowest epoch-driven value, 0.279 MHz, is
+  within INS-01a's -20 per cent tolerance (floor 0.264 MHz).  The 99 per cent
+  goal point, 0.212 MHz, is within -20 per cent of the 0.26 MHz goal (floor
+  0.208).
+* ISIS-1 at solar minimum (61 CRC records, 1976-77, paired with IRI in epoch
+  mode on 2026-10-18) cannot test the deep minima, whose IG12 is far below
+  1976-77's.  At its own epochs the modelled 5th percentile is above the
+  measured one: 0.775 against 0.652 MHz at 500-600 km (23 records) and 0.639
+  against 0.284 MHz at 600-700 km (31 records); 4 of the 61 records lie below
+  0.33 MHz and 3 below 0.28 MHz.
+* So the tolerance is now carrying two things.  Rev G set it for the models'
+  overstatement of the low tail, about 19 per cent against ISIS-1; the deep
+  minimum alone now takes 16 per cent of it.  Gate G1 in the WP0 plan.
