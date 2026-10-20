@@ -174,7 +174,9 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   (Rev G 0.270).  The Rev G level is a 1996-like minimum; the deep minima lower
   the edge 11-16 % (95 %) and 16-22 % (99 %) everywhere.  Storm model effect
   0.0-0.3 %.  Within INS-01a's -20 % tolerance, which Rev G reserved for the
-  models' 19 % tail overstatement against ISIS-1: gate G1 (Andrew).  Results
+  models' 19 % tail overstatement against ISIS-1.  G1 decided (Andrew,
+  2026-10-20): keep the Rev G 0.33 MHz; record the deep-minimum value in
+  INS-01a's notes at close-out.  Results
   kept in `data/reference/band_edge/phase2_solarmin_epoch`.
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat

@@ -110,4 +110,8 @@ Indices IRI ran on (median over the samples) and the governing cell, O1 at
   0.33 MHz and 3 below 0.28 MHz.
 * So the tolerance is now carrying two things.  Rev G set it for the models'
   overstatement of the low tail, about 19 per cent against ISIS-1; the deep
-  minimum alone now takes 16 per cent of it.  Gate G1 in the WP0 plan.
+  minimum alone now takes 16 per cent of it.
+* Gate G1 decided (Andrew, 2026-10-20): keep the Rev G 0.33 MHz.  INS-01a's
+  threshold (0.33 MHz) and goal (0.26 MHz) stand; its notes are to record the
+  0.28 MHz deep-minimum edge, the roughly 90 per cent coverage a 0.33 MHz start
+  gives in 2008-09 and 2019-20 conditions, and that the tolerance is nearly used.
