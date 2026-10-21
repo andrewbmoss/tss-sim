@@ -134,10 +134,13 @@ on PHaRLAP against the same campaign with `--set tiers.l0.model=pyiri`:
 | leo_800km_single | 7.0 dB | 18.7 dB | INS-08, INS-10 | INS-08 |
 | leo_500km_small_antenna | 4.1 dB | 9.5 dB | INS-08, INS-10 | INS-08, INS-10 |
 
-So at 800 km INS-10 fails once the topside is IRI-2020's.  Not yet traced
-(which echo sets the minimum, and whether it is the denser topside raising the
-plasma frequency at the spacecraft).  The PyIRI column reproduces the
-pre-change baseline exactly.
+So at 800 km INS-10 fails once the topside is IRI-2020's.  The PyIRI column
+reproduces the pre-change baseline exactly.  Traced in WP3 Phase 0
+(2026-10-20, `docs/reference-echo.md` §6): the minimum is the X echo in the
+last step below fxF2 on both codes, and the topside does not move it.  The
+median SNRs agree to 0.1 dB.  PHaRLAP's foF2 is 0.35 % lower, which puts that
+step 10 kHz below fxF2 instead of 48 kHz, at 873 km of group range.  Moving
+foF2 by one step moves the minimum through 5.6-13.2 dB on PHaRLAP.
 
 ## WP0 closure, Phase 0 and Phase 1 (2026-10-19)
 
@@ -252,11 +255,48 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   the single-pair model the route studies replaced.
 * No configuration sits at the 900 km governing case of INS-01a and MIS-01.
 
+## WP3 Phase 0 (2026-10-20): the reference echo
+
+Plan: project note `claude/wp3-plan.md`.  Doc: `docs/reference-echo.md`.
+
+* `tss.l2_instrument.reference_echo.reference_levels(instrument, sweep)` gives
+  the following per step:
+  * the noise in one range cell;
+  * the weakest echo INS-10 admits (noise + 10 dB; INS-24's reference);
+  * the free-space echo from 1050 km;
+  * the leakage carrier at INS-23's isolation, and the echo band
+    (100-1050 km beats).
+
+  It uses the same terms the L2 baseline puts into the samples.  A synthetic
+  echo through L2 and L3 measures the predicted SNR to within 1 dB
+  (`tests/unit/test_reference_echo.py`, study `reference_echo`, outputs in
+  `data/reference/wp3_reference_echo`).
+* The SRM's "leakage over echo = 122 dB - isolation" is the inherited
+  `SounderConfig` budget: 300 km, legacy -6.8 dBi antenna.  On the instrument
+  at 1050 km it is 97.2 dB at 5 MHz at 40 dB isolation.  Against the weakest
+  admitted echo it is 107.5-128.8 dB over the band (111.0 dB at 5 MHz).
+  Carried into Rev G's rules:
+  * INS-11's high-pass rejection is 47 dB at 5 MHz, not 32 dB (93 dB at the
+    band edge).  Referred to the digitiser-band noise, it is 40 dB (57 dB).
+  * INS-22's spur requirement against the weakest echo, at 10 m, is -82.6 dBc
+    at the worst step, against Rev G's -70 dBc.
+
+  The requirement documents are not changed (plan, G5).
+* The `link_budget` study's default `SounderConfig` is the inherited design,
+  and the SRM's INS-10 status (38.5/33.1 dB) comes from it.  The study now
+  also reports the instrument: 27.8 dB median at 1050 km in free space, below
+  10 dB under 1.26 MHz on the 5 m antenna.
+* `baseline_6u.yaml`'s -20 dB was already resolved and tested on 2026-10-17.
+  The L2 baseline carries the Balanis reactance.
+* The INS-10 minimum on PHaRLAP is the penetration cusp (above).
+* `scripts/ins10_trace.py` (`echoes`, `cusp`) reproduces the trace.  The
+  PHaRLAP outputs are in `data/reference/wp3_reference_echo/ins10_trace`.
+
 ## Next, in order
 
-1. WP3, L2: the leakage model and the de-chirped residual against INS-24;
-   phase noise and Doppler into the samples; a route for L2-owned numbers into
-   L5.
+1. WP3, L2: the leakage model (Phase 1) and the de-chirped residual against
+   INS-24, measured against `reference_echo`; phase noise and Doppler into the
+   samples; a route for L2-owned numbers into L5.
 2. WP4, L3: robust trace extraction, O/X labelling (INS-08), the Barry and
    Poole reference former.
 3. Gate M2: SCI-05 and SCI-07 scored against truth with both modes present,

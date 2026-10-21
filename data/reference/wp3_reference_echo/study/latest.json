@@ -1,0 +1,59 @@
+{
+  "study": "reference_echo",
+  "status": "implemented",
+  "run_directory": "data\\reference\\wp3_reference_echo\\study",
+  "manifest": "data\\reference\\wp3_reference_echo\\study\\manifest.json",
+  "outputs": [
+    "data\\reference\\wp3_reference_echo\\study\\reference_A1.csv",
+    "data\\reference\\wp3_reference_echo\\study\\reference_A2.csv",
+    "data\\reference\\wp3_reference_echo\\study\\reference_echo.json",
+    "data\\reference\\wp3_reference_echo\\study\\summary.md"
+  ],
+  "metrics": {
+    "legacy_echo_below_tx_db_5mhz_300km": 122.54375920780852,
+    "srm_leakage_over_echo_plus_isolation_db": 122.0,
+    "isolation_db": 40.0,
+    "leakage_over_rmax_echo_db_5mhz": 97.22596290658055,
+    "leakage_over_weakest_db_5mhz": 111.04427493435242,
+    "leakage_over_noise_db_5mhz": 121.04427493435242,
+    "leakage_over_weakest_db_max": 128.79746746467916,
+    "leakage_over_weakest_db_min": 107.46824977914156,
+    "leakage_over_rmax_echo_db_max": 143.4299591909229,
+    "leakage_over_rmax_echo_db_min": 87.42671805003938,
+    "weakest_echo_dbm_5mhz": -121.04427493435242,
+    "noise_cell_dbm_5mhz": -131.04427493435242,
+    "snr_rmax_db_min": -4.632491726243728,
+    "snr_rmax_db_median": 27.81728362448976,
+    "snr_rmax_meets_10db_above_mhz": 1.2628416010320365,
+    "hpf_rejection_revg_rule_db_5mhz": 47.22596290658055,
+    "hpf_rejection_revg_rule_db_max": 93.42995919092289,
+    "hpf_rejection_noise_rule_db_5mhz": 39.57998905530974,
+    "hpf_rejection_noise_rule_db_max": 57.33318158563648,
+    "spur_dbc_rmax_10m_5mhz": -65.52022291574983,
+    "spur_dbc_weakest_10m_5mhz": -79.3385349435217,
+    "spur_dbc_weakest_10m_worst": -82.6313570700874,
+    "spur_dbc_rmax_10m_worst": -92.55209704367226,
+    "spur_dbc_weakest_30m_worst": -92.17359120282542,
+    "spur_dbc_weakest_1m_worst": -62.631380701475464,
+    "a2_spur_dbc_weakest_10m_worst": -92.6353502985661,
+    "a2_spur_dbc_rmax_10m_worst": -92.55209704367226,
+    "a2_beat_max_hz": 247434.10758507275,
+    "a1_beat_max_hz": 39206.22760724561,
+    "chain_check_loss_db": [
+      0.659,
+      0.887,
+      0.985,
+      0.067,
+      0.676,
+      -0.251
+    ],
+    "chain_check_loss_db_max_abs": 0.9854663902299947
+  },
+  "work_packages": [
+    "WP3"
+  ],
+  "claims": [
+    "C1",
+    "C4"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "model": "pharlap",
+  "configuration": "leo_500km_single",
+  "alt_sat_m": 500000.0,
+  "lat_deg": 0.0,
+  "lon_deg": 0.0,
+  "epoch": "2026-01-01T12:00:00Z",
+  "fn_sat_hz": 8215263.5651523685,
+  "fof2_hz": 10637282.870451458,
+  "fxf2_hz": 10998450.627620425,
+  "fh_at_hmf2_hz": 710475.4666607752,
+  "hmf2_m": 405000.0,
+  "last_echo_below_cutoff": {
+    "O": {
+      "f_hz": 10538305.200445257,
+      "below_cutoff_hz": 98977.67000620067,
+      "range_m": 324226.01218998537,
+      "snr_db": 19.47023629136345
+    },
+    "X": {
+      "f_hz": 10988305.200445257,
+      "below_cutoff_hz": 10145.427175167948,
+      "range_m": 525773.4686401649,
+      "snr_db": 12.340505027283484
+    }
+  },
+  "metrics": {
+    "snr_db_min_at_truth_echoes": 12.340505027283484,
+    "snr_db_median_at_truth_echoes": 37.91852723340669,
+    "snr_db_min_at_truth_echoes_freq_hz": 10988305.200445257,
+    "snr_db_min_at_truth_echoes_o": 19.47023629136345,
+    "snr_db_min_at_truth_echoes_x": 12.340505027283484,
+    "n_truth_echoes": 33,
+    "n_truth_echoes_measured": 33,
+    "n_truth_echoes_unmeasured": 0
+  }
+}
