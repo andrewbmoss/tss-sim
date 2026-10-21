@@ -56,10 +56,11 @@ def test_the_catalogue_is_the_full_rev_g_set():
     reqs = load_requirements()
     cov = reqs.coverage()
     assert cov["catalog_revision"] == "G"
-    assert cov["n_catalog"] == 70
+    # 72 since the 2026-10-20 amendment (WP0 closure) added INS-28 and MIS-11.
+    assert cov["n_catalog"] == 72
     families = [rid.split("-")[0] for rid in reqs.catalog]
     assert {f: families.count(f) for f in set(families)} == {
-        "SCI": 28, "INS": 28, "MIS": 10, "SW": 4,
+        "SCI": 28, "INS": 29, "MIS": 11, "SW": 4,
     }
 
 
@@ -157,7 +158,7 @@ def test_the_report_lists_every_not_scored_requirement_with_its_reason():
         assert rid in text
         assert entry.category in text
     assert '"not_scored"' in render_json(assessment)
-    assert assessment.flags["coverage"]["n_catalog"] == 70
+    assert assessment.flags["coverage"]["n_catalog"] == 72
 
 
 # ---------------------------------------------------------------------------

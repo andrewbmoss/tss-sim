@@ -217,6 +217,16 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   a new INS-28 and a proposed MIS-11 (G5) are in the doc.  Contacts, link
   budgets and processing budgets are out of scope (Andrew).
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
+* **WP0 closed (2026-10-20, Phase 8).**  Andrew accepted MIS-11 as drafted
+  (G5).  `Dissertation/TSS_Science_Requirements_RevG.docx` and
+  `TSS_SRM_RevG.xlsx` carry the 2026-10-20 amendment: MIS-01 as 99.9 % of
+  samples, INS-13 and INS-19 restated, INS-28 and MIS-11 added, INS-01a and
+  SCI-02 annotated, new sections 5.12 and 5.13, Open Items 17 and 18, SRM
+  Derivations section 24 (live formulas, 108.6 / 434.6 MB/day as tss-sim).
+  Catalogue regenerated (72 requirements); requirements.yaml lists INS-28
+  (bench) and MIS-11 (mission).  Technical Volume updated (band-edge chapter,
+  INS-13 section, Table 7.1, verification matrix).  Originals backed up in
+  `%TEMP%/tss_wp0/revG_backup_2026-10-20`.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
   UHF AAC Clyde Space PULSAR-UTRX (9.6 kbps GFSK, 27-33 dBm, 3-5.1 W Tx);
@@ -241,21 +251,18 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   2 s and up/down sweep pairing, both withdrawn; `motion_separated` describes
   the single-pair model the route studies replaced.
 * No configuration sits at the 900 km governing case of INS-01a and MIS-01.
-* `docs/work-packages.md` still says Rev E in places.
 
 ## Next, in order
 
-1. WP0 closure: the band-edge harness at 1000-1400 km (SCI-02 goal); INS-13
-   downlink and on-board processing requirements.
-2. WP3, L2: the leakage model and the de-chirped residual against INS-24;
+1. WP3, L2: the leakage model and the de-chirped residual against INS-24;
    phase noise and Doppler into the samples; a route for L2-owned numbers into
    L5.
-3. WP4, L3: robust trace extraction, O/X labelling (INS-08), the Barry and
+2. WP4, L3: robust trace extraction, O/X labelling (INS-08), the Barry and
    Poole reference former.
-4. Gate M2: SCI-05 and SCI-07 scored against truth with both modes present,
+3. Gate M2: SCI-05 and SCI-07 scored against truth with both modes present,
    over seeds.
-5. Beside 2-4: the MATLAB bridge (`tss_yaml_lite.m`, `tss_call_python.m`), the
+4. Beside 1-3: the MATLAB bridge (`tss_yaml_lite.m`, `tss_call_python.m`), the
    PHaRLAP L1 tier, NeQuick 2 and IRTAM L0 tiers, the depletion generator,
    WP12's noise reference.
-6. WP5: `motion_separated` as a real tier over a sequence of sweeps, then WP6,
+5. WP5: `motion_separated` as a real tier over a sequence of sweeps, then WP6,
    WP7, the V2-V4 campaign, and the goal-level packages.

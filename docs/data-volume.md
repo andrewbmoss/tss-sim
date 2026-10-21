@@ -151,6 +151,10 @@ mission level.  Ground stations, contact plan, link budget and processor design
 are mission designs outside this requirement set.  *Verification:* I
 (declaration review).
 
-These drafts are not yet in the requirements document, the SRM or
-`requirements.yaml`'s scored set; they enter with the Rev G amendment at the
-WP0 close-out (Phase 8), after Andrew's review and the G5 decision.
+**Adopted 2026-10-20.**  Andrew accepted MIS-11 as drafted (gate G5), and the
+four texts above entered `TSS_Science_Requirements_RevG.docx` (sections 5.13,
+6.1, 6.2, 6.5) and `TSS_SRM_RevG.xlsx` (Instrument & Mission; Derivations
+section 24, which reproduces the A1 / O1 / 900 km threshold and goal sets,
+108.6 and 434.6 MB/day, as live formulas) with the amendment that closed WP0.
+The catalogue now holds INS-28 and MIS-11; `requirements.yaml` lists them as
+bench and mission requirements.

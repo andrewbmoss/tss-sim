@@ -18,10 +18,11 @@
 #   derivation     required when source is `derived`; names the derivation
 #   notes          anything a reader needs in order to not misread the entry
 #
-# STATUS (2026-10-17): the full Rev G set is accounted for.  The catalogue named
-# under `catalog:` is generated from TSS_SRM_RevG.xlsx by scripts/import_srm.py
-# and holds all seventy requirements: twenty-eight measurement, twenty-eight
-# instrument, ten mission and four software.  Every one of them is either a
+# STATUS (2026-10-20): the full Rev G set, as amended on 2026-10-20 to close
+# WP0, is accounted for.  The catalogue named under `catalog:` is generated
+# from TSS_SRM_RevG.xlsx by scripts/import_srm.py and holds all seventy-two
+# requirements: twenty-eight measurement, twenty-nine instrument (INS-28 added
+# 2026-10-20), eleven mission (MIS-11 added 2026-10-20) and four software.  Every one of them is either a
 # scored entry under `requirements:` or listed under `not_scored:` with a
 # category and a reason, and `tss requirements` fails if one is in neither.
 # The scored entries are the claim-bearing requirements of Table 3.1 of the
@@ -76,7 +77,12 @@ requirements:
       about 0.6 MHz, so the threshold is not assumed conservative (Open Item 2).
       Scored from the metric sweep_min_frequency_hz, the lowest frequency the
       transmitted sweep covered.  The lowest detected echo is set by the
-      ionosphere and is only a diagnostic.
+      ionosphere and is only a diagnostic.  Amended 2026-10-20 (WP0 closure,
+      G1), value unchanged: on each epoch's own indices the 2008-09 and
+      2019-20 minima give 0.282 and 0.279 MHz at the governing case, a 0.33 MHz
+      start covers about 90 per cent of profiles there, and the deep minimum
+      alone uses 16 of the 20 per cent tolerance (Rev G sec. 5.12;
+      docs/band-edge.md, Phase 2).
 
   INS-01b:
     title: Highest sounding frequency
@@ -630,6 +636,14 @@ not_scored:
     reason: >-
       Programmability of the sweep, verified by command-set review and bench
       capture.  The simulator already takes the sweep law as configuration.
+  INS-28:
+    category: bench
+    work_packages: [WP0, WP9]
+    reason: >-
+      On-board product generation (new 2026-10-20, WP0 closure): L1b traces
+      and L2 profiles formed from every ionogram at cadence, verified on the
+      prototype from recorded sweeps.  What is produced is defined by INS-13
+      and sized by tss study data_volume; the processor is a mission design.
 
   # -- verified on hardware or in orbit ----------------------------------------
   SCI-17:
@@ -707,6 +721,13 @@ not_scored:
     reason: >-
       Phasing of the second look, by orbit propagation; the route_two study
       uses it.
+  MIS-11:
+    category: mission
+    reason: >-
+      Data-handling declaration (new 2026-10-20, WP0 closure, gate G5): each
+      mission declares its duty cycle, INS-13 product set and daily volume and
+      shows its downlink and storage carry it.  Verified by declaration review
+      against tss study data_volume.
 
   # -- requirements on tss-sim itself ---------------------------------------------
   SW-01:

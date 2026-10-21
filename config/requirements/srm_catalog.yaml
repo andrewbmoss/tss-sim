@@ -10,12 +10,12 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: fa7286861d19ea2abc4539839fd3be2c3255aeae32f9477869a9ab33d3716a18
+source_sha256: 139b4aefff0b5c931b08cb1964746a6b2457140ea8f87fa13bcd5612155d245b
 revision: G
 counts:
   SCI: 28
-  INS: 28
-  MIS: 10
+  INS: 29
+  MIS: 11
   SW: 4
 requirements:
   SCI-01:
@@ -45,7 +45,11 @@ requirements:
       km. G3 adds a reason to prefer the upper end of the orbit range: bubbles routinely reach 1000 km
       and storm-time super-bubbles 1500–3000 km, so a higher sounder places more of the depleted volume
       below it.'
-    verification: A. hmF2 distribution against MIS-01 from the band-edge run.
+    verification: 'A. hmF2 distribution against MIS-01 from the band-edge run. WP0 closure (2026-10-20):
+      threshold met over 600–900 km at every solar level; hmF2 0.1/99.9 percentiles inside 200–500 km;
+      MIS-01 met as 99.9% of samples; storm-time hmF2 not verified (Open Item 17). Goal unchanged; from
+      a 0.33 MHz start it covers 85.6% of profiles at 1000 km and 65.3% at 1400 km in a deep minimum (45%
+      on the ISIS-1 bound), stated as an expected exceedance (§5.12).'
     verification_methods:
     - A
   SCI-03:
@@ -455,10 +459,16 @@ requirements:
       MHz against IRI-2001''s 0.477 and IRI-2001 corrected''s 0.354. Tolerance is one-sided, −20%/+0%:
       ISIS-1 measurements (§5.7) show the models overstate the low tail by about 19%, so the requirement
       may need to go lower, never higher. A mission declaring solar maximum only may use 0.90 MHz. Split
-      from Rev F''s INS-01 so the lower edge can be scored on its own.'
+      from Rev F''s INS-01 so the lower edge can be scored on its own. Amended 2026-10-20, value unchanged:
+      on each epoch’s own indices the 2008–09 and 2019–20 minima give 0.282 and 0.279 MHz at the governing
+      case, a 0.33 MHz start covers about 90% of profiles there, and the deep minimum alone uses 16 of
+      the 20% tolerance (Rev G §5.12).'
     flows_from: SCI-03; §5.6, §5.7
     status: '0.9-28 MHz. Rev A/B carried 0.5 MHz with no derivation; Rev C stated 1.9 MHz from the same
-      study read the wrong way round. Corrected: 0.33 MHz.'
+      study read the wrong way round. Corrected: 0.33 MHz. WP0 closure (2026-10-20): tss-sim min_frequency
+      reproduces the 60-case run to 2.4e-7; epoch-driven solar minima 0.355 (1986), 0.330 (1996), 0.282
+      (2008–09), 0.279 MHz (2019–20); ISIS-1 at 900–1000 km puts the modelled 5th percentile 23% above
+      the measured one at solar maximum.'
     verification: A, R, S. Band-edge study; ISIS-1 pairing; L5 metric sweep_min_frequency_hz, the lowest
       frequency the transmitted sweep covered. Solar-minimum tail (Open Item 2). The lowest detected echo
       is set by the ionosphere and is a diagnostic only.
@@ -639,18 +649,27 @@ requirements:
     sheet: Instrument & Mission
     family: INS
     requirement: Data product and volume
-    value: Raw ionogram 16.7 kB (159 steps × 105 range bins × 8 bit), which is 215 MB/day at INS-07's
-      6.7 s threshold cadence and 339 MB/day at A1's 4.26 s sweep. On-board trace extraction reduces this
-      to ~2.5 kB per ionogram, 32 to 51 MB/day. The product bins range at 10 km, the INS-05 threshold
-      at and above 0.5 MHz, over INS-04's 1050 km. These bins are not the range cell of Rev G §1, which
-      is 1.0 km above 3 MHz, and binning at the cell makes the raw volume up to ten times larger. Scales
-      with INS-03's step count and with the sweep settings of INS-27.
-    flows_from: SCI-18, INS-03, INS-07
-    status: Not specified. On-board trace extraction gives a factor ~6 downlink saving (339 to 51 MB/day
-      at a 4.26 s sweep).
-    verification: A. Data-volume arithmetic.
+    value: 'Threshold: for every ionogram, the L1b echo traces (up to four echoes per frequency step,
+      each with virtual range, amplitude and mode and quality flags, the INS-16 flag among them) and the
+      L2 profile Ne(h) with its per-point uncertainty at SCI-06’s height sampling (SCI-18); full L1a ionograms
+      (8-bit amplitude per frequency step and 10 km range bin over INS-04’s range, with time, position,
+      attitude, sweep settings and AGC) for at least one ionogram in ten; the Doppler-mode and drift-mode
+      products whenever those modes run; housekeeping; and one L0 sweep per orbit for calibration. Goal:
+      L1a for every ionogram, L2 at 10 km with H(h) and its uncertainty, and 60-bin Doppler maps. The
+      daily volume follows from the configuration, altitude and duty cycle the mission declares (MIS-11).
+      For reference, A1 at 900 km with ionograms back to back is 109 MB/day at threshold and 435 MB/day
+      at goal (74 and 281 MB/day at INS-07’s 6.7 s), the O2 bubble duty cycle 141 and 429 MB/day, A2 321
+      and 1,272 MB/day (174 and 498 MB/day at 6.7 s), and A1 at SCI-02’s 1400 km goal altitude 142 and
+      698 MB/day (Rev G §5.13; Derivations §24). The raw ionogram is 16.7 kB (159 steps × 105 bins × 8
+      bit). The 10 km product bins are not the range cell. Amended 2026-10-20.'
+    flows_from: SCI-18, INS-03, INS-04, INS-07, INS-27; §5.13
+    status: Specified 2026-10-20 (WP0 closure). Raw samples are 13.5 GB/day (A1, 900 km); the threshold
+      set is 4× smaller than the goal set. Downlink, contacts and processing are mission designs (MIS-11).
+      tss-sim study data_volume.
+    verification: A, I. Data-volume arithmetic (tss-sim data_volume); review of the product definitions.
     verification_methods:
     - A
+    - I
   INS-14:
     sheet: Instrument & Mission
     family: INS
@@ -727,12 +746,14 @@ requirements:
     sheet: Instrument & Mission
     family: INS
     requirement: Data volume in the vector configuration
-    value: Three receive channels triple the raw data rate. With on-board trace extraction and arrival-angle
-      reduction the delivered product grows by roughly a factor of two, not three, since range and frequency
-      axes are shared.
-    flows_from: INS-13, INS-18
-    status: Not specified.
-    verification: A. Data-volume arithmetic.
+    value: Three receive channels triple the raw data rate and the L1a ionogram. With on-board trace extraction
+      and arrival-angle reduction (INS-28) the L1b product grows by a factor of 2.0, since the range and
+      frequency axes are shared and each echo gains only its arrival angle and polarization sense; the
+      INS-13 threshold product set grows by 2.3 and the goal set by 2.7 (A1 sweep, 900 km, O1), because
+      the L1a subset and the calibration sweeps keep all three channels. Amended 2026-10-20.
+    flows_from: INS-13, INS-18, INS-28; §5.13
+    status: Specified 2026-10-20 (tss-sim data_volume).
+    verification: A. Data-volume arithmetic (tss-sim data_volume).
     verification_methods:
     - A
   INS-20:
@@ -870,21 +891,44 @@ requirements:
     verification_methods:
     - I
     - B
+  INS-28:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: On-board product generation
+    value: The instrument shall form the L1b traces and the L2 profile with its uncertainty on board from
+      every ionogram, keeping pace with the ionogram cadence, so that the threshold product set of INS-13
+      can be delivered without the L1a or L0 data of every sweep. It shall retain L0 data for commandable
+      calibration bursts and L1a ionograms for a commandable subset, and shall flag the profiles INS-16
+      identifies. The processor’s throughput, memory and storage are sized by the mission against its
+      declared duty cycle (MIS-11); this requirement fixes what is produced, not the hardware that produces
+      it.
+    flows_from: INS-13, INS-16, INS-19, SCI-18; §5.13
+    status: New 2026-10-20 (WP0 closure). The raw rate (13.5 GB/day at A1, 900 km) is why the products
+      are formed on board.
+    verification: T, B. Products formed from recorded sweeps at cadence on the prototype; tss-sim product
+      tests.
+    verification_methods:
+    - T
+    - B
   MIS-01:
     sheet: Instrument & Mission
     family: MIS
     requirement: Orbit altitude
-    value: 500–900 km circular, threshold; 800–900 km preferred. Must be above the F2 peak at all times
-      sampled.
+    value: 500–900 km circular, threshold; 800–900 km preferred. Must be above the F2 peak in at least
+      99.9% of the samples of the band-edge study (amended 2026-10-20; was “at all times sampled”).
     flows_from: 'SCI-02, and §5.6. Altitude still widens the usable band, but by less than Rev B argued
       and in the opposite bookkeeping to Rev C: a higher orbit LOWERS the band edge, which is a harder
       antenna problem, not an easier one. The 95% edge falls from 0.79 MHz at 500 km to 0.33 MHz at 900
       km. What altitude buys is observable density range and more of the bubble volume below the sounder;
-      what it costs is antenna scale.'
+      what it costs is antenna scale. At 500 km and solar maximum the peak is above the spacecraft in
+      up to 0.07% of samples, by up to 36 km; every case meets 99.9% (§5.12).'
     status: '600 km assumed in the TISC baseline. The 95% lower band edge falls from 0.79 MHz at 500 km
       to 0.33 MHz at 900 km at solar minimum (Min-Freq Study): a higher orbit LOWERS the edge, which is
-      a harder antenna problem. A higher orbit places more of the bubble volume below the sounder.'
-    verification: A. Band-edge run by altitude. Mission level.
+      a harder antenna problem. A higher orbit places more of the bubble volume below the sounder. WP0
+      closure (2026-10-20): spacecraft above the peak in every sample from 600 to 900 km; worst case 99.93%
+      (O2, 500 km, solar maximum).'
+    verification: A. Band-edge run by altitude; fraction of samples above the F2 peak (tss-sim sci02_margin).
+      Mission level.
     verification_methods:
     - A
   MIS-02:
@@ -997,6 +1041,20 @@ requirements:
       Mission level.'
     verification_methods:
     - A
+  MIS-11:
+    sheet: Instrument & Mission
+    family: MIS
+    requirement: Data-handling declaration
+    value: Each mission shall declare its observing-mode duty cycle, the INS-13 product set it delivers
+      (threshold or goal) and the resulting daily volume from the INS-13 arithmetic, and shall show that
+      its downlink and on-board storage carry that volume. For a constellation the declaration is per
+      node and the ground segment is shared at mission level. Ground stations, contact plan, link budget
+      and processor design are mission designs outside this requirement set.
+    flows_from: INS-13, INS-19, INS-28; §5.13
+    status: New 2026-10-20 (WP0 closure; gate G5).
+    verification: I. Declaration review against the INS-13 arithmetic. Mission level.
+    verification_methods:
+    - I
   SW-01:
     sheet: Software (tss-sim)
     family: SW

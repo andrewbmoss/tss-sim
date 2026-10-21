@@ -337,3 +337,12 @@ from a deep minimum, a solar-minimum sample of 65 polar profiles, the polar
 tail confounded with CRC scaling quality, nothing from IRI on storm-time hmF2)
 go into the Technical Volume and the dissertation, where the last of them is
 also part of the case for flying the instrument.
+
+## WP0 closed (2026-10-20)
+
+The results above entered the requirement set with the 2026-10-20 amendment of
+Rev G (`TSS_Science_Requirements_RevG.docx` section 5.12, INS-01a, SCI-02,
+MIS-01 at 99.9 % of samples, Open Items 2, 17 and 18; `TSS_SRM_RevG.xlsx`) and
+the Technical Volume's band-edge chapter (sections on solar minimum on each
+epoch's own indices, the F2 peak, the goal altitude, the archive above 900 km,
+and what the measured record cannot test).  No requirement value changed.
