@@ -208,6 +208,14 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   G2 confirmed (Andrew): the results show the datasets are inadequate rather
   than that the requirements must change; requirements stay, MIS-01 stays at
   99.9 % of samples; the discussion goes into the TV and dissertation.
+* Phase 7.1-7.3 and 7.7 (2026-10-20): `tss study data_volume`
+  (`src/tss/studies/data_volume.py`, `docs/data-volume.md`): products per
+  observing mode, threshold and goal product sets, reference duty cycles for O1
+  and O2, A1 and A2, 900 and 1400 km.  A1 / O1 / 900 km: 109 MB/day threshold,
+  435 goal; Rev G's 16.7 kB, 215 / 339 MB/day and trace figures reproduced;
+  INS-19 vector factor x2.0 (traces), x2.3 (threshold set).  Drafts of INS-13,
+  a new INS-28 and a proposed MIS-11 (G5) are in the doc.  Contacts, link
+  budgets and processing budgets are out of scope (Andrew).
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:

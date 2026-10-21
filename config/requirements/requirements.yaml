@@ -599,12 +599,21 @@ not_scored:
       V3 replication franklin_maclean_1969_sky_noise and by WP12, not per run.
   INS-13:
     category: analysis
+    work_packages: [WP0]
     reason: >-
-      Data-volume arithmetic.  Adding a downlink allocation and an on-board
-      processing requirement is a WP0 closure task.
+      Data-volume arithmetic, tss study data_volume (WP0 Phase 7,
+      2026-10-20; docs/data-volume.md).  Products per observing mode and the
+      threshold and goal product sets; A1 at 900 km is 109 MB/day at threshold
+      and 435 MB/day at goal, back to back.  Downlink, contacts and processing
+      are mission designs (Andrew, 2026-10-20); the redrafted INS-13, a new
+      INS-28 (on-board product generation) and a proposed MIS-11 (data-handling
+      declaration, gate G5) go into the Rev G amendment.
   INS-19:
     category: analysis
-    reason: Data-volume arithmetic for the vector configuration.
+    work_packages: [WP0]
+    reason: >-
+      Data-volume arithmetic for the vector configuration (tss study
+      data_volume): raw x3.0, L1b x2.0, threshold set x2.3, goal set x2.7.
   INS-20:
     category: analysis
     reason: >-
