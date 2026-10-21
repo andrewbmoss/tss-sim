@@ -198,6 +198,13 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   INS-10 -5 dB (provisional).  G2 (Andrew): requirements stay as they are
   unless the follow-on studies show something significant; the exceedances go
   into the TV and dissertation.
+* Phase 5 (2026-10-20): `scripts/isis_high_altitude.py`, 5,233 ISIS-1 CRC
+  profiles at 900-1400 km against epoch IRI-2020 (three topsides); outputs in
+  `data/reference/isis_high_altitude`.  NeQuick median +0.3 to +0.7 dB, H0 on
+  the IRI law; but the modelled 5th percentile is 23-46 % high at solar max
+  (realised coverage of the INS-01a-style edge 86-90 %), mostly poleward of
+  70 deg (ratio up to 2.1; confounded with CRC quality 6-7).  Bound on Phase 4:
+  coverage at 0.33 MHz, 1400 km, deep min, 65 -> 45 % (O1), 75 -> 61 % (O2).
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:

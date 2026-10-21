@@ -290,3 +290,40 @@ their impacts (coverage and completeness at a deep minimum, the 1800 km
 range, the 134 kHz sample rate, 580 MB/day, the spreading and SNR cost, and
 the O+/H+ transition reached mainly at solar maximum) are discussed in the
 Technical Volume and the dissertation instead.
+
+## Phase 5: ISIS-1 at 900-1400 km (2026-10-20)
+
+The Phase 4 numbers rest on the models' low tail above 900 km, which Rev G's
+ISIS-1 check (500-900 km) did not reach.  `scripts/isis_high_altitude.py`
+pairs the 5,233 CRC profiles taken at 900-1400 km with epoch-driven IRI-2020
+for the three topsides; the full tables are in `docs/topside-model-campaign.md`
+and `data/reference/isis_high_altitude`.
+
+* NeQuick's median at the spacecraft is right to +0.3 to +0.7 dB at solar
+  maximum, and the fitted H0 follows IRI-2020's law (median ratio 0.96-0.99).
+* Its 5th percentile is too high by 23-46 per cent (solar maximum, by band;
+  12 per cent at 800-900 km), so an edge set by INS-01a's method from the
+  models realises 86-90 per cent coverage on the ISIS-1 records, not 95.  The
+  excess is mostly poleward of 70 deg (ratio 1.5-2.1, 64-78 per cent realised);
+  at low and middle latitudes it is 1.12-1.24.  Polar records are mostly CRC
+  quality index 6-7, so this archive cannot separate the polar cap from the
+  scaling.
+* At solar minimum there are 65 records, 63 of them polar (1975-77): ratio 2.3,
+  73 per cent realised.  Nothing here reaches the 2008-09 or 2019-20 minima.
+
+**What it means for Phase 4.**  The goal's coverage figures are optimistic.
+Dividing the modelled fN_sat by each band's solar-maximum tail ratio (a
+pessimistic bound, because the medians agree and only the tail is high) moves
+coverage at a 0.33 MHz start at 1400 km in a deep minimum from 65 to 45 per
+cent (O1) and from 75 to 61 per cent (O2), and the 95 per cent edge from
+0.164 to 0.123 MHz (O1).  At 1000 km: 86 to 76 per cent (O1), 93 to 85 per
+cent (O2).  At solar maximum coverage stays at 97 per cent or more.  The
+O1 class reaches 80 deg, so it carries the polar part of the excess; O2
+(30 deg) sees about the low-latitude ratio.
+
+**What it means for INS-01a.**  INS-01a's envelope stops at 900 km, where this
+check gives 1.23 for 900-1000 km at solar maximum, against the 12 per cent the
+2026-10-18 run gave for 800-900 km and the 19 per cent the tolerance was
+reserved for.  The governing case is solar minimum, where the archive has 6
+records at 900-1000 km.  Nothing here changes the G1 decision; it adds to
+the case that the tolerance is nearly used.

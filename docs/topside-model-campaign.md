@@ -97,6 +97,47 @@ Solar maximum, median model/measured dB:
   runs at solar minimum may be biased low (conservative for the lower edge): check against epoch
   runs.
 
+## ISIS-1 at 900-1400 km (WP0 Phase 5, 2026-10-20)
+
+`scripts/isis_high_altitude.py run|analyse` repeats the epoch comparison for the CRC profiles taken
+with the spacecraft at 900-1400 km: 5,233 profiles (quality 0-7, Rz12 recorded), 4,659 at solar
+maximum (Rz12 >= 100), 509 intermediate and 65 at solar minimum (Rz12 <= 30, all 1975-77, 63 of
+them poleward of 60 deg). Same six IRI-2020 configurations (`topside_isis_epoch_iri.m`, 85 s, no
+failures). Outputs in `data/reference/isis_high_altitude`.
+
+Solar maximum, median model/measured dB, and the 5th percentiles (MHz):
+
+| band | n | NeQuick epoch | IRI-2001 | IRI-2001 corr. | p05 obs | ensemble p05 | ens/obs | realised coverage | H0 fit / IRI law (median) |
+|---|---|---|---|---|---|---|---|---|---|
+| 900-1000 | 980 | +0.67 | +4.08 | +1.14 | 0.733 | 0.902 | 1.23 | 89.5 % | 0.96 |
+| 1000-1100 | 947 | +0.67 | +5.25 | +1.55 | 0.601 | 0.810 | 1.35 | 87.1 % | 0.97 |
+| 1100-1200 | 947 | +0.57 | +5.77 | +1.60 | 0.510 | 0.712 | 1.40 | 86.6 % | 0.97 |
+| 1200-1300 | 900 | +0.44 | +6.52 | +1.64 | 0.460 | 0.672 | 1.46 | 86.4 % | 0.99 |
+| 1300-1400 | 885 | +0.26 | +7.11 | +1.49 | 0.465 | 0.620 | 1.34 | 87.3 % | 0.96 |
+
+The ensemble edge is INS-01a's construction (the minimum of the three topsides' 5th
+percentiles; NeQuick gives it everywhere); realised coverage is the fraction of measured
+fN_sat at or above it, 95 % if the low tail were right.
+
+* **NeQuick's median holds** above 900 km (+0.3 to +0.7 dB, as at 700-900 km), the storm models move
+  it by under 0.05 dB, and the fitted H0 sits on IRI-2020's law (median 0.96-0.99, p10-p90
+  0.7-1.7). IRI-2001 is 4-7 dB high and grows with altitude; IRI-2001 corrected 1.1-1.6 dB.
+* **Its low tail does not.** The modelled 5th percentile is 23-46 % above the measured one, against
+  12 % at 800-900 km in the 2026-10-18 run and the 19 % Rev G reserved INS-01a's tolerance for.
+  The edge INS-01a's method would set realises 86-90 % coverage instead of 95 %.
+* **The overstatement is mostly polar.** At |lat| < 30 deg the ratio is 1.24 (88 % realised), at
+  30-60 deg 1.12 (91 %), at 60-70 deg 1.28 (91 %), 70-80 deg 1.48 (78 %) and 80-90 deg 2.05 (64 %);
+  the polar rows run 1.39-2.13 by band, the non-polar 1.13-1.29. Night (18-06 LT) is 1.32 against
+  1.19 by day. The polar records are mostly CRC quality index 6-7 (73 % of index 7 are polar, 0.5 %
+  of index 4), so latitude and scaling quality are confounded here: non-polar index 6-7 records
+  give 1.25, non-polar index 4-5 1.19, polar index 6-7 1.93 (only 40 polar records are index 4-5).
+  The polar-cap topside above 1000 km being less dense than IRI is plausible physics (IRI has no
+  polar-wind depletion of H+), but this archive cannot separate it from the scaling.
+* **Solar minimum** (63 polar, 2 non-polar records, 1975-77): measured p05 0.146 MHz against an
+  ensemble 0.331 MHz (2.3 times), realised coverage 73 %, NeQuick median -0.66 dB. A polar-cap,
+  shallow-minimum sample, too small to say anything about the deep minima or low latitudes.
+* **Intermediate activity** (509): ratio 0.79-0.99, realised 95-98 %: the tail is right or low.
+
 ## Consequence
 
 `l0: iri2020` (PyIRI) must not be used for band-edge or topside-shape results until its H0 is
