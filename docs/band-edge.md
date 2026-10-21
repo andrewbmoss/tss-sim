@@ -327,3 +327,13 @@ check gives 1.23 for 900-1000 km at solar maximum, against the 12 per cent the
 reserved for.  The governing case is solar minimum, where the archive has 6
 records at 900-1000 km.  Nothing here changes the G1 decision; it adds to
 the case that the tolerance is nearly used.
+
+**G2 confirmed (Andrew, 2026-10-20).**  "The results strengthen the lack of
+adequate datasets more than they indicate the requirements need to change."
+The requirements stay as Rev G has them, with MIS-01 stated as 99.9 per cent
+of samples (Phase 3).  The Phase 4 exceedances, the Phase 5 tail bound and
+the gaps in the measured record that Phase 5 exposes (no topside sounder data
+from a deep minimum, a solar-minimum sample of 65 polar profiles, the polar
+tail confounded with CRC scaling quality, nothing from IRI on storm-time hmF2)
+go into the Technical Volume and the dissertation, where the last of them is
+also part of the case for flying the instrument.

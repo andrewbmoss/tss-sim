@@ -588,9 +588,10 @@ not_scored:
       per cent.  Storm-time hmF2 uplift is outside IRI and not verified.  docs/band-edge.md, Phase 3.  Goal (h_sat to 1400 km): WP0
       Phase 4 gives 65 per cent coverage and 0.89 mean altitude completeness
       at 1400 km from a 0.33 MHz start at a deep minimum (docs/band-edge.md,
-      Phase 4).  G2 (Andrew, 2026-10-20): the requirement stays as it is
-      unless the follow-on studies show something significant; the
-      exceedances are discussed in the Technical Volume and dissertation.
+      Phase 4); ISIS-1 at 900-1400 km (Phase 5) bounds it at 45 per cent.
+      G2 (Andrew, 2026-10-20, confirmed after Phase 5): the requirement stays
+      as it is; the exceedances and the inadequacy of the measured record are
+      discussed in the Technical Volume and dissertation.
   SCI-20:
     category: analysis
     reason: >-

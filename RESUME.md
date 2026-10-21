@@ -205,6 +205,9 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   (realised coverage of the INS-01a-style edge 86-90 %), mostly poleward of
   70 deg (ratio up to 2.1; confounded with CRC quality 6-7).  Bound on Phase 4:
   coverage at 0.33 MHz, 1400 km, deep min, 65 -> 45 % (O1), 75 -> 61 % (O2).
+  G2 confirmed (Andrew): the results show the datasets are inadequate rather
+  than that the requirements must change; requirements stay, MIS-01 stays at
+  99.9 % of samples; the discussion goes into the TV and dissertation.
 * `tss_iri_profiles.m` now writes the extras with nine significant figures.
 * G4 (Andrew, 2026-10-19): ground stations USU/Logan, KSAT SvalSat
   (78.230 N, 15.408 E) and INPE Cuiaba (15.553 S, 56.073 W).  Reference radios:
