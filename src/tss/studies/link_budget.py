@@ -104,11 +104,50 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
         "meets_ins10_everywhere": bool(np.all(usable >= 10.0)) if usable.size else False,
     }
 
+    # The instrument the campaigns fly (WP3 Phase 0, 2026-10-20).  The default
+    # SounderConfig above is the inherited TISC point design: a 300 km
+    # reflection and the legacy antenna curve (-6.8 dBi at 5 MHz), not the 5 m
+    # Balanis dipole of baseline_6u.yaml, and its numbers are kept because the
+    # attribution table is about that design.  INS-10 on the instrument, at
+    # INS-04's range, comes from tss.l2_instrument.reference_echo.
+    from tss.l2_instrument.reference_echo import reference_levels
+    from tss.studies.data_volume import A1
+    from tss.studies.reference_echo import _crossing_mhz, _instrument
+
+    lev = reference_levels(_instrument(), A1.schedule())
+    inst_snr = np.asarray(lev["snr_rmax_db"], dtype=float)
+    inst_path = out_dir / "instrument_snr_at_rmax.csv"
+    np.savetxt(
+        inst_path, np.column_stack([lev["f_hz"] / 1e6, lev["gain_dbi"], inst_snr]),
+        delimiter=",", header="f_mhz,gain_dbi,snr_db_free_space_1050km", comments="",
+    )
+    outputs.append(inst_path)
+    cross = _crossing_mhz(lev["f_hz"], inst_snr)
+    i5 = int(np.argmin(np.abs(lev["f_hz"] / 1e6 - 5.0)))
+    metrics.update({
+        "default_config_is_inherited_tisc_point_design": True,
+        "instrument_snr_db_rmax_min": float(np.min(inst_snr)),
+        "instrument_snr_db_rmax_median": float(np.median(inst_snr)),
+        "instrument_snr_db_rmax_at_5mhz": float(inst_snr[i5]),
+        "instrument_snr_rmax_meets_10db_above_mhz": cross,
+    })
+
     summary = f"""
 SNR was evaluated at {f_mhz.size} frequencies from {f_mhz[0]:.2f} to {f_mhz[-1]:.1f} MHz
-against the default sounder configuration.
+against the default sounder configuration, which is the inherited TISC point
+design (300 km reflection, legacy antenna curve, 1 km cell at 5.6 MHz/s) and not
+the instrument the campaigns fly.  Its numbers are kept for the attribution
+below; they are not the INS-10 figure.
 
-The median SNR per range cell is {metrics['snr_db_median']:.1f} dB and the minimum
+On the instrument (baseline_6u: 5 m dipole with the Balanis reactance, A1 sweep,
+Hann window), the free-space SNR per range cell at INS-04's 1050 km is
+{metrics['instrument_snr_db_rmax_median']:.1f} dB median over the {inst_snr.size} steps,
+{metrics['instrument_snr_db_rmax_at_5mhz']:.1f} dB at 5 MHz and
+{metrics['instrument_snr_db_rmax_min']:.1f} dB at the band edge; it is at least 10 dB
+above {cross if cross is not None else float('nan'):.2f} MHz
+(`instrument_snr_at_rmax.csv`; the reference_echo study has the full table).
+
+On the inherited design, the median SNR per range cell is {metrics['snr_db_median']:.1f} dB and the minimum
 over the band is {metrics['snr_db_min']:.1f} dB, against the 10 dB threshold of
 INS-10.
 
