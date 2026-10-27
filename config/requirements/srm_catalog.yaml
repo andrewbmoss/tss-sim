@@ -10,7 +10,7 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: 139b4aefff0b5c931b08cb1964746a6b2457140ea8f87fa13bcd5612155d245b
+source_sha256: 688fa456021c87315df4b9432f7d94ce853726449dcbb3aac37966e9cdbbe304
 revision: G
 counts:
   SCI: 28
@@ -624,12 +624,14 @@ requirements:
     requirement: Receiver dynamic range
     value: ≥60 dB instantaneous, at the digitiser input, after analog de-chirp and a high-pass filter
       that removes the de-chirped leakage before digitisation. The filter shall reject the leakage carrier
-      by at least the leakage-over-echo ratio less 60 dB plus 10 dB of headroom, which is 32 dB at INS-23's
-      40 dB isolation (§5.9). ≥90 dB with AGC; survive +120 dB. The 60 dB and the AGC split follow RPI
-      (60 dB plus 66 dB of AGC, Reinisch et al. 2001); the 90 dB and 120 dB follow Franklin and MacLean.
+      by at least the leakage-over-echo ratio less 60 dB plus 10 dB of headroom, which is 47 dB at INS-23's
+      40 dB isolation at 5 MHz and more toward the band bottom (§5.9; amended 2026-10-27, from 32 dB).
+      ≥90 dB with AGC; survive +120 dB. The 60 dB and the AGC split follow RPI (60 dB plus 66 dB of AGC,
+      Reinisch et al. 2001); the 90 dB and 120 dB follow Franklin and MacLean.
     flows_from: SCI-21, INS-10, INS-23; §5.9
     status: 'Not specified in the baseline. Rev G states the reference point: the digitiser input, after
-      analog de-chirp and a leakage high-pass filter of >= 32 dB rejection at 40 dB isolation.'
+      analog de-chirp and a leakage high-pass filter of >= 47 dB rejection at 40 dB isolation at 5 MHz
+      (32 dB before 2026-10-27).'
     verification: A, B. Analysis of the analog chain and high-pass filter; two-tone, blocking and leakage-injection
       tests at the digitiser input.
     verification_methods:
@@ -795,13 +797,17 @@ requirements:
     sheet: Instrument & Mission
     family: INS
     requirement: Transmit chirp spectral purity
-    value: Spurious content of the radiated chirp ≤ −70 dBc threshold, ≤ −80 dBc goal, at offsets from
-      3736 Hz to 39227 Hz from the instantaneous carrier — the beat band spanned by echoes between 100
-      km and INS-04's maximum range. The threshold is derived at 40 dB isolation, a 10 m coupling path
-      and 10 dB of margin; the SRM Derivations sheet carries it as a live formula in those three inputs
-      (§5.9). Configuration A2 sweeps at up to 37.3 MHz/s, so its beat band extends to 261 kHz, where
-      range correlation suppresses a spur 16.5 dB less; A2 needs ≤ −86.5 dBc at 40 dB isolation, or INS-23
-      ≥ 56.5 dB.
+    value: 'Spurious content of the radiated chirp ≤ −82 dBc threshold, ≤ −92 dBc goal, at offsets spanning
+      the echo band of each step: the beat band of echoes between 100 km and INS-04''s maximum range at
+      that step''s sweep rate, 0.41 kHz to 39.2 kHz in configuration A1 and to 261 kHz in A2. The threshold
+      keeps the spread leakage 10 dB below the free-space echo from INS-04''s range, at 40 dB isolation
+      and a 10 m coupling path, at every step at which that echo meets INS-10. It binds at the 1.26 MHz
+      step, which asks −81.1 dBc (Derivations F185), and is rounded outward. At 5 MHz the same rule asks
+      −65.5 dBc and above 10 MHz no more than −57 dBc, so a frequency-dependent mask could replace the
+      single value (§5.9). A2''s faster sweep costs it range correlation only on its fast steps, where
+      the leakage-to-echo ratio is smallest, and its binding step is A1''s, so one value serves both configurations.
+      Amended 2026-10-27, from −70 dBc threshold and −80 dBc goal at 3.7 to 39.2 kHz (A2: −86.5 dBc),
+      derived on the inherited 122 dB leakage-to-echo ratio.'
     flows_from: INS-04, INS-05, INS-24; §5.9
     status: Not specified. The M&S plan names this the critical path.
     verification: B. Spectrum analyser on the radiated chirp.
@@ -814,8 +820,8 @@ requirements:
     value: '≥40 dB threshold, ≥60 dB goal, across the band, between the transmit and receive apertures
       as deployed. The figure is a deployed-configuration property, not a component specification, and
       it trades directly against INS-22: every decibel of isolation buys a decibel of relaxation in transmit
-      purity. Configuration A2 needs ≥56.5 dB at INS-22''s −70 dBc threshold, because its faster sweep
-      reduces range-correlation suppression by 16.5 dB.'
+      purity. At INS-22''s −82 dBc threshold the 40 dB threshold holds for A1 and A2 alike, with 0.9 dB
+      to spare at the binding step (Derivations F187; amended 2026-10-27, A2 was ≥56.5 dB).'
     flows_from: INS-24; §5.9
     status: Not specified.
     verification: A, B, O. NEC deployed-geometry model; bench surrogate; in-flight measurement. Deployed
@@ -832,7 +838,8 @@ requirements:
       echo admitted by INS-10, at every beat frequency in the echo band. This is the primary requirement
       of the family: it is the quantity that can be measured, in simulation and on a bench, and INS-21
       to INS-23 are allocations to it. The transmit phase-noise mask derived in the M&S plan (−108 dBc/Hz
-      at 40 dB isolation) is subsumed here, since sweep spurs and phase noise contribute to the same pedestal.'
+      at 40 dB isolation as derived there; −123 dBc/Hz at 5 MHz on the leakage-to-echo ratio corrected
+      2026-10-27) is subsumed here, since sweep spurs and phase noise contribute to the same pedestal.'
     flows_from: SCI-19, INS-10; §5.9
     status: Absent. This is what the bench phase of the prototype measures.
     verification: B, S. De-chirped residual through a calibrated delay line; L2 leakage model. Primary

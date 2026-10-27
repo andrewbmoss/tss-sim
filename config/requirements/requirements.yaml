@@ -272,8 +272,9 @@ requirements:
       Rev G states the reference point: the digitiser input, after analog
       de-chirp and a high-pass filter that removes the de-chirped leakage before
       digitisation.  The filter must reject the leakage carrier by the
-      leakage-over-echo ratio less 60 dB plus 10 dB of headroom, 32 dB at
-      INS-23's 40 dB isolation (Requirements Rev G sec. 5.9).  INS-11 also
+      leakage-over-echo ratio less 60 dB plus 10 dB of headroom, 47 dB at
+      INS-23's 40 dB isolation at 5 MHz (Requirements Rev G sec. 5.9, amended
+      2026-10-27 from 32 dB with the leakage-to-echo correction).  INS-11 also
       requires 90 dB with gain control and survival at +120 dB (Franklin and
       MacLean 1969); neither companion condition is scored by this entry.
 
