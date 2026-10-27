@@ -1,173 +1,439 @@
 """Layer: L2
 WP: WP3
 Claims: C4
-Status: stub
-Requirements: INS-23, INS-24
+Status: partial
+Requirements: INS-21, INS-23, INS-24
 
-Transmit-to-receive leakage and its de-chirped residual.  Not implemented.
-WP3, and it is on the critical path.
+Transmit-to-receive leakage, as de-chirped complex baseband (WP3 Phase 1).
 
 WHY THIS IS THE HARDEST PART OF THE INSTRUMENT
 ----------------------------------------------
-The sounder transmits continuously while it receives.  The transmitter is
-therefore the strongest signal at the receiver input at all times, by a very
-large margin: the echo arrives after free-space spreading over twice the range
-and after ionospheric absorption, while the leakage takes a path of a metre or
-two.  INS-23 sets the isolation threshold at 40 dB, which is not enough on its
-own, and the rest has to come from the de-chirp.
+The sounder transmits continuously while it receives, so the transmitter is the
+strongest signal at the receiver input at all times.  The echo arrives after
+free-space spreading over twice the range and after ionospheric absorption,
+while the leakage takes a path of a metre to a few tens of metres.  At INS-23's
+40 dB isolation the leakage lies 97 dB above the free-space echo from INS-04's
+1050 km at 5 MHz, and 120.5 dB above it at 1.26 MHz, where antenna efficiency
+is low (:mod:`tss.l2_instrument.reference_echo`; Rev G section 5.9 as amended
+2026-10-27).  The rest has to come from the de-chirp.
 
-The de-chirp is what makes it survivable.  Leakage at a delay of a few
-nanoseconds de-chirps to a beat frequency of a few tens of millihertz, which is
-essentially at zero, while an echo at 600 km de-chirps to tens of kilohertz.  So
-the leakage and the echo separate in the transform even though they do not
-separate in time.  INS-24 is a requirement on what is left after that
-separation, which is the residual, and the residual is what this module has to
-produce.
+De-chirping is what makes it survivable.  Leakage at a delay of a few
+nanoseconds de-chirps to a beat of a fraction of a hertz, while an echo at
+600 km de-chirps to kilohertz, so the two separate in the transform even though
+they do not separate in time.  INS-24 is a requirement on what is left after
+that separation.
 
-WHAT MAKES THE RESIDUAL NON-TRIVIAL
------------------------------------
-If the leakage were a clean scaled copy of the transmitted sweep at a fixed
-delay, its de-chirped residual would be a single tone at near zero frequency and
-it would be removed by a high-pass filter.  Three things stop that.
+WHAT THIS MODULE PRODUCES
+-------------------------
+:func:`leakage_signal` returns the leakage at the receiver input in the same
+units and with the same phase convention as the L2 baseline's echoes: complex
+samples in root-watts, de-chirped against the reference, with the phase
+``phi_ref(t) - phi_rx(t)``.  For a coupling path of delay ``tau`` and complex
+gain ``H(f)`` the received leakage carries the transmitted phase at ``t - tau``
+plus the excess phase of ``H``, so
 
-1.  **The isolation is not flat with frequency.**  A coupling path through a
-    deployed structure has resonances, and the sweep crosses them, so the
-    leakage amplitude is modulated as the sweep proceeds.  Amplitude modulation
-    of a tone at zero beat frequency puts sidebands at the modulation rate,
-    which is not at zero, and those land in the range cells where echoes live.
-2.  **The coupling delay is not fixed.**  A deployed antenna moves.  The
-    coupling delay of the baseline configuration is stated as 3 ns and carries
-    open item 13, because the deployed geometry is not fixed yet.  A slowly
-    varying delay is a slowly varying phase on the residual, and the rate of
-    variation sets how well an adaptive canceller can track it.
-3.  **The leakage is strong enough to matter through the receiver's
-    nonlinearity.**  It is the signal that decides whether the front end clips,
-    and a clipped leakage produces intermodulation that is no longer at zero
-    beat frequency at all.  That is the coupling between this module and
-    :mod:`tss.l2_instrument.receiver` and it is why the two cannot be developed
-    independently.
+    x(t) = sqrt(P_tx) conj(H(f_e)) exp(j [Dphi(t) + e_ref(t) - e_tx(t - tau)])
 
-WHAT HAS TO BE DECIDED FIRST
-----------------------------
-The frequency-dependent isolation profile is the input this module does not
-have.  A flat 40 dB is the requirement threshold, not a measurement, and the
-whole question is what the departures from flat do.  Until WP3's antenna and
-structure work produces a coupling model, or a measurement from the prototype
-gives one, any residual this module computed would be a residual for an
-isolation profile that was invented to produce it.
+with ``f_e = f(t - tau)`` the frequency that is arriving, ``Dphi`` the
+de-chirped phase of the ideal law and ``e_tx`` and ``e_ref`` the phase errors
+of the transmitted chirp and of the de-chirp reference.  Under INS-21 they are
+the same source, ``e_ref = e_tx``, and the residual error is the lag-``tau``
+difference of one error; with an independent reference it is not, and the
+range-correlation credit is lost.  Phase 1 carries the single-tone frequency
+error of Rev G section 5.9 (:class:`SingleToneFM`) so that the analytic forms
+can be tested; WP3 Phase 2 replaces it with the oscillator, spurs, AM noise and
+sweep nonlinearity.
 
-The companion at L3 is ``tss.l3_signal.leakage_suppress``, which is also not
-started.  The two score different things: INS-23 is the isolation this module
-models, INS-24 is the residual after both this module and that one have had
-their turn.
+``Dphi`` is computed as the integral of the transmitted frequency over
+``[t - tau, t]`` in closed form inside a step rather than as the difference of
+two accumulated phases, which at 4 s into a sweep are 10^8 radians apart from
+the answer and would cost the residual seven digits.  Where ``t - tau`` falls
+in the previous step the exact difference of :func:`tss.sweep_law.phase_rad`
+is used, so the step transition is in the samples as it is for the echoes.
 
-Raises
-------
-NotImplementedError
-    On every call.  WP3, ``docs/work-packages.md`` row WP3 and
-    ``docs/architecture.md``, the L2 tier table row ``leakage``.
+THE ISOLATION PROFILE
+---------------------
+WP3 decision G1 (2026-10-27): the scored isolation profiles are parametric
+brackets, with one profile anchored by a moment-method model of the antennas
+(``data/reference/wp3_isolation_mom``).  :class:`LeakageModel` composes
+
+* a base isolation, flat (``isolation_db``) or tabulated against frequency
+  (:func:`mom_anchor_model` loads the moment-method anchor);
+* a sinusoidal ripple in decibels, ``isolation_ripple_db`` peak to peak with
+  period ``ripple_period_hz`` in frequency, which the sweep turns into
+  amplitude modulation at ``K / ripple_period_hz``;
+* any number of :class:`Resonance` terms, each a parallel resonant path that
+  lowers the isolation by ``depth_db`` at ``f0_hz`` and turns the coupling phase
+  through it;
+* a retuning transient: when the match retunes at a step boundary the coupling
+  departs by ``retune_transient_db`` and settles with ``retune_time_constant_s``.
+
+The coupling delay is ``coupling_delay_s``, with an optional slow random
+jitter (``delay_jitter_s`` rms, first-order Gauss-Markov with bandwidth
+``jitter_bandwidth_hz``) for a moving deployed structure.  WP3 decision G2
+(2026-10-27) brackets the path at 1, 3, 10 and 30 m (:data:`COUPLING_PATHS_M`);
+the baseline stays at 3 ns (Open Item 13).
+
+WHAT IS NOT HERE YET
+--------------------
+The leakage is not yet added to the baseline's samples, and the receiver's
+compression and the leakage high-pass are not modelled: both are WP3 Phase 3.
+:func:`dechirped_residual` and :func:`score_ins23_ins24` are WP3 Phase 4.  The
+companion canceller ``tss.l3_signal.leakage_suppress`` is WP5.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import math
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import numpy as np
+from scipy import signal as _signal
+from scipy import special as _special
 
+from tss import sweep_law
+from tss.constants import C_LIGHT
 from tss.interfaces import ReceivedSignal, SweepSchedule
 
 __all__ = [
-    "LeakageModel",
-    "isolation_profile_db",
-    "leakage_signal",
-    "dechirped_residual",
-    "score_ins23_ins24",
     "BASELINE_ISOLATION_DB",
     "BASELINE_COUPLING_DELAY_S",
+    "ISOLATION_BRACKETS_DB",
+    "COUPLING_PATHS_M",
+    "Resonance",
+    "SingleToneFM",
+    "LeakageModel",
+    "isolation_profile_db",
+    "coupling_response",
+    "dechirp_phase_rad",
+    "leakage_signal",
+    "leakage_over_echo_db",
+    "range_correlation_suppression_db",
+    "fm_spur_dbc",
+    "dechirped_fm_sideband_dbc",
+    "small_angle_sideband_dbc",
+    "ripple_sideband_dbc",
+    "ripple_modulation_hz",
+    "jitter_phase_rms_rad",
+    "MOM_ANCHOR_RELPATH",
+    "mom_anchor_table",
+    "mom_anchor_model",
+    "dechirped_residual",
+    "score_ins23_ins24",
 ]
 
 #: INS-23 threshold, dB.  A requirement, not a measurement.
 BASELINE_ISOLATION_DB = 40.0
 
-#: Coupling delay of the baseline configuration, seconds.  Open item 13: the
-#: deployed geometry is not fixed, so this is a placeholder with the right order
-#: of magnitude and not a number any result may rest on.
+#: Coupling delay of the baseline configuration, seconds.  Open Item 13: the
+#: deployed geometry is not fixed.  WP3 decision G2 keeps 3 ns as the baseline
+#: and brackets the path at :data:`COUPLING_PATHS_M`.
 BASELINE_COUPLING_DELAY_S = 3.0e-9
 
-_MESSAGE = (
-    "WP3: transmit-to-receive leakage is not implemented.  It is on the critical "
-    "path for C4.  The blocking input is a frequency-dependent isolation profile; "
-    "a flat 40 dB is the INS-23 threshold rather than a coupling model, and the "
-    "whole question is what the departures from flat do to the de-chirped "
-    "residual.  See docs/work-packages.md row WP3."
-)
+#: WP3 decision G1(a): the scored flat isolation brackets, dB.
+ISOLATION_BRACKETS_DB = (30.0, 40.0, 50.0, 60.0)
+
+#: WP3 decision G2: the coupling-path bracket, m (3.3 to 100 ns).
+COUPLING_PATHS_M = (1.0, 3.0, 10.0, 30.0)
+
+_LN10_OVER_20 = math.log(10.0) / 20.0
 
 
+# ----------------------------------------------------------------------------
+# The coupling path
+# ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Resonance:
+    """A parallel resonant coupling path.
+
+    The coupling gain is multiplied by ``1 + (g - 1) / (1 + j x)`` with
+    ``g = 10^(depth_db / 20)`` and ``x = 2 q (f - f0) / f0``.  At ``f0`` the
+    isolation falls by ``depth_db``; far from it the factor is one.  Across the
+    resonance the coupling phase turns, which is what a structural resonance
+    does to the leakage and what a flat-isolation model omits.
+    """
+
+    f0_hz: float
+    q: float
+    depth_db: float
+
+    def __post_init__(self) -> None:
+        if not (self.f0_hz > 0.0 and self.q > 0.0):
+            raise ValueError("a resonance needs f0_hz > 0 and q > 0")
+        if not math.isfinite(self.depth_db):
+            raise ValueError("depth_db must be finite")
+
+    def response(self, f_hz: np.ndarray | float) -> np.ndarray:
+        f = np.asarray(f_hz, dtype=float)
+        g = 10.0 ** (float(self.depth_db) / 20.0)
+        x = 2.0 * float(self.q) * (f - float(self.f0_hz)) / float(self.f0_hz)
+        return 1.0 + (g - 1.0) / (1.0 + 1j * x)
+
+
+@dataclass(frozen=True)
+class SingleToneFM:
+    """Transmit frequency error ``deviation_hz cos(2 pi rate_hz t + phase_rad)``.
+
+    The error of Rev G section 5.9.  Its phase is
+    ``(deviation_hz / rate_hz) sin(2 pi rate_hz t + phase_rad)``.
+    """
+
+    deviation_hz: float
+    rate_hz: float
+    phase_rad: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not self.rate_hz > 0.0:
+            raise ValueError("rate_hz must be positive")
+
+    def __call__(self, t_s: np.ndarray) -> np.ndarray:
+        t = np.asarray(t_s, dtype=float)
+        beta = float(self.deviation_hz) / float(self.rate_hz)
+        return beta * np.sin(2.0 * np.pi * float(self.rate_hz) * t + float(self.phase_rad))
+
+
+@dataclass(frozen=True)
 class LeakageModel:
-    """The coupling path from transmitter to receiver.  Not implemented.
+    """The coupling path from transmitter to receiver.
 
     Parameters
     ----------
     isolation_db
-        Isolation at the reference frequency, positive decibels.  Default
+        Base isolation, positive decibels, when no table is given.  Default
         :data:`BASELINE_ISOLATION_DB`, the INS-23 threshold.
     coupling_delay_s
         One-way delay of the coupling path.  Default
-        :data:`BASELINE_COUPLING_DELAY_S`, which carries open item 13.
-    isolation_ripple_db
-        Peak-to-peak departure of the isolation from flat across the band.  This
-        is the parameter the whole module turns on and it has no defensible
-        default, so it has none.
-    ripple_period_hz
-        Frequency period of that ripple, which for a structural resonance is set
-        by the path length.  Together with ``isolation_ripple_db`` it sets where
-        the residual sidebands land.
-    delay_jitter_s
-        Variation of the coupling delay with time, from a moving deployed
-        structure.  Sets how fast an adaptive canceller has to track.
-
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP3.
+        :data:`BASELINE_COUPLING_DELAY_S` (Open Item 13).
+    isolation_ripple_db, ripple_period_hz, ripple_phase_rad
+        A sinusoidal departure of the isolation from its base, in decibels,
+        peak to peak, with the given period in frequency.  A ripple needs a
+        period.
+    resonances
+        :class:`Resonance` terms applied on top of the base and the ripple.
+    table_f_hz, table_isolation_db
+        A tabulated base isolation, interpolated linearly in decibels and held
+        at the end values outside the table.  Replaces ``isolation_db``.
+    delay_jitter_s, jitter_bandwidth_hz
+        RMS and bandwidth of a first-order Gauss-Markov variation of the
+        coupling delay.  Zero jitter draws nothing from the generator.
+    retune_transient_db, retune_time_constant_s
+        Departure of the coupling at each step boundary of a stepped sweep, in
+        decibels (positive is less isolation), decaying exponentially.
+    label
+        Free text carried into :meth:`describe`.
     """
 
-    def __init__(
-        self,
-        isolation_db: float = BASELINE_ISOLATION_DB,
-        coupling_delay_s: float = BASELINE_COUPLING_DELAY_S,
-        isolation_ripple_db: float | None = None,
-        ripple_period_hz: float | None = None,
-        delay_jitter_s: float = 0.0,
-    ) -> None:
-        del (
-            isolation_db,
-            coupling_delay_s,
-            isolation_ripple_db,
-            ripple_period_hz,
-            delay_jitter_s,
-        )
-        raise NotImplementedError(_MESSAGE)
+    isolation_db: float = BASELINE_ISOLATION_DB
+    coupling_delay_s: float = BASELINE_COUPLING_DELAY_S
+    isolation_ripple_db: float = 0.0
+    ripple_period_hz: float | None = None
+    ripple_phase_rad: float = 0.0
+    resonances: tuple[Resonance, ...] = ()
+    table_f_hz: tuple[float, ...] | None = None
+    table_isolation_db: tuple[float, ...] | None = None
+    delay_jitter_s: float = 0.0
+    jitter_bandwidth_hz: float = 1.0
+    retune_transient_db: float = 0.0
+    retune_time_constant_s: float = 1.0e-3
+    label: str = ""
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.isolation_db):
+            raise ValueError("isolation_db must be finite")
+        if not self.coupling_delay_s >= 0.0:
+            raise ValueError("coupling_delay_s must not be negative")
+        if self.isolation_ripple_db < 0.0:
+            raise ValueError("isolation_ripple_db is peak to peak and must not be negative")
+        if self.isolation_ripple_db > 0.0 and not (self.ripple_period_hz and self.ripple_period_hz > 0.0):
+            raise ValueError("an isolation ripple needs a positive ripple_period_hz")
+        if (self.table_f_hz is None) != (self.table_isolation_db is None):
+            raise ValueError("table_f_hz and table_isolation_db go together")
+        if self.table_f_hz is not None:
+            f = np.asarray(self.table_f_hz, dtype=float)
+            iso = np.asarray(self.table_isolation_db, dtype=float)
+            if f.shape != iso.shape or f.size < 2:
+                raise ValueError("an isolation table needs two or more parallel entries")
+            if np.any(np.diff(f) <= 0.0):
+                raise ValueError("table_f_hz must be strictly increasing")
+            if not np.all(np.isfinite(iso)):
+                raise ValueError("table_isolation_db must be finite")
+            object.__setattr__(self, "table_f_hz", tuple(float(v) for v in f))
+            object.__setattr__(self, "table_isolation_db", tuple(float(v) for v in iso))
+        object.__setattr__(self, "resonances", tuple(self.resonances))
+        if self.delay_jitter_s < 0.0 or self.jitter_bandwidth_hz <= 0.0:
+            raise ValueError("delay_jitter_s must be >= 0 and jitter_bandwidth_hz > 0")
+        if self.retune_time_constant_s <= 0.0:
+            raise ValueError("retune_time_constant_s must be positive")
+
+    # -- construction ------------------------------------------------------
+
+    @classmethod
+    def from_coupling_path(cls, path_m: float, **kwargs: Any) -> LeakageModel:
+        """A model whose delay is a free-space path of ``path_m`` metres."""
+        return cls(coupling_delay_s=float(path_m) / C_LIGHT, **kwargs)
+
+    @classmethod
+    def from_table(
+        cls, f_hz: Sequence[float], isolation_db: Sequence[float], **kwargs: Any
+    ) -> LeakageModel:
+        """A model on a tabulated isolation, for a modelled or measured profile."""
+        return cls(table_f_hz=tuple(f_hz), table_isolation_db=tuple(isolation_db), **kwargs)
+
+    @classmethod
+    def from_config(cls, isolation: Mapping[str, Any], **overrides: Any) -> LeakageModel:
+        """From the ``isolation`` block of an instrument configuration.
+
+        Reads ``transmit_receive_db`` and ``coupling_delay_s`` (the keys of
+        ``config/instrument/baseline_6u.yaml``) and the optional profile keys of
+        this class under their own names.  Unknown keys are ignored.
+        """
+        cfg = dict(isolation or {})
+        kw: dict[str, Any] = {
+            "isolation_db": float(cfg.get("transmit_receive_db", BASELINE_ISOLATION_DB)),
+            "coupling_delay_s": float(cfg.get("coupling_delay_s", BASELINE_COUPLING_DELAY_S)),
+        }
+        for key in (
+            "isolation_ripple_db", "ripple_period_hz", "ripple_phase_rad", "delay_jitter_s",
+            "jitter_bandwidth_hz", "retune_transient_db", "retune_time_constant_s",
+        ):
+            if cfg.get(key) is not None:
+                kw[key] = float(cfg[key])
+        if cfg.get("resonances"):
+            kw["resonances"] = tuple(Resonance(**dict(r)) for r in cfg["resonances"])
+        kw.update(overrides)
+        return cls(**kw)
+
+    # -- properties --------------------------------------------------------
+
+    @property
+    def coupling_path_m(self) -> float:
+        return float(self.coupling_delay_s) * C_LIGHT
+
+    def describe(self) -> Mapping[str, Any]:
+        out = asdict(self)
+        out["resonances"] = [asdict(r) for r in self.resonances]
+        out["coupling_path_m"] = self.coupling_path_m
+        out["profile"] = "tabulated" if self.table_f_hz is not None else "flat"
+        if self.table_f_hz is not None:
+            out["table_f_hz"] = [self.table_f_hz[0], self.table_f_hz[-1], len(self.table_f_hz)]
+            out["table_isolation_db"] = [min(self.table_isolation_db), max(self.table_isolation_db)]
+        return out
 
 
-def isolation_profile_db(
-    f_hz: np.ndarray,
-    model: LeakageModel,
+def _base_isolation_db(f: np.ndarray, model: LeakageModel) -> np.ndarray:
+    if model.table_f_hz is None:
+        return np.full(f.shape, float(model.isolation_db))
+    return np.interp(f, np.asarray(model.table_f_hz), np.asarray(model.table_isolation_db))
+
+
+def _ripple_db(f: np.ndarray, model: LeakageModel) -> np.ndarray:
+    if model.isolation_ripple_db == 0.0:
+        return np.zeros(f.shape)
+    arg = 2.0 * np.pi * f / float(model.ripple_period_hz) + float(model.ripple_phase_rad)
+    return 0.5 * float(model.isolation_ripple_db) * np.sin(arg)
+
+
+def coupling_response(f_hz: np.ndarray | float, model: LeakageModel) -> np.ndarray:
+    """Complex voltage gain of the coupling path, less its pure delay.
+
+    ``|H|^2`` is ``10^(-isolation/10)``; the phase is the excess phase of the
+    resonances.  The delay is carried separately, by the transmitted law at
+    ``t - tau``.
+    """
+    f = np.asarray(f_hz, dtype=float)
+    mag = 10.0 ** (-(_base_isolation_db(f, model) + _ripple_db(f, model)) / 20.0)
+    h = mag.astype(complex)
+    for r in model.resonances:
+        h = h * r.response(f)
+    return h
+
+
+def isolation_profile_db(f_hz: np.ndarray | float, model: LeakageModel) -> np.ndarray:
+    """Isolation against frequency, positive decibels, parallel to ``f_hz``.
+
+    INS-23 is scored on this array, and its departures from flat are what put
+    leakage sidebands into the echo band, so INS-23 and INS-24 share it.
+    """
+    h = coupling_response(f_hz, model)
+    return -20.0 * np.log10(np.abs(h))
+
+
+# ----------------------------------------------------------------------------
+# The de-chirped phase of a short delay
+# ----------------------------------------------------------------------------
+
+
+def dechirp_phase_rad(
+    sweep: SweepSchedule, t_s: np.ndarray, tau_s: np.ndarray | float
 ) -> np.ndarray:
-    """Isolation against sounding frequency, positive decibels.  Not implemented.
+    """``phi(t) - phi(t - tau)`` for the transmitted law, computed stably.
 
-    The intended return is an array parallel to ``f_hz``.  This is the quantity
-    INS-23 is scored on, and the departures from flat in it are what produce the
-    residual INS-24 is scored on, so the two requirements share this one array.
-
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP3.
+    Inside a step (or for a uniform sweep) this is the closed-form integral
+    ``2 pi [f(t - tau) tau + d K tau^2 / 2]``, which keeps full precision for a
+    nanosecond delay.  Where ``t - tau`` lies in the previous step, or the law
+    carries a nonlinearity, it is the difference of
+    :func:`tss.sweep_law.phase_rad`, which is exact and costs digits only there.
     """
-    del f_hz, model
-    raise NotImplementedError(_MESSAGE)
+    t = np.asarray(t_s, dtype=float)
+    tau = np.broadcast_to(np.asarray(tau_s, dtype=float), t.shape)
+    te = t - tau
+    if sweep_law.is_stepped(sweep):
+        if float(sweep.nonlinearity_ppm) != 0.0:
+            return sweep_law.phase_rad(sweep, t) - sweep_law.phase_rad(sweep, te)
+        d = 1.0 if int(sweep.direction) >= 0 else -1.0
+        same = sweep_law.step_index(sweep, t) == sweep_law.step_index(sweep, te)
+        same &= te >= 0.0
+        k = sweep_law.rate_hz_per_s(sweep, t)
+        out = 2.0 * np.pi * (sweep_law.frequency_hz(sweep, te) * tau + d * k * tau**2 / 2.0)
+        if not np.all(same):
+            sel = ~same
+            out = np.array(out, dtype=float)
+            out[sel] = sweep_law.phase_rad(sweep, t[sel]) - sweep_law.phase_rad(sweep, te[sel])
+        return out
+    d = 1.0 if int(sweep.direction) >= 0 else -1.0
+    k = float(sweep.k_f_hz_per_s)
+    f0 = float(sweep.f_start_hz) if d > 0 else float(sweep.f_stop_hz)
+    if float(sweep.nonlinearity_ppm) != 0.0:
+        raise NotImplementedError(
+            "a nonlinear uniform sweep is WP3 Phase 2; the stepped law carries the nonlinearity"
+        )
+    return 2.0 * np.pi * ((f0 + d * k * te) * tau + d * k * tau**2 / 2.0)
+
+
+def _tx_frequency_hz(sweep: SweepSchedule, t: np.ndarray) -> np.ndarray:
+    if sweep_law.is_stepped(sweep):
+        return sweep_law.frequency_hz(sweep, t)
+    d = 1.0 if int(sweep.direction) >= 0 else -1.0
+    f0 = float(sweep.f_start_hz) if d > 0 else float(sweep.f_stop_hz)
+    return f0 + d * float(sweep.k_f_hz_per_s) * t
+
+
+def _sweep_duration_s(sweep: SweepSchedule) -> float:
+    if sweep_law.is_stepped(sweep):
+        return sweep_law.active_duration_s(sweep)
+    return abs(float(sweep.f_stop_hz) - float(sweep.f_start_hz)) / abs(float(sweep.k_f_hz_per_s))
+
+
+def _delay_trace(
+    model: LeakageModel, n: int, fs_hz: float, rng: np.random.Generator
+) -> np.ndarray:
+    tau0 = float(model.coupling_delay_s)
+    sigma = float(model.delay_jitter_s)
+    if sigma == 0.0:
+        return np.full(n, tau0)
+    a = math.exp(-2.0 * math.pi * float(model.jitter_bandwidth_hz) / float(fs_hz))
+    w = rng.normal(0.0, 1.0, n)
+    x = _signal.lfilter([math.sqrt(1.0 - a * a)], [1.0, -a], w, zi=[a * rng.normal()])[0]
+    return tau0 + sigma * x
+
+
+# ----------------------------------------------------------------------------
+# The leakage
+# ----------------------------------------------------------------------------
 
 
 def leakage_signal(
@@ -177,23 +443,221 @@ def leakage_signal(
     rng: np.random.Generator,
     *,
     n_samples: int | None = None,
+    t0_s: float = 0.0,
     transmit_power_w: float = 1.0,
+    tx_chain_efficiency_db: float = 0.0,
+    tx_phase_error: Callable[[np.ndarray], np.ndarray] | None = None,
+    reference_phase_error: str | Callable[[np.ndarray], np.ndarray] | None = "common",
 ) -> np.ndarray:
-    """The leakage at the receiver input, as complex samples.  Not implemented.
+    """The leakage at the receiver input, de-chirped, as complex root-watts.
 
-    Intended to be added to the echo samples before the receiver is applied, not
-    after, because whether the front end clips is decided by the sum and the
-    clipping is the coupling to :mod:`tss.l2_instrument.receiver`.
+    Samples are at ``t0_s + n / fs_hz``.  ``n_samples`` defaults to the rest of
+    the sweep from ``t0_s``.  Before ``tau`` nothing has been transmitted and the
+    sample is zero, as for the echoes.
 
-    Randomness comes from ``rng`` and from nowhere else, per contract rule 4.
+    ``tx_phase_error`` is a function of time giving the phase error of the
+    transmitted chirp, radians (for example :class:`SingleToneFM`).
+    ``reference_phase_error`` is ``"common"`` for INS-21 (the de-chirp
+    reference carries the same error), ``None`` for an independent reference
+    with no error of its own, or a function of time.
 
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP3.
+    It is meant to be added to the echoes before the receiver is applied, not
+    after, because whether the front end compresses is decided by the sum
+    (WP3 Phase 3).  Randomness comes from ``rng`` only, and only when the model
+    has delay jitter.
     """
-    del sweep, fs_hz, model, rng, n_samples, transmit_power_w
-    raise NotImplementedError(_MESSAGE)
+    fs = float(fs_hz)
+    if not fs > 0.0:
+        raise ValueError("fs_hz must be positive")
+    if transmit_power_w <= 0.0:
+        raise ValueError("transmit_power_w must be positive")
+    if n_samples is None:
+        n_samples = int(np.floor((_sweep_duration_s(sweep) - float(t0_s)) * fs))
+    n = int(n_samples)
+    if n < 1:
+        raise ValueError("no samples to generate")
+    t = float(t0_s) + np.arange(n, dtype=float) / fs
+
+    tau = _delay_trace(model, n, fs, rng)
+    te = t - tau
+    live = te >= 0.0
+    dphi = dechirp_phase_rad(sweep, t, tau)
+    f_e = _tx_frequency_hz(sweep, np.clip(te, 0.0, None))
+
+    phase = dphi
+    if tx_phase_error is not None:
+        e_tx_delayed = np.asarray(tx_phase_error(te), dtype=float)
+        if isinstance(reference_phase_error, str):
+            if reference_phase_error != "common":
+                raise ValueError("reference_phase_error must be 'common', None or a callable")
+            e_ref = np.asarray(tx_phase_error(t), dtype=float)
+        elif reference_phase_error is None:
+            e_ref = np.zeros_like(t)
+        else:
+            e_ref = np.asarray(reference_phase_error(t), dtype=float)
+        phase = phase + (e_ref - e_tx_delayed)
+    elif callable(reference_phase_error):
+        phase = phase + np.asarray(reference_phase_error(t), dtype=float)
+
+    h = coupling_response(f_e, model)
+    if model.retune_transient_db != 0.0 and sweep_law.is_stepped(sweep):
+        dwell = float(sweep.step_dwell_s)
+        u = te - sweep_law.step_index(sweep, np.clip(te, 0.0, None)) * dwell
+        excess_db = float(model.retune_transient_db) * np.exp(-u / float(model.retune_time_constant_s))
+        h = h * 10.0 ** (excess_db / 20.0)
+
+    p_tx = float(transmit_power_w) * 10.0 ** (float(tx_chain_efficiency_db) / 10.0)
+    x = math.sqrt(p_tx) * np.conj(h) * np.exp(1j * phase)
+    return np.where(live, x, 0.0 + 0.0j)
+
+
+def leakage_over_echo_db(
+    instrument: Any,
+    sweep: SweepSchedule,
+    model: LeakageModel,
+    *,
+    f_hz: np.ndarray | None = None,
+    r_max_m: float | None = None,
+) -> dict[str, np.ndarray]:
+    """Leakage over the reference echoes at each step, with this model's profile.
+
+    The echoes are those of :func:`tss.l2_instrument.reference_echo.reference_levels`
+    (the free-space echo at R_max and the weakest echo INS-10 admits); the
+    isolation is :func:`isolation_profile_db` at each frequency rather than one
+    number.  With a flat model this reproduces the Phase 0 reference exactly.
+    """
+    from tss.l2_instrument import reference_echo
+
+    lev = reference_echo.reference_levels(
+        instrument, sweep, f_hz=f_hz, r_max_m=r_max_m, isolation_db=0.0
+    )
+    iso = isolation_profile_db(lev["f_hz"], model)
+    return {
+        "f_hz": lev["f_hz"],
+        "isolation_db": iso,
+        "leakage_dbw": lev["leakage_dbw"] - iso,
+        "leakage_over_rmax_echo_db": lev["leakage_over_rmax_echo_db"] - iso,
+        "leakage_over_weakest_db": lev["leakage_over_weakest_db"] - iso,
+        "leakage_over_noise_db": lev["leakage_over_noise_db"] - iso,
+        "beat_min_hz": lev["beat_min_hz"],
+        "beat_max_hz": lev["beat_max_hz"],
+        "step_rate_hz_per_s": lev["step_rate_hz_per_s"],
+    }
+
+
+# ----------------------------------------------------------------------------
+# The analytic forms the model is tested against (Rev G section 5.9)
+# ----------------------------------------------------------------------------
+
+
+def range_correlation_suppression_db(f_m_hz: np.ndarray | float, tau_s: np.ndarray | float) -> np.ndarray:
+    """``10 log10(4 sin^2(pi f_m tau))``: the suppression of a transmit spur."""
+    x = np.pi * np.asarray(f_m_hz, dtype=float) * np.asarray(tau_s, dtype=float)
+    return 10.0 * np.log10(4.0 * np.sin(x) ** 2)
+
+
+def fm_spur_dbc(deviation_hz: float, rate_hz: float) -> float:
+    """First FM sideband of the transmitted chirp relative to its carrier, exact."""
+    beta = float(deviation_hz) / float(rate_hz)
+    return float(20.0 * np.log10(abs(_special.j1(beta) / _special.j0(beta))))
+
+
+def dechirped_fm_sideband_dbc(deviation_hz: float, rate_hz: float, tau_s: float) -> float:
+    """That sideband after de-chirping against a common reference, exact.
+
+    The residual phase deviation is ``(2 deviation / rate) sin(pi rate tau)``.
+    """
+    beta = 2.0 * float(deviation_hz) / float(rate_hz) * math.sin(math.pi * float(rate_hz) * float(tau_s))
+    return float(20.0 * np.log10(abs(_special.j1(beta) / _special.j0(beta))))
+
+
+def small_angle_sideband_dbc(deviation_hz: float, tau_s: float) -> float:
+    """Rev G's form for ``f_m tau << 1``: ``(pi deviation tau)^2``."""
+    return float(20.0 * math.log10(math.pi * float(deviation_hz) * float(tau_s)))
+
+
+def ripple_sideband_dbc(ripple_pp_db: float) -> float:
+    """First AM sideband of a sinusoidal isolation ripple, relative to the carrier.
+
+    The amplitude is ``exp(-z sin theta)`` with ``z = (ln 10 / 20) ripple / 2``,
+    whose Fourier series has ``I_n(z)`` coefficients, so the first sideband is
+    ``I1(z) / I0(z)`` exactly.
+    """
+    z = _LN10_OVER_20 * 0.5 * float(ripple_pp_db)
+    return float(20.0 * np.log10(_special.i1(z) / _special.i0(z)))
+
+
+def ripple_modulation_hz(rate_hz_per_s: float, ripple_period_hz: float) -> float:
+    """The AM rate a frequency ripple becomes under a sweep: ``K / period``."""
+    return abs(float(rate_hz_per_s)) / float(ripple_period_hz)
+
+
+def jitter_phase_rms_rad(f_hz: float, delay_jitter_s: float) -> float:
+    """RMS de-chirped phase from delay jitter: ``2 pi f sigma_tau``."""
+    return 2.0 * math.pi * float(f_hz) * float(delay_jitter_s)
+
+
+# ----------------------------------------------------------------------------
+# The moment-method anchor (WP3 decision G1(b))
+# ----------------------------------------------------------------------------
+
+#: Where the anchoring run is kept, relative to the repository root.  Produced by
+#: ``scripts/matlab/wp3_isolation_mom.m`` (MATLAB Antenna Toolbox); see the
+#: README beside it.
+MOM_ANCHOR_RELPATH = "data/reference/wp3_isolation_mom/isolation_mom.csv"
+
+_MOM_COLUMNS = {
+    ("crossed_offset", "simultaneous"): "iso_crossed_offset_db",
+    ("crossed_offset", "self"): "iso_crossed_offset_self_db",
+    ("parallel", "simultaneous"): "iso_parallel_db",
+    ("parallel", "self"): "iso_parallel_self_db",
+}
+
+
+def mom_anchor_table() -> dict[str, np.ndarray]:
+    """The anchoring run's columns, as arrays keyed by the CSV header."""
+    import csv
+
+    from tss.config import repo_root
+
+    path = repo_root() / MOM_ANCHOR_RELPATH
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    if not rows:
+        raise ValueError(f"{path} is empty")
+    return {k: np.array([float(r[k]) for r in rows]) for k in rows[0]}
+
+
+def mom_anchor_model(
+    geometry: str = "crossed_offset", match: str = "simultaneous", **kwargs: Any
+) -> LeakageModel:
+    """A tabulated :class:`LeakageModel` on the moment-method isolation.
+
+    ``geometry`` is ``"crossed_offset"`` (orthogonal dipoles, receive feed
+    displaced 3 cm and 8 cm from the axis: the anchor) or ``"parallel"`` (the
+    worst case).  ``match`` is ``"simultaneous"`` (both ports conjugate-matched
+    with the other antenna present: the least isolation the pair allows) or
+    ``"self"`` (each port matched to its own self-impedance).  Both include the
+    matching-coil loss at Q = 150.  Free space, no bus.
+    """
+    try:
+        column = _MOM_COLUMNS[(str(geometry), str(match))]
+    except KeyError:
+        raise ValueError(f"no anchor column for geometry={geometry!r}, match={match!r}") from None
+    tab = mom_anchor_table()
+    kwargs.setdefault("label", f"MoM anchor: {geometry}, {match} match")
+    return LeakageModel.from_table(tab["f_hz"], tab[column], **kwargs)
+
+
+# ----------------------------------------------------------------------------
+# Phase 4
+# ----------------------------------------------------------------------------
+
+_PHASE4 = (
+    "WP3 Phase 4, on the critical path for C4: the residual and its score need "
+    "the receive chain of Phase 3 (compression and the leakage high-pass).  See "
+    "the WP3 plan."
+)
 
 
 def dechirped_residual(
@@ -202,20 +666,9 @@ def dechirped_residual(
     *,
     suppression_db: float = 0.0,
 ) -> np.ndarray:
-    """What is left of the leakage after the de-chirp.  Not implemented.
-
-    ``suppression_db`` is the credit taken for whatever
-    ``tss.l3_signal.leakage_suppress`` achieved, so that this function can be
-    used to score INS-24 both with and without the L3 canceller and the two can
-    be reported separately.  Neither exists yet.
-
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP3.
-    """
+    """What is left of the leakage in each step's echo band.  WP3 Phase 4."""
     del signal, model, suppression_db
-    raise NotImplementedError(_MESSAGE)
+    raise NotImplementedError(_PHASE4)
 
 
 def score_ins23_ins24(
@@ -223,17 +676,6 @@ def score_ins23_ins24(
     model: LeakageModel,
     signal: ReceivedSignal | None = None,
 ) -> Mapping[str, Any]:
-    """Score the isolation and the residual.  Not implemented.
-
-    INS-23 scores the isolation profile, INS-24 the de-chirped residual relative
-    to the weakest echo that has to be detected beside it.  They are scored
-    together because a design can trade one against the other and reporting
-    either alone hides the trade.
-
-    Raises
-    ------
-    NotImplementedError
-        Always.  WP3.
-    """
+    """Score the isolation and the residual together.  WP3 Phase 4."""
     del f_hz, model, signal
-    raise NotImplementedError(_MESSAGE)
+    raise NotImplementedError(_PHASE4)

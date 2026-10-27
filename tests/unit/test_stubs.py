@@ -83,27 +83,9 @@ def test_perturbations_keeps_the_measured_statistics_it_is_parameterised_on():
 
 
 # ---------------------------------------------------------------------------
-# WP3: transmit-to-receive leakage
+# WP3: transmit-to-receive leakage.  The model is built (Phase 1, tested in
+# test_leakage.py); the residual and its score are Phase 4 stubs.
 # ---------------------------------------------------------------------------
-def test_leakage_model_names_wp3():
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.LeakageModel()
-    assert "WP3" in str(excinfo.value)
-
-
-def test_leakage_isolation_profile_names_wp3():
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.isolation_profile_db(np.array([1.0e6, 5.0e6]), None)
-    assert "WP3" in str(excinfo.value)
-
-
-def test_leakage_signal_names_wp3():
-    rng = np.random.default_rng(0)
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.leakage_signal(_sweep(), 1.0e5, None, rng)
-    assert "WP3" in str(excinfo.value)
-
-
 def test_leakage_dechirped_residual_names_wp3():
     with pytest.raises(NotImplementedError) as excinfo:
         leakage.dechirped_residual(None, None)
@@ -120,7 +102,7 @@ def test_leakage_stub_says_it_is_on_the_critical_path():
     """It is the difference between a gap and a blocker, and a reader has to be
     able to tell which this is without reading the work-package table."""
     with pytest.raises(NotImplementedError) as excinfo:
-        leakage.LeakageModel()
+        leakage.dechirped_residual(None, None)
     assert "critical path" in str(excinfo.value)
 
 

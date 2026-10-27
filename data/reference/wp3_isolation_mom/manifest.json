@@ -1,0 +1,22 @@
+{
+  "study": "wp3_isolation_mom",
+  "created_utc": "2026-10-27T23:56:53+00:00",
+  "script": "scripts/matlab/wp3_isolation_mom.m",
+  "tool": "MATLAB R2026a (26.1.0.3133997) Antenna Toolbox, conformalArray of two dipole elements, sparameters at Z0 = 50 ohm",
+  "git_commit_at_run": "e9d0a91cf7598d4145e067034476f2f0543c0378",
+  "antenna": {
+    "length_m": 5.0,
+    "radius_m": 0.005,
+    "coil_q": 150.0
+  },
+  "geometries": {
+    "parallel": "both along x, feeds at (0,0,0) and (0,0,0.366) m",
+    "crossed_offset": "transmit along x at (0,0,0), receive along y at (0.03,0.08,0.366) m"
+  },
+  "frequencies": "36 log-spaced, 0.33 to 20 MHz",
+  "bus": "not modelled (free space)",
+  "decision": "WP3 G1(b), 2026-10-27",
+  "outputs": [
+    "isolation_mom.csv"
+  ]
+}

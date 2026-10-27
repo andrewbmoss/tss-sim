@@ -106,9 +106,9 @@ phase is evaluated at the sample times; they are counted in
 
 WHAT IS NOT IN IT YET
 ---------------------
-Transmit-to-receive leakage.  :mod:`tss.l2_instrument.leakage` is a stub and it
-is on the critical path, so the samples this tier produces have no leakage in
-them and the receiver therefore never clips on leakage.  That is the single
+Transmit-to-receive leakage.  :mod:`tss.l2_instrument.leakage` models it (WP3
+Phase 1) but this tier does not yet add it (Phase 3), so the samples this tier
+produces have no leakage in them and the receiver therefore never clips on leakage.  That is the single
 largest gap between this tier and the instrument, it is recorded in every
 ``ReceivedSignal`` this tier returns under the flag ``leakage_modelled``, and no
 verdict on INS-11 or INS-24 may be taken from a run made without it.
@@ -695,10 +695,10 @@ class BaselineInstrument:
             "noise_reference_extrapolated": bool(np.any(is_extrapolated(floor_f_mhz))),
             "leakage_modelled": False,
             "leakage_note": (
-                "tss.l2_instrument.leakage is a stub (WP3, critical path).  No "
-                "transmit-to-receive leakage is present in these samples, so the "
-                "receiver never clips on leakage and no INS-11 or INS-24 verdict "
-                "may be taken from this run."
+                "tss.l2_instrument.leakage models the leakage (WP3 Phase 1) but it "
+                "is not yet added to these samples (Phase 3), so the receiver never "
+                "clips on leakage and no INS-11 or INS-24 verdict may be taken from "
+                "this run."
             ),
             "vector_channels_are_placeholders": channels > 1,
             "absorption_db_carried_not_applied": True,

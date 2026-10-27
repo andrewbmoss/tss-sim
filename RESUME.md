@@ -23,7 +23,7 @@ not, and what comes next.
 |---|---|---|---|
 | L0 | chapman, analytic, iri (IRI-2020, `model: pharlap` by default or `pyiri`), iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
 | L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
-| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | leakage (WP3, critical path) | leakage, oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels |
+| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | - | leakage in the samples (model built, WP3 Phase 1; added in Phase 3), oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels |
 | L3 | baseline: per-step transform, leading-edge trace, connected-trace filter, SNR measurement at given cells | motion_separated (WP5) | O/X labelling, robust extraction (CFAR, a search limit at the design range), Doppler separation |
 | L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default) | - | uncertainty propagation, depletion crossings, reference-field error |
 | L5 | standard: scores the Rev G set, reports what it does not score | feasibility (WP7) | NmF2/hmF2 errors, 1 sigma coverage, Kp classes |
@@ -281,7 +281,7 @@ Plan: project note `claude/wp3-plan.md`.  Doc: `docs/reference-echo.md`.
   * INS-22's spur requirement against the weakest echo, at 10 m, is -82.6 dBc
     at the worst step, against Rev G's -70 dBc.
 
-  The requirement documents are not changed (plan, G5).
+  The requirement documents were corrected on 2026-10-27 (below).
 * The `link_budget` study's default `SounderConfig` is the inherited design,
   and the SRM's INS-10 status (38.5/33.1 dB) comes from it.  The study now
   also reports the instrument: 27.8 dB median at 1050 km in free space, below
@@ -306,3 +306,44 @@ Plan: project note `claude/wp3-plan.md`.  Doc: `docs/reference-echo.md`.
    WP12's noise reference.
 5. WP5: `motion_separated` as a real tier over a sequence of sweeps, then WP6,
    WP7, the V2-V4 campaign, and the goal-level packages.
+
+## Rev G amended 2026-10-27: the leakage-to-echo ratio and INS-22
+
+Rev G section 5.9 and SRM Derivations section 16 took leakage over echo as
+122 dB less the isolation.  That is the inherited budget's 300 km echo on the
+legacy -6.8 dBi antenna.  On the instrument the free-space echo from 1050 km is
+137.2 dB below the transmitter at 5 MHz and 160.5 dB below it at 1.26 MHz, the
+lowest step at which it still meets INS-10.
+
+* INS-22 is now -82 dBc threshold and -92 dBc goal, for A1 and A2, over each
+  step's echo band.  It binds at 1.26 MHz, where the rule asks -81.1 dBc at
+  40 dB isolation and a 10 m path.  At 5 MHz the rule asks -65.5 dBc.
+* The A2 values of INS-22 (-86.5 dBc) and INS-23 (56.5 dB) are withdrawn.  A2's
+  fast steps are where the ratio is smallest, and its binding step is A1's.
+* INS-11's high-pass rejection is 47 dB at 5 MHz (was 32 dB).
+* `config/requirements/srm_catalog.yaml` is regenerated from the workbook.
+  The Technical Volume (sections 5.6, the WP9 bench numbers and the BOM) and
+  its leakage figure are updated.  The Proposal is not.
+
+## WP3 Phase 1 (2026-10-27): the leakage model
+
+Doc: `docs/leakage.md`.  Decisions G1 (parametric isolation brackets, one
+moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
+
+* `tss.l2_instrument.leakage.leakage_signal` makes the de-chirped leakage in the
+  baseline's units and phase convention, with the exact step transitions, a
+  frequency-dependent isolation profile (flat, ripple, resonances, a table,
+  retuning transients), delay jitter, and a transmit phase error with the
+  INS-21 common-reference switch.
+* `tests/unit/test_leakage.py` (40 tests): the spur suppression
+  4 sin^2(pi f_m tau), the sideband (pi Df tau)^2, the ripple's AM sidebands,
+  2 pi f sigma_tau, and leakage over the Phase 0 echo all hold to 0.011 dB
+  against the 0.5 dB exit criterion.
+* `data/reference/wp3_isolation_mom`: two 5 m dipoles, coil Q 150, free space.
+  Below a few MHz the isolation is set by coupling coefficient times Q, not by
+  efficiency, and is flat: 29.0 dB crossed with a 3-8 cm feed offset
+  (k = 4.7e-4), 0.3 dB parallel.  On this model INS-23's 40 dB needs
+  k < 1.3e-4.  No bus in the model.
+* Not yet: the leakage is not added to the baseline's samples, and there is no
+  receiver compression or leakage high-pass (Phase 3); no residual or score
+  (Phase 4).
