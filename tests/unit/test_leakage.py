@@ -337,7 +337,7 @@ def test_phase4_functions_say_so():
 
 def test_the_mom_anchor_loads_as_a_tabulated_profile():
     tab = lk.mom_anchor_table()
-    m = lk.mom_anchor_model()
+    m = lk.mom_anchor_model("crossed_offset")
     assert m.table_f_hz is not None
     assert tab["f_hz"][0] == pytest.approx(0.33e6) and tab["f_hz"][-1] == pytest.approx(20e6)
     assert np.allclose(lk.isolation_profile_db(tab["f_hz"], m), tab["iso_crossed_offset_db"])
@@ -356,3 +356,16 @@ def test_the_mom_dipole_is_the_balanis_dipole_and_coupling_times_q_sets_the_floo
     from tss.l2_instrument.antenna import ShortDipole
     eta = np.asarray(ShortDipole(length_m=5.0).efficiency_db(tab["f_hz"] / 1e6), dtype=float)
     assert np.max(np.abs(eta - tab["eta_tx_db"])) < 1.0
+
+
+def test_the_bus_anchor_is_the_default_and_obeys_the_coupled_resonator_law():
+    bus = lk.mom_anchor_table("bus")
+    m = lk.mom_anchor_model()
+    assert np.allclose(lk.isolation_profile_db(bus["f_hz"], m), bus["iso_crossed_ends_offset_db"])
+    low = bus["f_hz"] < 3.0e6
+    for mount in ("crossed_ends_offset", "parallel_ends"):
+        predicted = lk.coupled_resonator_isolation_db(bus[f"k_{mount}"][low], 150.0)
+        assert np.max(np.abs(predicted - bus[f"iso_{mount}_db"][low])) < TOL_DB
+    # The crossed mount on the bus is below INS-23's 40 dB at the bottom of the band.
+    assert np.all(bus["iso_crossed_ends_offset_db"][low] < 40.0)
+    assert lk.coupled_resonator_isolation_db(1.3e-4, 150.0) == pytest.approx(40.0, abs=0.3)

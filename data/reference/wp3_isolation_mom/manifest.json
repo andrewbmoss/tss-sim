@@ -1,22 +1,37 @@
 {
   "study": "wp3_isolation_mom",
-  "created_utc": "2026-10-27T23:56:53+00:00",
-  "script": "scripts/matlab/wp3_isolation_mom.m",
-  "tool": "MATLAB R2026a (26.1.0.3133997) Antenna Toolbox, conformalArray of two dipole elements, sparameters at Z0 = 50 ohm",
-  "git_commit_at_run": "e9d0a91cf7598d4145e067034476f2f0543c0378",
+  "created_utc": "2026-10-28T00:24:26+00:00",
+  "scripts": [
+    "scripts/matlab/wp3_isolation_mom.m",
+    "scripts/matlab/wp3_isolation_mom_bus.m",
+    "scripts/matlab/wp3_box_mesh.m"
+  ],
+  "tool": "MATLAB R2026a (26.1.0.3133997) Antenna Toolbox: conformalArray (free space) and installedAntenna with SolverType 'MoM' (bus), sparameters at Z0 = 50 ohm",
+  "git_commit_at_run": "508e63b686c9797ebcc4b81df1cf11e8210352b6",
   "antenna": {
     "length_m": 5.0,
     "radius_m": 0.005,
     "coil_q": 150.0
   },
-  "geometries": {
-    "parallel": "both along x, feeds at (0,0,0) and (0,0,0.366) m",
-    "crossed_offset": "transmit along x at (0,0,0), receive along y at (0.03,0.08,0.366) m"
+  "bus": {
+    "size_m": [
+      0.1,
+      0.2263,
+      0.366
+    ],
+    "mesh_m": 0.015,
+    "model": "closed perfectly conducting box"
   },
-  "frequencies": "36 log-spaced, 0.33 to 20 MHz",
-  "bus": "not modelled (free space)",
-  "decision": "WP3 G1(b), 2026-10-27",
+  "mesh": {
+    "dipoles_free_space_m": 0.05,
+    "dipoles_bus_ends_m": 0.05,
+    "dipoles_bus_colocated_m": 0.03
+  },
+  "frequencies": "36 log-spaced, 0.33 to 20 MHz; sensitivity at 0.33, 1.26, 5, 20 MHz",
+  "decision": "WP3 G1(b); bus and mounts at Andrew's request, 2026-10-27",
   "outputs": [
-    "isolation_mom.csv"
+    "isolation_mom.csv",
+    "isolation_mom_bus.csv",
+    "isolation_mom_bus_sensitivity.csv"
   ]
 }

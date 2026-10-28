@@ -118,6 +118,8 @@ __all__ = [
     "ripple_modulation_hz",
     "jitter_phase_rms_rad",
     "MOM_ANCHOR_RELPATH",
+    "MOM_BUS_RELPATH",
+    "coupled_resonator_isolation_db",
     "mom_anchor_table",
     "mom_anchor_model",
     "dechirped_residual",
@@ -601,26 +603,40 @@ def jitter_phase_rms_rad(f_hz: float, delay_jitter_s: float) -> float:
 # The moment-method anchor (WP3 decision G1(b))
 # ----------------------------------------------------------------------------
 
-#: Where the anchoring run is kept, relative to the repository root.  Produced by
-#: ``scripts/matlab/wp3_isolation_mom.m`` (MATLAB Antenna Toolbox); see the
-#: README beside it.
+#: Where the anchoring runs are kept, relative to the repository root.  Produced
+#: by ``scripts/matlab/wp3_isolation_mom.m`` (free space) and
+#: ``scripts/matlab/wp3_isolation_mom_bus.m`` (on the 6U bus), MATLAB Antenna
+#: Toolbox; see the README beside them.
 MOM_ANCHOR_RELPATH = "data/reference/wp3_isolation_mom/isolation_mom.csv"
+MOM_BUS_RELPATH = "data/reference/wp3_isolation_mom/isolation_mom_bus.csv"
 
+#: (geometry, match) -> (file, column).  The symmetric bus mounts
+#: (crossed_ends_centred, crossed_colocated) sit at the numerical floor of the
+#: solver and are not offered as profiles.
 _MOM_COLUMNS = {
-    ("crossed_offset", "simultaneous"): "iso_crossed_offset_db",
-    ("crossed_offset", "self"): "iso_crossed_offset_self_db",
-    ("parallel", "simultaneous"): "iso_parallel_db",
-    ("parallel", "self"): "iso_parallel_self_db",
+    ("bus_crossed_ends_offset", "simultaneous"): ("bus", "iso_crossed_ends_offset_db"),
+    ("bus_crossed_ends_offset", "self"): ("bus", "iso_crossed_ends_offset_self_db"),
+    ("bus_parallel_ends", "simultaneous"): ("bus", "iso_parallel_ends_db"),
+    ("bus_parallel_ends", "self"): ("bus", "iso_parallel_ends_self_db"),
+    ("crossed_offset", "simultaneous"): ("free", "iso_crossed_offset_db"),
+    ("crossed_offset", "self"): ("free", "iso_crossed_offset_self_db"),
+    ("parallel", "simultaneous"): ("free", "iso_parallel_db"),
+    ("parallel", "self"): ("free", "iso_parallel_self_db"),
 }
 
 
-def mom_anchor_table() -> dict[str, np.ndarray]:
-    """The anchoring run's columns, as arrays keyed by the CSV header."""
+def mom_anchor_table(which: str = "free") -> dict[str, np.ndarray]:
+    """An anchoring run's columns, keyed by the CSV header.
+
+    ``which`` is ``"free"`` (two dipoles in free space) or ``"bus"`` (on the 6U
+    bus, with the coupling coefficient of each mount).
+    """
     import csv
 
     from tss.config import repo_root
 
-    path = repo_root() / MOM_ANCHOR_RELPATH
+    rel = {"free": MOM_ANCHOR_RELPATH, "bus": MOM_BUS_RELPATH}[str(which)]
+    path = repo_root() / rel
     with open(path, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     if not rows:
@@ -629,25 +645,44 @@ def mom_anchor_table() -> dict[str, np.ndarray]:
 
 
 def mom_anchor_model(
-    geometry: str = "crossed_offset", match: str = "simultaneous", **kwargs: Any
+    geometry: str = "bus_crossed_ends_offset", match: str = "simultaneous", **kwargs: Any
 ) -> LeakageModel:
-    """A tabulated :class:`LeakageModel` on the moment-method isolation.
+    """A tabulated :class:`LeakageModel` on a moment-method isolation.
 
-    ``geometry`` is ``"crossed_offset"`` (orthogonal dipoles, receive feed
-    displaced 3 cm and 8 cm from the axis: the anchor) or ``"parallel"`` (the
-    worst case).  ``match`` is ``"simultaneous"`` (both ports conjugate-matched
-    with the other antenna present: the least isolation the pair allows) or
-    ``"self"`` (each port matched to its own self-impedance).  Both include the
-    matching-coil loss at Q = 150.  Free space, no bus.
+    ``geometry``:
+
+    * ``"bus_crossed_ends_offset"`` (the default anchor): on the 6U bus,
+      transmit dipole along x 5 cm below it, receive along y 5 cm above it, the
+      receive feed displaced 3 cm and 8 cm from the axis;
+    * ``"bus_parallel_ends"``: both along x, the worst case;
+    * ``"crossed_offset"`` and ``"parallel"``: the free-space runs.
+
+    ``match`` is ``"simultaneous"`` (both ports conjugate-matched with the other
+    antenna present: the least isolation the pair allows) or ``"self"``.  All
+    include the matching-coil loss at Q = 150.
     """
     try:
-        column = _MOM_COLUMNS[(str(geometry), str(match))]
+        which, column = _MOM_COLUMNS[(str(geometry), str(match))]
     except KeyError:
         raise ValueError(f"no anchor column for geometry={geometry!r}, match={match!r}") from None
-    tab = mom_anchor_table()
+    tab = mom_anchor_table(which)
     kwargs.setdefault("label", f"MoM anchor: {geometry}, {match} match")
     return LeakageModel.from_table(tab["f_hz"], tab[column], **kwargs)
 
+
+def coupled_resonator_isolation_db(k: np.ndarray | float, q: float) -> np.ndarray:
+    """Isolation of two identical resonated antennas coupled by ``k``, exact.
+
+    With each antenna's coil loss ``R = |X| / Q`` dominating and the mutual
+    impedance ``j k |X|``, both ports conjugate-matched together give
+    ``1 / MAG = kappa + sqrt(kappa^2 - 1)``, ``kappa = 1 + 2 / (k Q)^2``, which is
+    ``-20 log10(k Q / 2)`` for ``k Q << 1``.  This is why the isolation is flat
+    at the bottom of the band, where the coil loss dominates, rather than
+    growing as the efficiency falls.
+    """
+    kq = np.asarray(k, dtype=float) * float(q)
+    kappa = 1.0 + 2.0 / kq**2
+    return 10.0 * np.log10(kappa + np.sqrt(kappa**2 - 1.0))
 
 # ----------------------------------------------------------------------------
 # Phase 4

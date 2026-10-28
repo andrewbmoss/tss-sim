@@ -17,7 +17,9 @@ function T = wp3_isolation_mom(outdir)
 %     parallel        both dipoles along x, feeds on the z axis: the worst case
 %     crossed_offset  transmit along x, receive along y, receive feed displaced
 %                     (0.03, 0.08) m from the axis, as a non-centred mount
-%   The bus itself is not in the model (WP3 Phase 1 note).  Writes
+%   The bus itself is not in the model here; wp3_isolation_mom_bus adds it.
+%   Rerun 2026-10-27 at a 5 cm mesh: the first run used the default mesh, and
+%   the crossed-offset isolation moves by 0.6 dB (29.0 to 29.6 dB at 0.33 MHz).  Writes
 %   isolation_mom.csv to outdir.  WP3 Phase 1, tss-sim, 2026-10-27.
 if nargin < 1, outdir = pwd; end
 f  = logspace(log10(0.33e6), log10(20e6), 36);
@@ -30,6 +32,7 @@ geoms = {'parallel', {dx, dx}, [0 0 0; 0 0 sep]; ...
 T = table(f(:), 'VariableNames', {'f_hz'});
 for g = 1:size(geoms, 1)
     arr = conformalArray('Element', geoms{g, 2}, 'ElementPosition', geoms{g, 3});
+    mesh(arr, 'MaxEdgeLength', 0.05);   % 5 cm: coupling converged (2026-10-27 rerun)
     S = sparameters(arr, f, Z0);
     Z = s2z(S.Parameters, Z0);
     [isoM, isoS, isoM0, isoS0, eta] = deal(zeros(numel(f), 1));
