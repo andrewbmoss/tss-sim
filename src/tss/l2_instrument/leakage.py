@@ -87,6 +87,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
+from dataclasses import replace as _replace
 from typing import Any
 
 import numpy as np
@@ -96,6 +97,11 @@ from scipy import special as _special
 from tss import sweep_law
 from tss.constants import C_LIGHT
 from tss.interfaces import ReceivedSignal, SweepSchedule
+from tss.l2_instrument.impairments import (
+    ImpairmentRealization,
+    TransmitImpairments,
+    local_dechirp_phase_rad,
+)
 
 __all__ = [
     "BASELINE_ISOLATION_DB",
@@ -374,28 +380,19 @@ def dechirp_phase_rad(
 ) -> np.ndarray:
     """``phi(t) - phi(t - tau)`` for the transmitted law, computed stably.
 
-    Inside a step (or for a uniform sweep) this is the closed-form integral
-    ``2 pi [f(t - tau) tau + d K tau^2 / 2]``, which keeps full precision for a
-    nanosecond delay.  Where ``t - tau`` lies in the previous step, or the law
-    carries a nonlinearity, it is the difference of
-    :func:`tss.sweep_law.phase_rad`, which is exact and costs digits only there.
+    Inside a step it is the difference of the step's local cycles
+    (:func:`tss.l2_instrument.impairments.local_dechirp_phase_rad`), which keeps
+    full precision for a nanosecond delay with or without the law's
+    nonlinearity; for a uniform sweep it is the closed form
+    ``2 pi [f(t - tau) tau + d K tau^2 / 2]``.  Where ``t - tau`` lies in the
+    previous step it is the difference of :func:`tss.sweep_law.phase_rad`.
     """
     t = np.asarray(t_s, dtype=float)
     tau = np.broadcast_to(np.asarray(tau_s, dtype=float), t.shape)
     te = t - tau
     if sweep_law.is_stepped(sweep):
-        if float(sweep.nonlinearity_ppm) != 0.0:
-            return sweep_law.phase_rad(sweep, t) - sweep_law.phase_rad(sweep, te)
-        d = 1.0 if int(sweep.direction) >= 0 else -1.0
-        same = sweep_law.step_index(sweep, t) == sweep_law.step_index(sweep, te)
-        same &= te >= 0.0
-        k = sweep_law.rate_hz_per_s(sweep, t)
-        out = 2.0 * np.pi * (sweep_law.frequency_hz(sweep, te) * tau + d * k * tau**2 / 2.0)
-        if not np.all(same):
-            sel = ~same
-            out = np.array(out, dtype=float)
-            out[sel] = sweep_law.phase_rad(sweep, t[sel]) - sweep_law.phase_rad(sweep, te[sel])
-        return out
+        # Local cycles inside a step, nonlinearity included (WP3 Phase 2).
+        return local_dechirp_phase_rad(sweep, t, tau)
     d = 1.0 if int(sweep.direction) >= 0 else -1.0
     k = float(sweep.k_f_hz_per_s)
     f0 = float(sweep.f_start_hz) if d > 0 else float(sweep.f_stop_hz)
@@ -450,6 +447,8 @@ def leakage_signal(
     tx_chain_efficiency_db: float = 0.0,
     tx_phase_error: Callable[[np.ndarray], np.ndarray] | None = None,
     reference_phase_error: str | Callable[[np.ndarray], np.ndarray] | None = "common",
+    impairments: TransmitImpairments | None = None,
+    realization: ImpairmentRealization | None = None,
 ) -> np.ndarray:
     """The leakage at the receiver input, de-chirped, as complex root-watts.
 
@@ -462,6 +461,14 @@ def leakage_signal(
     ``reference_phase_error`` is ``"common"`` for INS-21 (the de-chirp
     reference carries the same error), ``None`` for an independent reference
     with no error of its own, or a function of time.
+
+    ``impairments`` (WP3 Phase 2) applies the transmitter's oscillator noise,
+    phase-noise floor, AM noise, spurs and sweep nonlinearity, with INS-21 as
+    its ``single_reference``.  ``realization`` is the draw to use, so that the
+    leakage and the echoes of one record share one oscillator; without it a
+    draw is made from ``rng`` for this record.  With ``impairments`` given, the
+    law's ``nonlinearity_ppm`` is used only if ``impairments.sweep_nonlinearity``
+    is on; without it the sweep is used as given.
 
     It is meant to be added to the echoes before the receiver is applied, not
     after, because whether the front end compresses is decided by the sum
@@ -483,8 +490,20 @@ def leakage_signal(
     tau = _delay_trace(model, n, fs, rng)
     te = t - tau
     live = te >= 0.0
-    dphi = dechirp_phase_rad(sweep, t, tau)
-    f_e = _tx_frequency_hz(sweep, np.clip(te, 0.0, None))
+    law = sweep
+    if impairments is not None and not impairments.sweep_nonlinearity:
+        law = _replace(sweep, nonlinearity_ppm=0.0)
+    dphi = dechirp_phase_rad(law, t, tau)
+    if (
+        impairments is not None
+        and impairments.sweep_nonlinearity
+        and not impairments.single_reference
+        and float(sweep.nonlinearity_ppm) != 0.0
+    ):
+        # An independent reference sweeps the ideal law; the transmitter does not.
+        ideal = _replace(sweep, nonlinearity_ppm=0.0)
+        dphi = dphi + (sweep_law.phase_rad(ideal, t) - sweep_law.phase_rad(sweep, t))
+    f_e = _tx_frequency_hz(law, np.clip(te, 0.0, None))
 
     phase = dphi
     if tx_phase_error is not None:
@@ -508,8 +527,21 @@ def leakage_signal(
         excess_db = float(model.retune_transient_db) * np.exp(-u / float(model.retune_time_constant_s))
         h = h * 10.0 ** (excess_db / 20.0)
 
+    amp: np.ndarray | float = 1.0
+    if impairments is not None and impairments.needs_realization:
+        tau0 = float(model.coupling_delay_s)
+        if realization is None:
+            realization = impairments.realize(
+                sweep, fs, n, rng, t0_s=float(t0_s),
+                max_delay_s=tau0 + 10.0 * float(model.delay_jitter_s),
+            )
+        elif realization.n != n or abs(realization.t0 - float(t0_s)) > 0.5 / fs or realization.fs != fs:
+            raise ValueError("the realization is for a different record")
+        phase = phase + realization.residual_phase(tau0)
+        amp = realization.tx_amplitude(tau0)
+
     p_tx = float(transmit_power_w) * 10.0 ** (float(tx_chain_efficiency_db) / 10.0)
-    x = math.sqrt(p_tx) * np.conj(h) * np.exp(1j * phase)
+    x = math.sqrt(p_tx) * amp * np.conj(h) * np.exp(1j * phase)
     return np.where(live, x, 0.0 + 0.0j)
 
 

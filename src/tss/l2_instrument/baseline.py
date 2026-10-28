@@ -126,6 +126,7 @@ from tss import sweep_law
 from tss.constants import C_LIGHT, K_BOLTZ
 from tss.interfaces import EchoSet, ReceivedSignal, SweepSchedule
 from tss.l2_instrument.antenna import ShortDipole, antenna_noise_temperature_k
+from tss.l2_instrument.impairments import TransmitImpairments
 from tss.l2_instrument.noise import (
     is_extrapolated,
     noise_density_dbm_per_hz,
@@ -298,6 +299,7 @@ class BaselineInstrument:
         quantise: bool = True,
         in_dwell_dispersion: bool = True,
         isolation: Mapping[str, Any] | None = None,
+        impairments: TransmitImpairments | None = None,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
         configuration_notes: tuple[str, ...] = (),
@@ -327,6 +329,7 @@ class BaselineInstrument:
         self.quantise = bool(quantise)
         self.in_dwell_dispersion = bool(in_dwell_dispersion)
         self.isolation = dict(isolation or {})
+        self.impairments = impairments if impairments is not None else TransmitImpairments.none()
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
         self.configuration_notes = tuple(str(n) for n in configuration_notes)
@@ -363,6 +366,10 @@ class BaselineInstrument:
             sample_rate_hz=None if rate is None else float(rate),
             design_range_m=float(receiver_cfg.get("design_range_m", DEFAULT_DESIGN_RANGE_M)),
         )
+        if "impairments" not in overrides:
+            kwargs["impairments"] = TransmitImpairments.from_config(
+                cfg.get("transmit_impairments"), oscillator=kwargs["oscillator"]
+            )
         kwargs.update(overrides)
         return cls(**kwargs)
 
@@ -414,6 +421,7 @@ class BaselineInstrument:
     ) -> ReceivedSignal:
         """De-chirped baseband for one sweep.  Inputs are never modified."""
         validate_schedule(sweep)
+        imp = self.impairments
         freq = np.asarray(echoes.freq_hz, dtype=float)
         delay = np.asarray(echoes.group_delay_s, dtype=float)
         amp_db = np.asarray(echoes.amplitude_db, dtype=float)
@@ -461,15 +469,23 @@ class BaselineInstrument:
             # echo depends on which step it was transmitted in and which step
             # it is received in.  The ideal law is used, as it is for the
             # uniform sweep below.
+            # The transmitted law carries the sweep's nonlinearity only when
+            # the impairments say so (WP3 Phase 2); an independent reference
+            # (INS-21 off) sweeps the ideal law.
             ideal = _replace(sweep, nonlinearity_ppm=0.0)
-            f_tx = sweep_law.frequency_hz(ideal, t)
-            phi_rx = sweep_law.phase_rad(ideal, t)
+            law = sweep if imp.sweep_nonlinearity else ideal
+            ref_law = law if imp.single_reference else ideal
+            f_tx = sweep_law.frequency_hz(law, t)
+            phi_rx = sweep_law.phase_rad(ref_law, t)
 
             def tx_frequency(x: np.ndarray) -> np.ndarray:
-                return sweep_law.frequency_hz(ideal, x)
+                return sweep_law.frequency_hz(law, x)
 
             def tx_phase(x: np.ndarray) -> np.ndarray:
-                return sweep_law.phase_rad(ideal, x)
+                return sweep_law.phase_rad(law, x)
+
+            def ref_phase_law(x: np.ndarray) -> np.ndarray:
+                return sweep_law.phase_rad(ref_law, x)
         else:
             f_tx = f0 + direction * k * t
 
@@ -478,6 +494,8 @@ class BaselineInstrument:
 
             def tx_phase(x: np.ndarray) -> np.ndarray:
                 return 2.0 * np.pi * (f0 * x + direction * k * x**2 / 2.0)
+
+            ref_phase_law = tx_phase
 
         traces = (
             _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable)
@@ -505,6 +523,23 @@ class BaselineInstrument:
         else:
             df = sweep_bandwidth_hz(sweep)
             dwell_s = max(abs(df) / k, 2.0 / fs_hz)
+
+        # Transmitter impairments (WP3 Phase 2): one draw for the record, which
+        # the leakage of the same record must share (Phase 3).
+        realization = None
+        ref_noise = None
+        if imp.needs_realization:
+            realization = imp.realize(
+                sweep, fs_hz, n_samples, rng, max_delay_s=1.2 * max_delay + 1.0e-3
+            )
+            ref_noise = realization.ref_phase()
+        dopp_in = getattr(echoes, "doppler_hz", None)
+        dopp = (
+            np.asarray(dopp_in, dtype=float)
+            if imp.doppler and dopp_in is not None and np.shape(dopp_in) == freq.shape
+            else None
+        )
+        rows_doppler = 0
 
         samples = np.zeros(n_samples, dtype=complex)
         rows_used = 0
@@ -548,6 +583,16 @@ class BaselineInstrument:
             amplitude = np.sqrt(undb(power_dbw))
 
             tt = t[lo:hi]
+            imp_phase: np.ndarray | float = 0.0
+            imp_amp: np.ndarray | float = 1.0
+            if realization is not None:
+                imp_phase = ref_noise[lo:hi] - realization.tx_phase(tau)[lo:hi]
+                imp_amp = realization.tx_amplitude(tau)[lo:hi]
+            if dopp is not None and np.isfinite(dopp[row]):
+                # A closing echo beats at f_R - f_d on an up-sweep and
+                # -(f_R + f_d) on a down-sweep (tss.l1_propagation.doppler).
+                imp_phase = imp_phase - 2.0 * np.pi * float(dopp[row]) * tt
+                rows_doppler += 1
             trace = traces.get(str(row_mode[row]))
             if trace is not None:
                 # The delay follows the trace through the dwell.  Find when each
@@ -562,13 +607,13 @@ class BaselineInstrument:
                 f_e = tx_frequency(t_e)
                 tau_e = tt - t_e
                 phase = (
-                    tx_phase(tt)
+                    ref_phase_law(tt)
                     - tx_phase(t_e)
                     - 2.0 * np.pi * f_e * tau_e
                     + 2.0 * np.pi * trace.phase_cycles(f_e)
                 )
                 live = t_e >= 0.0
-                samples[lo:hi] += np.where(live, amplitude * np.exp(1j * phase), 0.0)
+                samples[lo:hi] += np.where(live, amplitude * imp_amp * np.exp(1j * (phase + imp_phase)), 0.0)
                 rows_used += 1
                 rows_dispersed += 1
                 if np.any(live):
@@ -584,16 +629,16 @@ class BaselineInstrument:
                 # difference of the exact phases carries that transition with no
                 # separate case.  Nothing had been transmitted before the sweep
                 # started, so samples earlier than tau carry no echo.
-                phase = phi_rx[lo:hi] - sweep_law.phase_rad(ideal, tt - tau)
+                phase = phi_rx[lo:hi] - tx_phase(tt - tau)
                 live = tt >= tau
-                samples[lo:hi] += np.where(live, amplitude * np.exp(1j * phase), 0.0)
+                samples[lo:hi] += np.where(live, amplitude * imp_amp * np.exp(1j * (phase + imp_phase)), 0.0)
                 rows_used += 1
                 continue
             else:
                 phase = 2.0 * np.pi * (
                     f0 * tau + direction * k * tau * tt - direction * k * tau**2 / 2.0
                 )
-            samples[lo:hi] += amplitude * np.exp(1j * phase)
+            samples[lo:hi] += amplitude * imp_amp * np.exp(1j * (phase + imp_phase))
             rows_used += 1
 
         # Echoes beyond the unambiguous range fold back into the record, as they
@@ -693,6 +738,8 @@ class BaselineInstrument:
             "sky_model": self.sky_model,
             "noise_floor_f_mhz": floor_f_mhz.tolist(),
             "noise_reference_extrapolated": bool(np.any(is_extrapolated(floor_f_mhz))),
+            "transmit_impairments": dict(imp.describe()),
+            "rows_doppler_applied": rows_doppler,
             "leakage_modelled": False,
             "leakage_note": (
                 "tss.l2_instrument.leakage models the leakage (WP3 Phase 1) but it "
@@ -751,6 +798,7 @@ class BaselineInstrument:
             "receiver": dict(self.receiver.describe()),
             "oscillator": dict(self.oscillator.describe()),
             "isolation": dict(self.isolation),
+            "transmit_impairments": dict(self.impairments.describe()),
             "resources": dict(self.resources),
             "leakage_modelled": False,
             "matching_network_loss": (

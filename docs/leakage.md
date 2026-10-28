@@ -67,9 +67,50 @@ space, no bus.
   free-space model of one assumed geometry, and the bus is not in it; WP3
   Phase 5 uses it as one profile among the brackets.
 
+### The anchor on the bus (2026-10-27)
+
+`scripts/matlab/wp3_isolation_mom_bus.m` adds a closed conducting 6U box and
+compares mounts; see the README in `data/reference/wp3_isolation_mom`.  The
+isolation obeys `coupled_resonator_isolation_db(k, Q)`, `-20 log10(kQ/2)`:
+36.6 dB for crossed dipoles with a 3 and 8 cm feed offset on the bus
+(k = 2.0e-4), 0.4 dB parallel.  The symmetric crossed mounts are limited by
+their imperfections: a 0.1 deg angle error gives 36 to 40 dB, 1 deg 14 to
+21 dB.  `mom_anchor_model()` now defaults to the bus mount.
+
+## Phase 2 (2026-10-27): transmitter impairments
+
+Module: `tss.l2_instrument.impairments`.  Tests: `tests/unit/test_impairments.py`
+(19).  Configuration: the `transmit_impairments` block of
+`config/instrument/baseline_6u.yaml`, all off by default.
+
+`TransmitImpairments` switches each term on or off:
+
+| Term | Shared with the reference under INS-21 | Prediction tested | Largest error |
+|---|---|---|---|
+| Reference-oscillator noise (Allan deviation and noise type, scaled to the carrier) | yes | `L(f) 4 sin^2(pi f tau)` at a 7 ms echo delay, and `2 L(f)` with an independent reference | 0.20 dB |
+| Synthesiser phase-noise floor | yes | `L 4 sin^2(pi f tau)`, 3 and 30 m | 0.06 dB |
+| INS-21 off | - | the credit lost: 50.43 dB measured against 50.47 dB predicted (10 m, 15-25 kHz) | 0.10 dB |
+| AM noise | no | `L_AM` whatever the path or INS-21 | 0.008 dB |
+| PM spur / AM spur | yes / no | exact Bessel sideband after de-chirp / unchanged | within 0.5 dB |
+| Sweep nonlinearity (INS-25) | yes (ideal law if independent) | in-step residual phase in closed form; credit above 60 dB at 30 m | 1e-9 rad |
+| Doppler from `EchoSet.doppler_hz` (mu_sat in L1) | - | beat moves by `-f_d` on up- and down-sweeps | 0.5 Hz |
+
+One `ImpairmentRealization` per record holds the draws; the echoes in the L2
+baseline and the leakage take the same one, as one oscillator would.  Noise is
+synthesised in the frequency domain on a grid padded by the longest delay, so a
+delay is an exact phase ramp; the oscillator term is the running integral of
+the delayed `f_c y`.  The de-chirped phase of a nonlinear law is computed from
+each step's local cycles, so it keeps full precision for nanosecond paths.
+
+With the baseline part (flicker FM, 2e-9 at 1 s) at 10 MHz, the residual at a
+7 ms echo delay is about -115 dBc/Hz from 300 to 700 Hz whether or not the
+reference is shared: range correlation helps only below about 1/(6 tau),
+24 Hz at 1050 km.  On the leakage path it is worth 50 dB and more.
+
 ### Not yet
 
 * The leakage is not added to the L2 baseline's samples; receiver compression
-  and the leakage high-pass are Phase 3.
+  and the leakage high-pass are Phase 3.  When it is, it takes the record's
+  realization (`leakage_signal(..., realization=...)`).
 * `dechirped_residual` and `score_ins23_ins24` are Phase 4.
 * The canceller (`tss.l3_signal.leakage_suppress`) is WP5.

@@ -43,6 +43,21 @@ isolation:
   transmit_receive_db: 40.0   # INS-23 threshold
   coupling_delay_s: 3.0e-9    # open item 13, deployed geometry not yet fixed
 
+# Transmitter impairments in the samples (WP3 Phase 2, tss.l2_instrument.impairments).
+# All off: the baseline is the ideal chirp, as every run before Phase 2 was.
+# Keys: oscillator_noise (the oscillator block below, scaled to the carrier),
+# phase_noise_floor_dbc_hz, am_noise_dbc_hz (single-sideband), spurs (list of
+# {offset_hz, level_dbc, kind: pm|am}), sweep_nonlinearity (use the sweep's
+# nonlinearity_ppm), single_reference (INS-21; defaults to the oscillator's),
+# doppler (apply EchoSet.doppler_hz to the echoes).
+transmit_impairments:
+  oscillator_noise: false
+  phase_noise_floor_dbc_hz: null
+  am_noise_dbc_hz: null
+  spurs: []
+  sweep_nonlinearity: false
+  doppler: false
+
 oscillator:
   allan_deviation_1s: 2.0e-9  # the assumed part; INS-26 asks 5.8e-8 at 0.05 s and 3.2e-9 at 1.15 s
   allan_deviation_2s: 2.0e-9

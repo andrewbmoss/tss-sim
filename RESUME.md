@@ -23,7 +23,7 @@ not, and what comes next.
 |---|---|---|---|
 | L0 | chapman, analytic, iri (IRI-2020, `model: pharlap` by default or `pyiri`), iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
 | L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
-| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | - | leakage in the samples (model built, WP3 Phase 1; added in Phase 3), oscillator phase noise in the samples, Doppler in the samples, sweep nonlinearity, real vector channels |
+| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | - | leakage in the samples (model built, WP3 Phase 1; added in Phase 3), oscillator phase noise, AM noise, spurs, sweep nonlinearity and Doppler are in the samples when `transmit_impairments` turns them on (WP3 Phase 2; all off by default), real vector channels |
 | L3 | baseline: per-step transform, leading-edge trace, connected-trace filter, SNR measurement at given cells | motion_separated (WP5) | O/X labelling, robust extraction (CFAR, a search limit at the design range), Doppler separation |
 | L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default) | - | uncertainty propagation, depletion crossings, reference-field error |
 | L5 | standard: scores the Rev G set, reports what it does not score | feasibility (WP7) | NmF2/hmF2 errors, 1 sigma coverage, Kp classes |
@@ -347,3 +347,21 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 * Not yet: the leakage is not added to the baseline's samples, and there is no
   receiver compression or leakage high-pass (Phase 3); no residual or score
   (Phase 4).
+
+## WP3, 2026-10-27 continued: the bus anchor and Phase 2
+
+* `scripts/matlab/wp3_isolation_mom_bus.m`: two 5 m dipoles on a closed
+  conducting 6U box, full MoM.  Isolation is the coupled-resonator law
+  `-20 log10(kQ/2)` (`leakage.coupled_resonator_isolation_db`).  Crossed with a
+  3/8 cm feed offset: 36.6 dB (k = 2.0e-4); parallel 0.4 dB.  Angle error alone
+  on a symmetric crossed pair: 0.1 deg gives 36-40 dB, 1 deg 14-21 dB.  INS-23's
+  40 dB needs k < 1.3e-4.  `mom_anchor_model()` defaults to the bus mount.
+* `tss.l2_instrument.impairments` (Phase 2): `TransmitImpairments` (oscillator
+  noise from the Allan deviation, a phase-noise floor, AM noise, PM and AM
+  spurs, sweep nonlinearity, Doppler; INS-21 as `single_reference`) and one
+  `ImpairmentRealization` per record shared by the echoes and the leakage.
+  The L2 baseline applies them to the echoes; `leakage_signal` takes them.
+  `tests/unit/test_impairments.py` (19): every prediction within 0.2 dB; the
+  INS-21 credit lost is 50.43 dB against 50.47 dB predicted.
+* Configuration: `transmit_impairments` in `baseline_6u.yaml`, all off, so no
+  earlier result moves.
