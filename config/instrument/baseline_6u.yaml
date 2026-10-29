@@ -39,6 +39,29 @@ receiver:
   # Give sample_rate_hz instead to fix the rate whatever the sweep.
   design_range_m: 1.05e+6
 
+# Transmit-to-receive leakage in the samples (WP3 Phase 3).  Off until Phase 4
+# scores it (decision of 2026-10-28).  When on, the isolation profile is the
+# moment-method one of the dipoles on the 6U bus (profile: mom_bus), or flat at
+# isolation.transmit_receive_db (profile: flat).  The front end and the leakage
+# high-pass follow `enabled` unless their own `enabled` is set.
+leakage:
+  enabled: false
+  profile: mom_bus
+  mom_geometry: bus_crossed_ends_offset   # or bus_parallel_ends, crossed_offset, parallel
+  mom_match: simultaneous                 # or self
+
+front_end:
+  enabled: null              # null: follow leakage.enabled
+  input_p1db_dbm: 1.0        # a level-7 diode mixer, about +1 dBm (assumed; WP9-2)
+  rapp_smoothness: 2.0
+  am_pm_deg_at_p1db: 0.0
+
+leakage_highpass:
+  enabled: null              # null: follow leakage.enabled
+  order: 4                   # Butterworth, as TV BOM A18
+  corner_fraction: 0.5       # of each step's 100 km beat (decision of 2026-10-28)
+  r_min_m: 1.0e+5
+
 isolation:
   transmit_receive_db: 40.0   # INS-23 threshold
   coupling_delay_s: 3.0e-9    # open item 13, deployed geometry not yet fixed

@@ -1,0 +1,174 @@
+{
+  "metrics": {
+    "A1_mom_cold": {
+      "steps": 159,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 38.618921486173605,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 60.6749735354521,
+      "required_revg_rule_max_db": 96.80935399457957,
+      "settle_max_ms": 25.07254737345182,
+      "settle_max_over_dwell": 0.935542812442232,
+      "steps_settling_longer_than_echo_transition": 1,
+      "first_step_settle_ms": 25.07254737345182,
+      "fe_margin_min_db": 7.614125604352921,
+      "steps_below_wp9_2_margin": 83,
+      "desens_worst_db": -0.11300114632243148,
+      "image_worst_dbc": -41.211452749232464,
+      "residual_peak_over_clip_max_db": 50.488132734416425,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        1866.963219392648
+      ]
+    },
+    "A1_mom_primed": {
+      "steps": 159,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 92.1977963718046,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 60.6749735354521,
+      "required_revg_rule_max_db": 96.80935399457957,
+      "settle_max_ms": 1.6451468012081814,
+      "settle_max_over_dwell": 0.06138607467194706,
+      "steps_settling_longer_than_echo_transition": 0,
+      "first_step_settle_ms": 0.0,
+      "fe_margin_min_db": 7.614125604352921,
+      "steps_below_wp9_2_margin": 83,
+      "desens_worst_db": -0.11300114632243148,
+      "image_worst_dbc": -41.211452749232464,
+      "residual_peak_over_clip_max_db": -43.249477928377516,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        1866.963219392648
+      ]
+    },
+    "A1_flat40_cold": {
+      "steps": 159,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 41.96859986638057,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 57.325208293241175,
+      "required_revg_rule_max_db": 93.42995919092289,
+      "settle_max_ms": 24.791979701927943,
+      "settle_max_over_dwell": 0.9250738694749232,
+      "steps_settling_longer_than_echo_transition": 1,
+      "first_step_settle_ms": 24.791979701927943,
+      "fe_margin_min_db": 11.0,
+      "steps_below_wp9_2_margin": 0,
+      "desens_worst_db": -0.02398199393407586,
+      "image_worst_dbc": -54.69508112348012,
+      "residual_peak_over_clip_max_db": 47.13845268411431,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        1866.963219392648
+      ]
+    },
+    "A2_mom_cold": {
+      "steps": 85,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 46.6423329347121,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 52.673907038431395,
+      "required_revg_rule_max_db": 96.80935399457957,
+      "settle_max_ms": 22.60399768242951,
+      "settle_max_over_dwell": 0.8434327493443848,
+      "steps_settling_longer_than_echo_transition": 1,
+      "first_step_settle_ms": 22.60399768242951,
+      "fe_margin_min_db": 7.614125603436136,
+      "steps_below_wp9_2_margin": 67,
+      "desens_worst_db": -0.1130011463971639,
+      "image_worst_dbc": -41.21145274239942,
+      "residual_peak_over_clip_max_db": 42.644230529816205,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        11782.57655167013
+      ]
+    },
+    "A2_mom_primed": {
+      "steps": 85,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 103.48275833057323,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 52.673907038431395,
+      "required_revg_rule_max_db": 96.80935399457957,
+      "settle_max_ms": 0.15761772029586107,
+      "settle_max_over_dwell": 0.005881258219994816,
+      "steps_settling_longer_than_echo_transition": 0,
+      "first_step_settle_ms": 0.0,
+      "fe_margin_min_db": 7.614125603436136,
+      "steps_below_wp9_2_margin": 67,
+      "desens_worst_db": -0.1130011463971639,
+      "image_worst_dbc": -41.21145274239942,
+      "residual_peak_over_clip_max_db": -49.54309731916914,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        11782.57655167013
+      ]
+    },
+    "A2_flat40_cold": {
+      "steps": 85,
+      "ins11_noise_rule_met_all_steps": true,
+      "ins11_noise_rule_min_margin_db": 49.99201125793685,
+      "ins11_revg_rule_met_all_steps": true,
+      "required_noise_rule_max_db": 49.3241417847791,
+      "required_revg_rule_max_db": 93.42995919092289,
+      "settle_max_ms": 22.41808960208055,
+      "settle_max_over_dwell": 0.8364958806746474,
+      "steps_settling_longer_than_echo_transition": 1,
+      "first_step_settle_ms": 22.41808960208055,
+      "fe_margin_min_db": 11.0,
+      "steps_below_wp9_2_margin": 0,
+      "desens_worst_db": -0.02398199393407586,
+      "image_worst_dbc": -54.69508112348012,
+      "residual_peak_over_clip_max_db": 39.29455051853079,
+      "echo_loss_100km_max_db": 0.016931580194452837,
+      "corner_range_hz": [
+        205.36595413319063,
+        11782.57655167013
+      ]
+    }
+  },
+  "front_end": {
+    "input_p1db_dbm": 1.0,
+    "rapp_p": 2.0,
+    "am_pm_deg_at_p1db": 0.0,
+    "custom_am_am": false,
+    "model": "bandpass-equivalent envelope (Rapp AM/AM, AM/PM)"
+  },
+  "highpass": {
+    "order": 4,
+    "corner_fraction": 0.5,
+    "r_min_m": 100000.0,
+    "fixed_corner_hz": null,
+    "realisation": "Butterworth, state-variable sections, trapezoidal; states carried across corner changes"
+  },
+  "leakage_model": {
+    "isolation_db": 40.0,
+    "coupling_delay_s": 3e-09,
+    "isolation_ripple_db": 0.0,
+    "ripple_period_hz": null,
+    "ripple_phase_rad": 0.0,
+    "resonances": [],
+    "table_f_hz": [
+      330000.0,
+      20000000.0,
+      36
+    ],
+    "table_isolation_db": [
+      36.6141104295748,
+      52.7121483017367
+    ],
+    "delay_jitter_s": 0.0,
+    "jitter_bandwidth_hz": 1.0,
+    "retune_transient_db": 0.0,
+    "retune_time_constant_s": 0.001,
+    "label": "MoM anchor: bus_crossed_ends_offset, simultaneous match",
+    "coupling_path_m": 0.899377374,
+    "profile": "tabulated"
+  }
+}

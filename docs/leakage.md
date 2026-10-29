@@ -107,10 +107,62 @@ With the baseline part (flicker FM, 2e-9 at 1 s) at 10 MHz, the residual at a
 reference is shared: range correlation helps only below about 1/(6 tau),
 24 Hz at 1050 km.  On the leakage path it is worth 50 dB and more.
 
+## Phase 3 (2026-10-28): the leakage in the samples and the receive chain
+
+Decisions (2026-10-28): leakage off by default until Phase 4 scores it; when
+on, the MoM bus profile (`bus_crossed_ends_offset`); the high-pass corner
+follows each step; INS-11 scored on the noise-referenced rule (G5b), Rev G's
+rule reported beside it.
+
+Module: `tss.l2_instrument.receive_chain`.  Study: `leakage_receive_chain`
+(outputs in `data/reference/wp3_receive_chain`).  Tests:
+`tests/unit/test_receive_chain.py` (12).  Configuration: the `leakage`,
+`front_end` and `leakage_highpass` blocks of `baseline_6u.yaml`.
+
+* **In the samples.**  With `leakage.enabled`, the L2 baseline adds
+  `leakage_signal(...)` at the receiver input, before the noise, drawn from the
+  record's impairment realization, so echoes and leakage share one oscillator.
+* **Front end.**  A Rapp limiter on the composite's envelope, input P1dB
+  +1 dBm (a level-7 mixer, assumed), optional AM/PM.  Applying it to the
+  de-chirped envelope is checked against a passband simulation of a real tanh
+  nonlinearity followed by the de-chirp: the leakage, the echo and the echo's
+  image agree to 0.1 dB.  A weak echo beside the leakage loses
+  `|a|^2` and gains an image `|b/a|^2` at the negative beat
+  (`small_signal_gain_db`, `compression_image_dbc`), checked to 0.05 dB.
+* **Leakage high-pass.**  Fourth-order Butterworth in state-variable sections,
+  trapezoidal, corner `0.5 x 2 K_i R_min / c` per step (205 Hz at 0.33 MHz to
+  1.87 kHz above 3 MHz in A1; to 11.8 kHz in A2).  It matches the analog
+  response to 0.05 dB; a 100 km echo loses 0.017 dB.  Its states carry across a
+  change of corner, and a 5 % change shakes loose less than -100 dBc of an
+  absorbed near-DC leakage.
+
+### What the study finds (A1, MoM bus isolation)
+
+| | Transmitter starts with the sweep (cold) | Transmitter already on (primed) |
+|---|---|---|
+| INS-11, noise rule, least margin | 38.6 dB | 92 dB |
+| Rule asks at most (noise / Rev G) | 60.7 / 96.8 dB | same |
+| Longest settling | 25.1 ms, first step (0.94 of a dwell) | 1.65 ms |
+| Steps settling longer than the 7 ms echo transition | 1 (the first) | 0 |
+| Filtered leakage peak against full scale | +50 dB (the converter clips in step 1) | -43 dB |
+
+* Without the high-pass every sample clips: INS-11 needs it.
+* In steady state the filter removes the carrier by about 200 dB; the rules
+  ask 61 dB (noise) or 97 dB (Rev G) at most.  What decides the first step is
+  the leakage switching on: if the transmitter starts with the sweep, step 1
+  (0.33 MHz) is lost for 25 ms.  Running the transmitter before the sweep, or
+  blanking step 1, removes it.
+* Front end: with the bus isolation the leakage is -6.7 dBm below 3 MHz,
+  7.6 dB under the assumed +1 dBm P1dB, short of WP9-2's 10 dB in 83 of 159
+  steps.  An echo there loses 0.11 dB and gains an image 41 dB down at the
+  negative beat: a strong echo 60 dB above the noise would put a ghost 19 dB
+  above it.  At flat 40 dB isolation the margin is 11 dB and the image 55 dB
+  down.
+
 ### Not yet
 
-* The leakage is not added to the L2 baseline's samples; receiver compression
-  and the leakage high-pass are Phase 3.  When it is, it takes the record's
-  realization (`leakage_signal(..., realization=...)`).
+* `dechirped_residual` and `score_ins23_ins24` (the in-band residual of
+  spurs, phase noise and AM, against INS-24) and the L5 routes are Phase 4.
+* The `leakage_budget` grid and the isolation trade are Phase 5.
 * `dechirped_residual` and `score_ins23_ins24` are Phase 4.
 * The canceller (`tss.l3_signal.leakage_suppress`) is WP5.

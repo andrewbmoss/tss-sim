@@ -365,3 +365,19 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   INS-21 credit lost is 50.43 dB against 50.47 dB predicted.
 * Configuration: `transmit_impairments` in `baseline_6u.yaml`, all off, so no
   earlier result moves.
+
+## WP3 Phase 3 (2026-10-28): leakage in the samples, front end, high-pass
+
+* `leakage.enabled` in `baseline_6u.yaml` (false by default until Phase 4)
+  adds the leakage at the receiver input on the MoM bus isolation, sharing the
+  record's impairment realization.  `front_end` (Rapp, +1 dBm P1dB) and
+  `leakage_highpass` (Butterworth 4, corner 0.5 of each step's 100 km beat)
+  follow it.
+* `tss.l2_instrument.receive_chain`: `FrontEnd`, `LeakageHighpass`,
+  `small_signal_gain_db`, `compression_image_dbc`.  Bandpass equivalence
+  checked against a passband tanh to 0.1 dB.
+* Study `leakage_receive_chain` (`data/reference/wp3_receive_chain`): INS-11 on
+  the noise rule met at every step (least margin 38.6 dB cold, 92 dB primed).
+  Cold start loses step 1 for 25 ms and clips the converter by 50 dB there.
+  The front end is 7.6 dB under P1dB below 3 MHz (WP9-2 asks 10), with an echo
+  image at -41 dBc.

@@ -133,6 +133,7 @@ from tss.l2_instrument.noise import (
     sky_temperature,
 )
 from tss.l2_instrument.oscillator import Oscillator
+from tss.l2_instrument.receive_chain import FrontEnd, LeakageHighpass
 from tss.l2_instrument.receiver import Receiver
 from tss.l2_instrument.waveform import (
     sweep_bandwidth_hz,
@@ -221,6 +222,30 @@ def _traces_by_mode(
         out[label] = DelayTrace(f, delay[sel])
     return out
 
+def _leakage_model_from_config(leak: Mapping[str, Any], isolation: Mapping[str, Any]) -> Any:
+    """The leakage model a ``leakage`` block asks for.
+
+    ``profile: mom_bus`` (the default when leakage is on, decision of
+    2026-10-28) loads the moment-method isolation of the dipoles on the 6U
+    bus, ``mom_geometry`` and ``mom_match`` choosing the column; ``flat`` takes
+    ``isolation.transmit_receive_db``.  The coupling delay is
+    ``isolation.coupling_delay_s`` either way.
+    """
+    from tss.l2_instrument import leakage as _lk
+
+    profile = str(leak.get("profile", "mom_bus"))
+    delay = float(isolation.get("coupling_delay_s", _lk.BASELINE_COUPLING_DELAY_S))
+    if profile == "flat":
+        return _lk.LeakageModel.from_config(isolation)
+    if profile == "mom_bus":
+        return _lk.mom_anchor_model(
+            str(leak.get("mom_geometry", "bus_crossed_ends_offset")),
+            str(leak.get("mom_match", "simultaneous")),
+            coupling_delay_s=delay,
+        )
+    raise ValueError(f"leakage profile must be 'mom_bus' or 'flat', got {profile!r}")
+
+
 #: Polarization loss, dB.  -3 dB for the O and X split and -3 dB for an
 #: elliptically polarized wave received on a linear antenna.  The same figure
 #: the link budget uses as its default.  It is not in the instrument
@@ -300,6 +325,12 @@ class BaselineInstrument:
         in_dwell_dispersion: bool = True,
         isolation: Mapping[str, Any] | None = None,
         impairments: TransmitImpairments | None = None,
+        leakage: Any = None,
+        leakage_enabled: bool = False,
+        front_end: FrontEnd | None = None,
+        front_end_enabled: bool | None = None,
+        highpass: LeakageHighpass | None = None,
+        highpass_enabled: bool | None = None,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
         configuration_notes: tuple[str, ...] = (),
@@ -330,6 +361,23 @@ class BaselineInstrument:
         self.in_dwell_dispersion = bool(in_dwell_dispersion)
         self.isolation = dict(isolation or {})
         self.impairments = impairments if impairments is not None else TransmitImpairments.none()
+        # WP3 Phase 3.  The leakage is off unless asked for (decision of
+        # 2026-10-28: off until Phase 4 scores it).  The front end and the
+        # high-pass follow the leakage switch unless set explicitly.
+        self.leakage_enabled = bool(leakage_enabled)
+        if self.leakage_enabled and leakage is None:
+            from tss.l2_instrument import leakage as _lk
+
+            leakage = _lk.LeakageModel.from_config(self.isolation)
+        self.leakage = leakage
+        self.front_end = front_end if front_end is not None else FrontEnd()
+        self.front_end_enabled = (
+            self.leakage_enabled if front_end_enabled is None else bool(front_end_enabled)
+        )
+        self.highpass = highpass if highpass is not None else LeakageHighpass()
+        self.highpass_enabled = (
+            self.leakage_enabled if highpass_enabled is None else bool(highpass_enabled)
+        )
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
         self.configuration_notes = tuple(str(n) for n in configuration_notes)
@@ -370,6 +418,16 @@ class BaselineInstrument:
             kwargs["impairments"] = TransmitImpairments.from_config(
                 cfg.get("transmit_impairments"), oscillator=kwargs["oscillator"]
             )
+        leak_cfg = dict(cfg.get("leakage") or {})
+        kwargs["leakage_enabled"] = bool(leak_cfg.get("enabled", False))
+        if kwargs["leakage_enabled"] and "leakage" not in overrides:
+            kwargs["leakage"] = _leakage_model_from_config(leak_cfg, dict(cfg.get("isolation") or {}))
+        fe_cfg = dict(cfg.get("front_end") or {})
+        kwargs["front_end"] = FrontEnd.from_config(fe_cfg)
+        kwargs["front_end_enabled"] = fe_cfg.get("enabled")
+        hp_cfg = dict(cfg.get("leakage_highpass") or {})
+        kwargs["highpass"] = LeakageHighpass.from_config(hp_cfg)
+        kwargs["highpass_enabled"] = hp_cfg.get("enabled")
         kwargs.update(overrides)
         return cls(**kwargs)
 
@@ -657,6 +715,21 @@ class BaselineInstrument:
                 k_u = np.full(f_u.shape, k)
             rows_beyond = int(np.count_nonzero(k_u * delay[usable] > fs_hz / 2.0))
 
+        # Leakage (WP3 Phase 3).  Added at the receiver input, before the noise
+        # and the receive chain, and drawn from the record's impairment
+        # realization so that it and the echoes share one oscillator.
+        leak = None
+        if self.leakage_enabled and self.leakage is not None:
+            from tss.l2_instrument import leakage as _lk
+
+            leak = _lk.leakage_signal(
+                sweep, fs_hz, self.leakage, rng, n_samples=n_samples, t0_s=0.0,
+                transmit_power_w=self.tx_power_w,
+                tx_chain_efficiency_db=self.tx_chain_efficiency_db,
+                impairments=imp, realization=realization,
+            )
+            samples = samples + leak
+
         # Noise.  The antenna temperature follows the sweep, because the sky is
         # three orders of magnitude colder at the top of the band than at the
         # bottom and a single band-averaged figure would be wrong at both ends.
@@ -665,9 +738,11 @@ class BaselineInstrument:
         sigma = np.sqrt(K_BOLTZ * t_sys * fs_hz / 2.0)
         samples = samples + rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
 
-        # Receive chain.  Gain, then clipping against the instantaneous dynamic
-        # range referred to the median noise floor, then quantisation.
-        amplified = self.receiver.apply_gain(samples)
+        # Receive chain.  Front end (bandpass-equivalent compression of the
+        # composite), the leakage high-pass after the de-chirp (WP3 Phase 3),
+        # then gain, clipping against the instantaneous dynamic range referred
+        # to the median noise floor, and quantisation.
+        amplified = self.receiver.apply_gain(self._analog(samples, sweep, fs_hz))
         noise_floor_w = float(np.median(K_BOLTZ * t_sys * fs_hz)) * float(
             undb(self.receiver.gain_db)
         )
@@ -684,7 +759,7 @@ class BaselineInstrument:
         # The flag ``vector_channels_are_placeholders`` says so on every record.
         for _ in range(channels - 1):
             extra_noise = rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
-            chain = self.receiver.apply_gain(samples + extra_noise)
+            chain = self.receiver.apply_gain(self._analog(samples + extra_noise, sweep, fs_hz))
             chain, _ = self.receiver.clip(chain, clip_level_w)
             rows_out.append(
                 self.receiver.quantise(chain, clip_level_w) if self.quantise else chain
@@ -740,13 +815,21 @@ class BaselineInstrument:
             "noise_reference_extrapolated": bool(np.any(is_extrapolated(floor_f_mhz))),
             "transmit_impairments": dict(imp.describe()),
             "rows_doppler_applied": rows_doppler,
-            "leakage_modelled": False,
+            "leakage_modelled": leak is not None,
             "leakage_note": (
-                "tss.l2_instrument.leakage models the leakage (WP3 Phase 1) but it "
-                "is not yet added to these samples (Phase 3), so the receiver never "
-                "clips on leakage and no INS-11 or INS-24 verdict may be taken from "
-                "this run."
+                "Transmit-to-receive leakage is in these samples (WP3 Phase 3), "
+                f"profile: {getattr(self.leakage, 'label', '') or 'flat'}.  INS-24's "
+                "residual is scored in Phase 4."
+                if leak is not None
+                else "Leakage is off in this configuration (WP3 Phase 3: off until "
+                "Phase 4 scores it), so the receiver never sees it and no INS-11 or "
+                "INS-24 verdict may be taken from this run."
             ),
+            "leakage_power_dbm_mean": (
+                float(w_to_dbm(float(np.mean(np.abs(leak) ** 2)))) if leak is not None else None
+            ),
+            "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
+            "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},
             "vector_channels_are_placeholders": channels > 1,
             "absorption_db_carried_not_applied": True,
         }
@@ -759,6 +842,14 @@ class BaselineInstrument:
             flags=flags,
             source=self.source_label(),
         )
+
+    def _analog(self, x: np.ndarray, sweep: SweepSchedule, fs_hz: float) -> np.ndarray:
+        """The analog chain ahead of the gain stage: front end, then high-pass."""
+        if self.front_end_enabled and not self.front_end.linear:
+            x = self.front_end.apply(x)
+        if self.highpass_enabled:
+            x = self.highpass.apply(x, sweep, fs_hz)
+        return x
 
     # -- manifest ------------------------------------------------------------
 
@@ -800,7 +891,10 @@ class BaselineInstrument:
             "isolation": dict(self.isolation),
             "transmit_impairments": dict(self.impairments.describe()),
             "resources": dict(self.resources),
-            "leakage_modelled": False,
+            "leakage_modelled": bool(self.leakage_enabled),
+            "leakage": None if self.leakage is None else dict(self.leakage.describe()),
+            "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
+            "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},
             "matching_network_loss": (
                 "carried in the antenna radiation efficiency only (decision of "
                 "2026-10-17); tx_chain_efficiency_db excludes it"
