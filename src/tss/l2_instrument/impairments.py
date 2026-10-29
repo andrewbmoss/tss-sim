@@ -290,6 +290,11 @@ def _synth_spectrum(s_one_sided: np.ndarray, m: int, fs: float, rng: np.random.G
     return spec
 
 
+#: Half-length and Kaiser beta of the fractional-delay filter for echo windows.
+_FIR_HALF = 32
+_FIR_BETA = 8.0
+
+
 class ImpairmentRealization:
     """One draw of the impairments on one record, shared by echoes and leakage.
 
@@ -318,7 +323,7 @@ class ImpairmentRealization:
         self.fs = float(fs_hz)
         self.n = int(n)
         self.t0 = float(t0_s)
-        self.pad = int(math.ceil(max(float(max_delay_s), 0.0) * self.fs)) + 16
+        self.pad = int(math.ceil(max(float(max_delay_s), 0.0) * self.fs)) + 16 + _FIR_HALF
         self.m = int(_fft.next_fast_len(self.n + self.pad, real=True))
         self.t_ext = self.t0 + (np.arange(self.m) - self.pad) / self.fs
         self.t = self.t_ext[self.pad : self.pad + self.n]
@@ -418,6 +423,64 @@ class ImpairmentRealization:
         for s, m_am, ph in zip(self.imp.spurs, self._m_am, self._spur_phase_tx, strict=True):
             if m_am:
                 out += m_am * np.cos(2.0 * np.pi * s.offset_hz * tt + ph)
+        return out
+
+    # -- windows, for the echoes -------------------------------------------------
+
+    def _series(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """The undelayed transmit phase error and AM on the padded grid, cached."""
+        if getattr(self, "_series_cache", None) is None:
+            e = None
+            if self._g_tx is not None:
+                e = self._cycles(self._g_tx, 0.0)
+            if self._pm_tx is not None:
+                pm = self._delayed(self._pm_tx, 0.0)
+                e = pm if e is None else e + pm
+            am = None if self._am is None else self._delayed(self._am, 0.0)
+            self._series_cache = (e, am)
+        return self._series_cache
+
+    def _window(self, x: np.ndarray, tau: float, lo: int, hi: int) -> np.ndarray:
+        """``x(t - tau)`` for record samples ``lo:hi``, by a windowed-sinc fractional delay."""
+        d = float(tau) * self.fs
+        n_int = int(math.floor(d))
+        frac = d - n_int
+        base = self.pad + np.arange(lo, hi) - n_int
+        m = np.arange(-_FIR_HALF + 1, _FIR_HALF + 1)
+        taps = np.sinc(-frac - m) * np.kaiser(2 * _FIR_HALF, _FIR_BETA)
+        taps = taps / np.sum(taps)
+        # The draws are periodic on the padded grid (they were synthesised by
+        # transform), so an index past either end wraps, as the exact delay does.
+        idx = (base[:, None] + m[None, :]) % x.size
+        return x[idx] @ taps
+
+    def tx_phase_window(self, tau_s: float, lo: int, hi: int) -> np.ndarray:
+        """Transmit phase error at ``t - tau`` for record samples ``lo:hi``.
+
+        The same quantity as :meth:`tx_phase`, without a transform of the whole
+        record: a 64-tap Kaiser-windowed-sinc fractional delay of the stored
+        series, accurate to about 1e-3 up to 0.9 of the Nyquist frequency.  The
+        L2 baseline uses it for the echoes, which need one delay each; the
+        leakage uses the exact :meth:`tx_phase`.
+        """
+        tau = float(tau_s)
+        e, _ = self._series()
+        out = np.zeros(hi - lo) if e is None else self._window(e, tau, lo, hi)
+        tt = self.t[lo:hi] - tau
+        for s, beta, ph in zip(self.imp.spurs, self._betas, self._spur_phase_tx, strict=True):
+            if beta:
+                out = out + beta * np.sin(2.0 * np.pi * s.offset_hz * tt + ph)
+        return out
+
+    def tx_amplitude_window(self, tau_s: float, lo: int, hi: int) -> np.ndarray:
+        """Radiated amplitude factor at ``t - tau`` for record samples ``lo:hi``."""
+        tau = float(tau_s)
+        _, am = self._series()
+        out = np.ones(hi - lo) if am is None else 1.0 + self._window(am, tau, lo, hi)
+        tt = self.t[lo:hi] - tau
+        for s, m_am, ph in zip(self.imp.spurs, self._m_am, self._spur_phase_tx, strict=True):
+            if m_am:
+                out = out + m_am * np.cos(2.0 * np.pi * s.offset_hz * tt + ph)
         return out
 
     def residual_phase(self, tau_s: float) -> np.ndarray:

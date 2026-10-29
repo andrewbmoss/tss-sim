@@ -48,16 +48,18 @@ INS-09      residual_range_bias_cells          Residual after the WP5 separation
                                                INS-05 cells.  None until WP5 exists.
 INS-10      snr_db_min_at_truth_echoes         Worst per-cell SNR measured at every
                                                echo the truth returned.
-INS-11      none                               Receiver dynamic range, owned by L2.
-INS-14      none                               Transmit power, owned by L2 and by the
-                                               configuration.
+INS-11      dynamic_range_db_at_digitiser      From L2: the configured range, verified by
+                                               the record (WP3 Phase 4).
+INS-14      transmit_power_w                   From L2: declared, the configured value.
 INS-15      coherent_interval_s                Only a tier that integrates coherently
                                                reports one.  See "INS-15" below.
 INS-18      none                               Vector channel phase match, owned by L2.
-INS-23      none                               Transmit to receive isolation, owned by
-                                               L2 and measured on the bench in WP9.
-INS-24      none                               Residual leakage floor, same owners.
-INS-26      none                               Oscillator stability, owned by L2.
+INS-23      isolation_db_min                   From L2: least isolation of the leakage
+                                               model over the sweep.  WP9 measures it.
+INS-24      leakage_residual_margin_db         From L2: residual below the weakest
+                                               admitted echo, worst step (G5a).
+INS-26      allan_deviation_composite          From L2: declared, the oscillator part,
+                                               at 0.05 s and 1.15 s.  See "INS-26".
 SCI-05      ne_rms_fractional                  Density error against truth (SW-01).
                                                Scored only when the field is treated
                                                consistently; see "SCI-05 and SCI-07".
@@ -106,6 +108,33 @@ the reason attached, and the error metrics are still carried in
 ``Assessment.errors``.  :func:`tss.l5_assessment.scoring.profile_scoring_basis`
 is the rule.
 
+INS-11, INS-14, INS-23, INS-24 and INS-26 (WP3 Phase 4)
+--------------------------------------------------------
+These are instrument properties, so this layer does not measure them.  The L2
+tier puts its evidence on the record (``ReceivedSignal.flags["l2_metrics"]``)
+and the pipeline passes it to the assessment, which merges it with the
+computed metrics (decision of 2026-10-28, "score with evidence").  Each carries
+a ``<metric>_basis`` saying what kind of evidence it is, copied into the
+scored record as ``basis``:
+
+* INS-11 is the configured instantaneous dynamic range, verified by the
+  record: reduced by any overload of the digitiser by the residual leakage and
+  by any step whose high-pass rejection falls short of the noise rule.
+* INS-14 and INS-26 are declared: the configured transmit power, and the
+  configured oscillator part's Allan deviation.  INS-26's threshold is written
+  at 0.05 s and its goal at 1.15 s, so the scored number is the deviation at
+  the interval of the highest level met (see
+  ``BaselineInstrument._declared_metrics``); both values are carried in
+  ``Assessment.errors``.
+* INS-23 is the least isolation of the leakage model over the sweep, and
+  INS-24 the margin of the residual leakage below the weakest echo INS-10
+  admits, at the worst step, with no canceller (WP3 plan, G3).  The margin
+  against the free-space echo from R_max and the margin behind an ideal
+  canceller are carried in ``Assessment.errors``.
+
+INS-11, INS-23 and INS-24 are evaluated only when the leakage is in the
+record; with it off they are ``not_evaluated`` and say so.
+
 INS-15
 ------
 INS-15 asks for a coherent processing interval of 0.05 s at threshold, from
@@ -135,6 +164,8 @@ __all__ = [
     "METRIC_FOR_REQUIREMENT",
     "NOT_SCORED_HERE",
     "CARRY_IN_ERRORS",
+    "ABSENT_REASON",
+    "L2_EVIDENCE_METRICS",
     "achieved_from_metrics",
     "check_requirements",
 ]
@@ -202,15 +233,16 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     ),
     (
         "INS-11",
-        None,
-        "instantaneous receiver dynamic range is an L2 property; it is measured by "
-        "the receiver model and the bench work of WP9, not by the processing.",
+        "dynamic_range_db_at_digitiser",
+        "from L2 (WP3 Phase 4): the configured instantaneous dynamic range, verified by "
+        "the record, reduced by any digitiser overload from the residual leakage and any "
+        "step whose high-pass rejection falls short of the noise rule (G5b).  Bench: WP9.",
     ),
     (
         "INS-14",
-        None,
-        "transmit power is set by the configuration and reported by L2.  L5 does not "
-        "re-derive a configured value as though it had measured it.",
+        "transmit_power_w",
+        "from L2, declared: the configured transmit power.  L5 does not re-derive a "
+        "configured value as though it had measured it.",
     ),
     (
         "INS-15",
@@ -222,13 +254,24 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
     ("INS-18", None, "vector receive channel phase match is an L2 property, WP11."),
     (
         "INS-23",
-        None,
-        "transmit to receive isolation is an L2 property and ultimately a WP9 bench "
-        "measurement.  docs/verification.md states that C4 is a hardware claim with "
-        "a modelling component.",
+        "isolation_db_min",
+        "from L2 (WP3 Phase 4): the least isolation of the leakage model over the sweep. "
+        "Ultimately a WP9 bench measurement; docs/verification.md states that C4 is a "
+        "hardware claim with a modelling component.",
     ),
-    ("INS-24", None, "residual leakage floor, same owners as INS-23."),
-    ("INS-26", None, "oscillator Allan deviation is an L2 property, WP3."),
+    (
+        "INS-24",
+        "leakage_residual_margin_db",
+        "from L2 (WP3 Phase 4): margin of the residual leakage below the weakest echo "
+        "INS-10 admits, at the worst step, with no canceller (G5a).  The R_max reading and "
+        "the ideal-canceller bound are carried in the errors.",
+    ),
+    (
+        "INS-26",
+        "allan_deviation_composite",
+        "from L2, declared: the configured oscillator's Allan deviation at 1.15 s when "
+        "it meets the goal, otherwise at 0.05 s.",
+    ),
     (
         "SCI-05",
         "ne_rms_fractional",
@@ -314,7 +357,39 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "along_track_sampling_m",
     "block_duration_s",
     "n_detected",
+    # WP3 Phase 4: the L2 evidence beside the scored numbers.
+    "allan_deviation_at_0p05s",
+    "allan_deviation_at_1p15s",
+    "isolation_db_min_freq_hz",
+    "leakage_residual_margin_freq_hz",
+    "leakage_residual_margin_db_rmax",
+    "leakage_residual_steps_failing",
+    "leakage_residual_steps_scored",
+    "leakage_residual_margin_db_canceller",
+    "leakage_residual_steps_failing_canceller",
+    "leakage_canceller_bound_db",
+    "ins11_configured_db",
+    "ins11_rejection_margin_db",
+    "ins11_rejection_margin_freq_hz",
+    "ins11_residual_peak_over_clip_db",
 )
+
+#: Metrics only the L2 tier reports (WP3 Phase 4), and why one is absent when
+#: it is.  compute_metrics never produces them; they arrive through ``extra``.
+ABSENT_REASON: dict[str, str] = {
+    "dynamic_range_db_at_digitiser": (
+        "the leakage is off in this configuration, so the record cannot verify the "
+        "dynamic range against it (WP3 Phase 4)"
+    ),
+    "isolation_db_min": "the leakage is off in this configuration (WP3 Phase 4)",
+    "leakage_residual_margin_db": (
+        "the leakage is off in this configuration, or the sweep is not stepped "
+        "(WP3 Phase 4)"
+    ),
+    "transmit_power_w": "the L2 tier did not report its declared values",
+    "allan_deviation_composite": "the L2 tier did not report its declared values",
+}
+L2_EVIDENCE_METRICS: tuple[str, ...] = tuple(ABSENT_REASON)
 
 
 def achieved_from_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
@@ -384,6 +459,8 @@ def check_requirements(
             if metrics.get(FALLBACK_METRIC[rid]) is not None:
                 metric = FALLBACK_METRIC[rid]
         record["metric"] = metric
+        if metric is not None and metrics.get(f"{metric}_basis") is not None:
+            record["basis"] = str(metrics[f"{metric}_basis"])
         if record.get("verdict") != "not_evaluated":
             continue
         if rid in FIELD_CONSISTENT_ONLY and metrics.get("profile_scorable") is False:
@@ -400,6 +477,7 @@ def check_requirements(
         elif metric not in metrics:
             record["reason"] = (
                 f"metric {metric!r} is not in the metric set this run produced"
+                + (f": {ABSENT_REASON[metric]}" if metric in ABSENT_REASON else "")
             )
         else:
             record["reason"] = (

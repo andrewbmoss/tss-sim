@@ -229,10 +229,13 @@ def test_a_metric_that_was_not_computed_names_itself_in_the_reason():
 
 
 def test_a_requirement_owned_by_another_layer_says_so():
-    """INS-23 is an L2 property and a WP9 bench measurement, and says both."""
+    """INS-18 is an L2 property of WP11 and says so; INS-23, scored from L2's
+    evidence since WP3 Phase 4, says why it is absent when it is."""
     records = check_requirements({})
-    assert records["INS-23"]["metric"] is None
-    assert "L2" in records["INS-23"]["reason"]
+    assert records["INS-18"]["metric"] is None
+    assert "L2" in records["INS-18"]["reason"]
+    assert records["INS-23"]["metric"] == "isolation_db_min"
+    assert "leakage is off" in records["INS-23"]["reason"]
 
 
 def test_every_mapped_metric_name_is_produced_by_compute_metrics():
@@ -242,7 +245,11 @@ def test_every_mapped_metric_name_is_produced_by_compute_metrics():
     for ever and nobody would find out why.
     """
     metrics = compute_metrics(_retrieved(), _truth(), _ionogram(), platform=_platform())
-    missing = sorted(set(METRIC_FOR_REQUIREMENT.values()) - set(metrics))
+    from tss.l5_assessment.requirements_check import L2_EVIDENCE_METRICS
+
+    # The L2 evidence arrives through ``extra``; test_leakage_scoring checks
+    # that the L2 baseline produces every one of them.
+    missing = sorted(set(METRIC_FOR_REQUIREMENT.values()) - set(metrics) - set(L2_EVIDENCE_METRICS))
     assert not missing, f"mapped but never produced: {missing}"
 
 

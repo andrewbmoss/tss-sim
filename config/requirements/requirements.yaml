@@ -277,6 +277,11 @@ requirements:
       2026-10-27 from 32 dB with the leakage-to-echo correction).  INS-11 also
       requires 90 dB with gain control and survival at +120 dB (Franklin and
       MacLean 1969); neither companion condition is scored by this entry.
+      Scored since WP3 Phase 4 (2026-10-28) from the L2 record as the configured
+      range verified by the record (metric dynamic_range_db_at_digitiser): it
+      is reduced by any digitiser overload from the residual leakage and by any
+      step whose high-pass rejection falls short of the noise rule (decision
+      G5b).  Not evaluated when the leakage is off.
 
   INS-14:
     title: Resource constraint, transmit power
@@ -291,7 +296,8 @@ requirements:
       INS-14 is a single constraint: 6U volume, transmit power at most 1 W and
       total instrument power at most 5 W.  Only the transmit power is scored by
       this entry.  The requirement document states no goal; the 0.5 W
-      previously carried here had no source.
+      previously carried here had no source.  Scored since WP3 Phase 4 from the
+      configured value, labelled declared (metric transmit_power_w).
 
   INS-15:
     title: Coherent processing interval
@@ -341,6 +347,12 @@ requirements:
     work_packages: [WP3, WP5, WP9]
     source: derived
     derivation: "Allocation to the INS-24 leakage floor (Requirements Rev G sec. 5.9); a deployed-configuration property that trades against INS-22"
+    notes: >-
+      Scored since WP3 Phase 4 (2026-10-28) as the least isolation of the L2
+      leakage model over the sweep (metric isolation_db_min).  The default model
+      is the moment-method profile of the crossed, offset dipoles on the 6U bus,
+      36.6 dB at its least, near 1.4 MHz, so this entry fails until a mount or a
+      canceller is chosen.  A WP9 bench measurement replaces it.
 
   INS-24:
     title: Residual leakage floor
@@ -354,11 +366,14 @@ requirements:
     derivation: "Ten decibels below the weakest echo INS-10 admits (Requirements Rev G sec. 5.9)"
     notes: >-
       Scored as the margin between the weakest admitted echo and the de-chirped
-      leakage residual.  Technical Volume Chapter 5 shows this is less binding
-      than earlier drafts asserted once range correlation is credited, but the
-      credit depends on the single-reference architecture of INS-21.  The
-      requirement document states no goal; the 20 dB previously carried here
-      had no source.
+      leakage residual (metric leakage_residual_margin_db), at the worst step,
+      with no canceller (WP3 Phase 4, decisions G3 and G5a of 2026-10-28).  The
+      residual's level is the larger of its pedestal and its strongest line in
+      the step's echo band.  The margin against the free-space echo from R_max
+      (Rev G's reading) and behind an ideal 30 dB canceller are carried beside
+      it.  Range correlation removes the phase noise of a 3 ns path but not the
+      transmitter's AM, which sets the pedestal.  The requirement document
+      states no goal; the 20 dB previously carried here had no source.
 
   INS-26:
     title: Oscillator stability
@@ -376,7 +391,10 @@ requirements:
       refractive index at the spacecraft.  Rev F's 2e-9 came from
       SCI-23 and is withdrawn, and Rev G's first 7.4e-9 came from a threshold
       resolution.  Open Item 12 is whether the range-correlation credit applies
-      to the goal, which would relax it by a factor of about 26.
+      to the goal, which would relax it by a factor of about 26.  Scored since
+      WP3 Phase 4 from the configured oscillator part, labelled declared (metric
+      allan_deviation_composite: sigma_y at 1.15 s when it meets the goal,
+      otherwise at 0.05 s).
 
   SCI-05:
     title: Absolute electron density accuracy

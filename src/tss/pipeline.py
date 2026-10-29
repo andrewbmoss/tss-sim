@@ -37,6 +37,17 @@ from tss.registry import build
 __all__ = ["Pipeline", "RunResult", "build_tiers"]
 
 
+def _accepts(fn: Any, name: str) -> bool:
+    """Whether ``fn`` takes a keyword ``name``."""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
 @dataclass
 class RunResult:
     """Everything one configuration produced."""
@@ -162,10 +173,17 @@ class Pipeline:
                 flags={**dict(retrieved.flags or {}), "forward_group_index": str(forward)},
             )
 
+        # Requirement evidence that only L2 can give (WP3 Phase 4): the
+        # leakage scores and the declared values, carried on the record.  Only
+        # an assessment tier that takes them is given them.
+        l5_kwargs: dict[str, Any] = {"platform": platform, "truth_echo_snr": truth_echo_snr}
+        l2_metrics = (signal.flags or {}).get("l2_metrics") if signal is not None else None
+        if l2_metrics is not None and _accepts(self.tiers["l5"].score, "l2_metrics"):
+            l5_kwargs["l2_metrics"] = l2_metrics
+
         t0 = time.perf_counter()
         assessment = self.tiers["l5"].score(
-            retrieved, truth, ionogram, configuration,
-            platform=platform, truth_echo_snr=truth_echo_snr,
+            retrieved, truth, ionogram, configuration, **l5_kwargs
         )
         t["l5"] = time.perf_counter() - t0
 

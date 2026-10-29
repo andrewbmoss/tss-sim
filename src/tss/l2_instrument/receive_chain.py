@@ -365,6 +365,25 @@ class LeakageHighpass:
             return y, xs
         return y
 
+    def steady_state(
+        self, u0: complex, sweep: SweepSchedule, fs_hz: float, *, t0_s: float = 0.0
+    ) -> np.ndarray:
+        """The state after a long run on a constant input ``u0``, at the corner in force at ``t0_s``.
+
+        ``x* = (I - P)^-1 2 Q u0``, solved in modal form.  It is the state a
+        filter that has been running on the leakage carrier is in when the
+        record starts: the transmitter runs between sweeps (WP3 Phase 4
+        operating assumption, 2026-10-28), so the de-chirped leakage at the
+        start of a sweep is a carrier the filter has already absorbed.  The
+        output from it is ``D u0 + C x* = 0`` for a high-pass, which is the
+        check.
+        """
+        fs = float(fs_hz)
+        seg = self.segments(sweep, t0_s, 1, fs)[0]
+        lam, v, _vinv, qm, _cm, _dd = self._discrete(seg[2], fs)
+        z = 2.0 * qm * complex(u0) / (1.0 - lam)
+        return v @ z
+
     def describe(self) -> Mapping[str, Any]:
         return {
             "order": self.order,

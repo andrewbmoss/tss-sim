@@ -116,6 +116,7 @@ verdict on INS-11 or INS-24 may be taken from a run made without it.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import replace as _replace
 from typing import Any
@@ -246,6 +247,11 @@ def _leakage_model_from_config(leak: Mapping[str, Any], isolation: Mapping[str, 
     raise ValueError(f"leakage profile must be 'mom_bus' or 'flat', got {profile!r}")
 
 
+#: Headroom the INS-11 noise rule keeps between the residual leakage and the
+#: digitiser's clip level (Requirements Rev G sec. 5.9; decision G5b).
+_INS11_HEADROOM_DB = 10.0
+
+
 #: Polarization loss, dB.  -3 dB for the O and X split and -3 dB for an
 #: elliptically polarized wave received on a linear antenna.  The same figure
 #: the link budget uses as its default.  It is not in the instrument
@@ -331,6 +337,8 @@ class BaselineInstrument:
         front_end_enabled: bool | None = None,
         highpass: LeakageHighpass | None = None,
         highpass_enabled: bool | None = None,
+        leakage_primed: bool = True,
+        canceller_bound_db: float | None = 30.0,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
         configuration_notes: tuple[str, ...] = (),
@@ -378,6 +386,14 @@ class BaselineInstrument:
         self.highpass_enabled = (
             self.leakage_enabled if highpass_enabled is None else bool(highpass_enabled)
         )
+        # WP3 Phase 4.  The transmitter runs between sweeps (operating
+        # assumption of 2026-10-28), so the leakage is already present and the
+        # high-pass already settled on it when a record starts.  The canceller
+        # bound is the residual with the leakage taken down by that much ahead
+        # of the receiver, an ideal canceller reported beside the score (WP5
+        # owns the real one).
+        self.leakage_primed = bool(leakage_primed)
+        self.canceller_bound_db = None if canceller_bound_db is None else float(canceller_bound_db)
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
         self.configuration_notes = tuple(str(n) for n in configuration_notes)
@@ -428,6 +444,9 @@ class BaselineInstrument:
         hp_cfg = dict(cfg.get("leakage_highpass") or {})
         kwargs["highpass"] = LeakageHighpass.from_config(hp_cfg)
         kwargs["highpass_enabled"] = hp_cfg.get("enabled")
+        kwargs["leakage_primed"] = bool(leak_cfg.get("primed", True))
+        cb = leak_cfg.get("canceller_bound_db", 30.0)
+        kwargs["canceller_bound_db"] = None if cb is None else float(cb)
         kwargs.update(overrides)
         return cls(**kwargs)
 
@@ -644,8 +663,8 @@ class BaselineInstrument:
             imp_phase: np.ndarray | float = 0.0
             imp_amp: np.ndarray | float = 1.0
             if realization is not None:
-                imp_phase = ref_noise[lo:hi] - realization.tx_phase(tau)[lo:hi]
-                imp_amp = realization.tx_amplitude(tau)[lo:hi]
+                imp_phase = ref_noise[lo:hi] - realization.tx_phase_window(tau, lo, hi)
+                imp_amp = realization.tx_amplitude_window(tau, lo, hi)
             if dopp is not None and np.isfinite(dopp[row]):
                 # A closing echo beats at f_R - f_d on an up-sweep and
                 # -(f_R + f_d) on a down-sweep (tss.l1_propagation.doppler).
@@ -726,7 +745,7 @@ class BaselineInstrument:
                 sweep, fs_hz, self.leakage, rng, n_samples=n_samples, t0_s=0.0,
                 transmit_power_w=self.tx_power_w,
                 tx_chain_efficiency_db=self.tx_chain_efficiency_db,
-                impairments=imp, realization=realization,
+                impairments=imp, realization=realization, primed=self.leakage_primed,
             )
             samples = samples + leak
 
@@ -742,7 +761,10 @@ class BaselineInstrument:
         # composite), the leakage high-pass after the de-chirp (WP3 Phase 3),
         # then gain, clipping against the instantaneous dynamic range referred
         # to the median noise floor, and quantisation.
-        amplified = self.receiver.apply_gain(self._analog(samples, sweep, fs_hz))
+        hp_state = None
+        if leak is not None and self.leakage_primed and self.highpass_enabled:
+            hp_state = self.highpass.steady_state(self._front(samples[:1])[0], sweep, fs_hz)
+        amplified = self.receiver.apply_gain(self._analog(samples, sweep, fs_hz, state=hp_state))
         noise_floor_w = float(np.median(K_BOLTZ * t_sys * fs_hz)) * float(
             undb(self.receiver.gain_db)
         )
@@ -759,12 +781,22 @@ class BaselineInstrument:
         # The flag ``vector_channels_are_placeholders`` says so on every record.
         for _ in range(channels - 1):
             extra_noise = rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
-            chain = self.receiver.apply_gain(self._analog(samples + extra_noise, sweep, fs_hz))
+            chain = self.receiver.apply_gain(
+                self._analog(samples + extra_noise, sweep, fs_hz, state=hp_state)
+            )
             chain, _ = self.receiver.clip(chain, clip_level_w)
             rows_out.append(
                 self.receiver.quantise(chain, clip_level_w) if self.quantise else chain
             )
         block = np.vstack(rows_out)
+
+        # Requirement evidence owned by L2 (WP3 Phase 4): the declared values
+        # always, and the leakage scores when the leakage is in the record.
+        l2_metrics = self._declared_metrics()
+        per_step: dict[str, Any] | None = None
+        if leak is not None:
+            leak_metrics, per_step = self._leakage_metrics(leak, sweep, fs_hz, t_sys, clip_level_w)
+            l2_metrics.update(leak_metrics)
 
         floor_f_mhz = unique_f / 1.0e6 if unique_f.size else np.array([1.0])
         noise_floor = noise_density_dbm_per_hz(
@@ -818,18 +850,21 @@ class BaselineInstrument:
             "leakage_modelled": leak is not None,
             "leakage_note": (
                 "Transmit-to-receive leakage is in these samples (WP3 Phase 3), "
-                f"profile: {getattr(self.leakage, 'label', '') or 'flat'}.  INS-24's "
-                "residual is scored in Phase 4."
+                f"profile: {getattr(self.leakage, 'label', '') or 'flat'}, "
+                f"{'primed (transmitter running between sweeps)' if self.leakage_primed else 'cold start'}.  "
+                "INS-11, INS-23 and INS-24 are scored from it (l2_metrics, WP3 Phase 4)."
                 if leak is not None
-                else "Leakage is off in this configuration (WP3 Phase 3: off until "
-                "Phase 4 scores it), so the receiver never sees it and no INS-11 or "
-                "INS-24 verdict may be taken from this run."
+                else "Leakage is off in this configuration, so the receiver never sees it "
+                "and INS-11, INS-23 and INS-24 are not evaluated from this run."
             ),
             "leakage_power_dbm_mean": (
                 float(w_to_dbm(float(np.mean(np.abs(leak) ** 2)))) if leak is not None else None
             ),
             "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
             "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},
+            "leakage_primed": bool(leak is not None and self.leakage_primed),
+            "l2_metrics": l2_metrics,
+            "leakage_per_step": per_step,
             "vector_channels_are_placeholders": channels > 1,
             "absorption_db_carried_not_applied": True,
         }
@@ -843,13 +878,173 @@ class BaselineInstrument:
             source=self.source_label(),
         )
 
-    def _analog(self, x: np.ndarray, sweep: SweepSchedule, fs_hz: float) -> np.ndarray:
-        """The analog chain ahead of the gain stage: front end, then high-pass."""
+    def _front(self, x: np.ndarray) -> np.ndarray:
         if self.front_end_enabled and not self.front_end.linear:
-            x = self.front_end.apply(x)
+            return self.front_end.apply(x)
+        return np.asarray(x, dtype=complex)
+
+    def _analog(
+        self, x: np.ndarray, sweep: SweepSchedule, fs_hz: float, *, state: np.ndarray | None = None
+    ) -> np.ndarray:
+        """The analog chain ahead of the gain stage: front end, then high-pass."""
+        x = self._front(x)
         if self.highpass_enabled:
-            x = self.highpass.apply(x, sweep, fs_hz)
+            x = self.highpass.apply(x, sweep, fs_hz, state=state)
         return x
+
+    # -- requirement evidence (WP3 Phase 4) ------------------------------------
+
+    def _declared_metrics(self) -> dict[str, Any]:
+        """INS-14 and INS-26 from the configuration, labelled as declared.
+
+        Neither is measured by a simulated record: the transmit power is what
+        the configuration says, and the Allan deviation is the oscillator part's
+        (decision of 2026-10-28, "score with evidence").  INS-26 is one number
+        scored against a threshold written at 0.05 s and a goal written at
+        1.15 s, so the composite is the Allan deviation at the interval of the
+        highest level met: at 1.15 s when it meets the goal, otherwise at 0.05 s
+        (held just above the goal, so that a part that meets the goal at 0.05 s
+        and not at 1.15 s scores threshold, not goal).
+        """
+        from tss.l2_instrument import oscillator as _osc
+
+        s_t = float(np.asarray(self.oscillator.sigma_y(_osc.INS26_THRESHOLD_INTERVAL_S)))
+        s_g = float(np.asarray(self.oscillator.sigma_y(_osc.INS26_GOAL_INTERVAL_S)))
+        if s_t > _osc.INS26_ALLAN_THRESHOLD:
+            comp = s_t
+        elif s_g <= _osc.INS26_ALLAN_GOAL:
+            comp = s_g
+        else:
+            comp = max(s_t, float(np.nextafter(_osc.INS26_ALLAN_GOAL, np.inf)))
+        return {
+            "transmit_power_w": float(self.tx_power_w),
+            "transmit_power_w_basis": "declared: the configured transmit power",
+            "allan_deviation_composite": comp,
+            "allan_deviation_composite_basis": (
+                "declared: the configured oscillator part, sigma_y at 0.05 s (threshold) "
+                "and 1.15 s (goal)"
+            ),
+            "allan_deviation_at_0p05s": s_t,
+            "allan_deviation_at_1p15s": s_g,
+        }
+
+    def _leakage_metrics(
+        self,
+        leak: np.ndarray,
+        sweep: SweepSchedule,
+        fs_hz: float,
+        t_sys: np.ndarray,
+        clip_level_w: float,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """INS-11, INS-23 and INS-24 from the leakage of this record.
+
+        The residual is the leakage alone through the analog chain: the front
+        end at the leakage's own level (it dominates the composite, so it sets
+        the compression) and the high-pass, started settled when the
+        transmitter runs between sweeps.  It carries everything the transmitter
+        put on the leakage that the reference does not take off again.
+
+        INS-24 (decision G5a) is the margin of that residual below the weakest
+        echo INS-10 admits, in each step's echo band; the margin below the
+        free-space echo from R_max and the margin behind an ideal canceller of
+        ``canceller_bound_db`` are reported beside it.  INS-23 is the least
+        isolation of the leakage model over the sweep.  INS-11 is the configured
+        dynamic range, verified by the record: it is reduced by any overload of
+        the digitiser by the residual and by any step whose high-pass rejection
+        falls short of the noise rule (decision G5b), so a range that the
+        record does not support is not reported.
+        """
+        from tss.l2_instrument import leakage as _lk
+        from tss.l2_instrument.reference_echo import reference_levels
+
+        def chain(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+            x = self._front(x)
+            if not self.highpass_enabled:
+                return x, x
+            st = self.highpass.steady_state(x[0], sweep, fs_hz) if self.leakage_primed else None
+            return x, self.highpass.apply(x, sweep, fs_hz, state=st)
+
+        leak_in, res = chain(leak)
+        stepped = sweep_law.is_stepped(sweep)
+        if stepped:
+            f_eval = np.asarray(sweep_law.step_centres_hz(sweep), dtype=float)
+        else:
+            f_eval = np.linspace(float(sweep.f_start_hz), float(sweep.f_stop_hz), 256)
+
+        out: dict[str, Any] = {}
+        per_step: dict[str, Any] | None = None
+        if stepped:
+            levels = reference_levels(self, sweep)
+            resid = _lk.dechirped_residual(res, sweep, fs_hz, levels=levels)
+            canc = None
+            if self.canceller_bound_db is not None:
+                _, res_c = chain(leak * 10.0 ** (-self.canceller_bound_db / 20.0))
+                canc = _lk.dechirped_residual(res_c, sweep, fs_hz, levels=levels)
+            sc = _lk.score_ins23_ins24(
+                f_eval, self.leakage, resid, levels=levels, canceller_residual=canc
+            )
+            per_step = {
+                "f_hz": np.asarray(levels["f_hz"], dtype=float).tolist(),
+                "residual_level_dbw": np.asarray(resid["level_dbw"]).tolist(),
+                "residual_pedestal_dbw": np.asarray(resid["pedestal_dbw"]).tolist(),
+                "residual_line_dbw": np.asarray(resid["line_dbw"]).tolist(),
+                "weakest_echo_dbw": np.asarray(levels["weakest_echo_dbw"]).tolist(),
+                "echo_rmax_dbw": np.asarray(levels["echo_rmax_dbw"]).tolist(),
+                "ins24_margin_db": np.asarray(sc.pop("ins24_per_step_margin_db")).tolist(),
+                "ins24_margin_db_rmax": np.asarray(sc.pop("ins24_per_step_margin_db_rmax")).tolist(),
+                "isolation_db": np.asarray(_lk.isolation_profile_db(f_eval, self.leakage)).tolist(),
+            }
+            if canc is not None:
+                per_step["residual_level_dbw_canceller"] = np.asarray(canc["level_dbw"]).tolist()
+        else:
+            sc = _lk.score_ins23_ins24(f_eval, self.leakage)
+            out["ins24_not_scored_reason"] = "INS-24 is scored per step and needs a stepped sweep"
+
+        out["isolation_db_min"] = sc["isolation_db_min"]
+        out["isolation_db_min_freq_hz"] = sc["isolation_db_min_freq_hz"]
+        for key, name in (
+            ("ins24_margin_db", "leakage_residual_margin_db"),
+            ("ins24_worst_freq_hz", "leakage_residual_margin_freq_hz"),
+            ("ins24_margin_db_rmax", "leakage_residual_margin_db_rmax"),
+            ("ins24_steps_failing", "leakage_residual_steps_failing"),
+            ("ins24_steps_scored", "leakage_residual_steps_scored"),
+            ("ins24_margin_db_canceller", "leakage_residual_margin_db_canceller"),
+            ("ins24_steps_failing_canceller", "leakage_residual_steps_failing_canceller"),
+        ):
+            if sc.get(key) is not None:
+                out[name] = sc[key]
+        if self.canceller_bound_db is not None and stepped:
+            out["leakage_canceller_bound_db"] = self.canceller_bound_db
+
+        # INS-11: the configured range, verified by the record.
+        dr = float(self.receiver.instantaneous_dynamic_range_db)
+        nfs_t = K_BOLTZ * np.asarray(t_sys, dtype=float) * float(fs_hz)
+        shortfall = -np.inf
+        worst_f = float("nan")
+        for s, e, _fc in self.highpass.segments(sweep, 0.0, res.size, fs_hz):
+            if e - s < 8:
+                continue
+            tail = slice(s + int(0.75 * (e - s)), e)
+            lin = float(np.mean(np.abs(leak_in[tail]) ** 2))
+            lout = max(float(np.mean(np.abs(res[tail]) ** 2)), 1e-300)
+            nfs = float(np.median(nfs_t[s:e]))
+            need = 10.0 * math.log10(lin / nfs) - dr + _INS11_HEADROOM_DB
+            got = 10.0 * math.log10(lin / lout)
+            if need - got > shortfall:
+                shortfall = need - got
+                worst_f = float(sweep_law.frequency_hz(sweep, (s + e) / 2.0 / float(fs_hz)))
+        clip_in = float(clip_level_w) / float(undb(self.receiver.gain_db))
+        over = 10.0 * math.log10(max(float(np.max(np.abs(res) ** 2)), 1e-300) / clip_in)
+        out["dynamic_range_db_at_digitiser"] = dr - max(0.0, float(shortfall), over)
+        out["dynamic_range_db_at_digitiser_basis"] = (
+            "configured, verified by the record: residual leakage against the clip "
+            "level and the high-pass rejection against the noise rule at every step"
+        )
+        out["ins11_configured_db"] = dr
+        out["ins11_rejection_margin_db"] = float(-shortfall)
+        out["ins11_rejection_margin_freq_hz"] = worst_f
+        out["ins11_residual_peak_over_clip_db"] = over
+        return out, per_step
 
     # -- manifest ------------------------------------------------------------
 
@@ -892,6 +1087,8 @@ class BaselineInstrument:
             "transmit_impairments": dict(self.impairments.describe()),
             "resources": dict(self.resources),
             "leakage_modelled": bool(self.leakage_enabled),
+            "leakage_primed": bool(self.leakage_primed),
+            "canceller_bound_db": self.canceller_bound_db,
             "leakage": None if self.leakage is None else dict(self.leakage.describe()),
             "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
             "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},

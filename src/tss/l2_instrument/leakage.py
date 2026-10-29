@@ -78,8 +78,10 @@ WHAT IS NOT HERE YET
 --------------------
 The leakage is not yet added to the baseline's samples, and the receiver's
 compression and the leakage high-pass are not modelled: both are WP3 Phase 3.
-:func:`dechirped_residual` and :func:`score_ins23_ins24` are WP3 Phase 4.  The
-companion canceller ``tss.l3_signal.leakage_suppress`` is WP5.
+:func:`dechirped_residual` and :func:`score_ins23_ins24` (WP3 Phase 4) measure
+the residual in each step's echo band and score INS-23 and INS-24.  The
+companion canceller ``tss.l3_signal.leakage_suppress`` is WP5; Phase 4 reports
+an ideal-canceller bound instead.
 """
 
 from __future__ import annotations
@@ -96,7 +98,7 @@ from scipy import special as _special
 
 from tss import sweep_law
 from tss.constants import C_LIGHT
-from tss.interfaces import ReceivedSignal, SweepSchedule
+from tss.interfaces import SweepSchedule
 from tss.l2_instrument.impairments import (
     ImpairmentRealization,
     TransmitImpairments,
@@ -130,6 +132,8 @@ __all__ = [
     "mom_anchor_model",
     "dechirped_residual",
     "score_ins23_ins24",
+    "INS24_MARGIN_DB",
+    "INS23_THRESHOLD_DB",
 ]
 
 #: INS-23 threshold, dB.  A requirement, not a measurement.
@@ -449,6 +453,7 @@ def leakage_signal(
     reference_phase_error: str | Callable[[np.ndarray], np.ndarray] | None = "common",
     impairments: TransmitImpairments | None = None,
     realization: ImpairmentRealization | None = None,
+    primed: bool = False,
 ) -> np.ndarray:
     """The leakage at the receiver input, de-chirped, as complex root-watts.
 
@@ -461,6 +466,10 @@ def leakage_signal(
     ``reference_phase_error`` is ``"common"`` for INS-21 (the de-chirp
     reference carries the same error), ``None`` for an independent reference
     with no error of its own, or a function of time.
+
+    ``primed`` (WP3 Phase 4 default, decision of 2026-10-28) says the
+    transmitter was already running when the record starts, so there is no
+    switch-on at ``tau``.
 
     ``impairments`` (WP3 Phase 2) applies the transmitter's oscillator noise,
     phase-noise floor, AM noise, spurs and sweep nonlinearity, with INS-21 as
@@ -489,7 +498,9 @@ def leakage_signal(
 
     tau = _delay_trace(model, n, fs, rng)
     te = t - tau
-    live = te >= 0.0
+    # Primed: the transmitter was already running, so leakage is present from
+    # the first sample (the law extended back before the sweep starts).
+    live = np.ones(t.shape, dtype=bool) if primed else te >= 0.0
     law = sweep
     if impairments is not None and not impairments.sweep_nonlinearity:
         law = _replace(sweep, nonlinearity_ppm=0.0)
@@ -717,32 +728,200 @@ def coupled_resonator_isolation_db(k: np.ndarray | float, q: float) -> np.ndarra
     return 10.0 * np.log10(kappa + np.sqrt(kappa**2 - 1.0))
 
 # ----------------------------------------------------------------------------
-# Phase 4
+# Phase 4: the residual and its score
 # ----------------------------------------------------------------------------
 
-_PHASE4 = (
-    "WP3 Phase 4, on the critical path for C4: the residual and its score need "
-    "the receive chain of Phase 3 (compression and the leakage high-pass).  See "
-    "the WP3 plan."
-)
+#: INS-24: the residual shall lie this far below the weakest admitted echo.
+INS24_MARGIN_DB = 10.0
+#: INS-23 threshold, dB.
+INS23_THRESHOLD_DB = 40.0
+
+
+def _step_order(sweep: SweepSchedule, n_steps: int) -> np.ndarray:
+    """Ascending-frequency index of each step in transmission order."""
+    idx = np.arange(n_steps)
+    return idx if int(sweep.direction) >= 0 else idx[::-1]
 
 
 def dechirped_residual(
-    signal: ReceivedSignal,
-    model: LeakageModel,
+    residual: np.ndarray,
+    sweep: SweepSchedule,
+    fs_hz: float,
     *,
-    suppression_db: float = 0.0,
-) -> np.ndarray:
-    """What is left of the leakage in each step's echo band.  WP3 Phase 4."""
-    del signal, model, suppression_db
-    raise NotImplementedError(_PHASE4)
+    levels: Mapping[str, np.ndarray],
+    t0_s: float = 0.0,
+    sub_bands: int = 4,
+    min_part_bins: int = 64,
+    false_alarm: float = 1.0e-3,
+    confirm_false_alarm: float = 1.0e-2,
+) -> dict[str, np.ndarray]:
+    """The residual leakage in each step's echo band, as an L3 cell would see it.
+
+    ``residual`` is the leakage's contribution to the de-chirped record after
+    the analog chain, in root-watts referred to the receiver input (the L2
+    baseline passes the leakage alone through the front end and the
+    high-pass).  ``levels`` is
+    :func:`tss.l2_instrument.reference_echo.reference_levels` for the same
+    instrument and sweep, in ascending frequency.
+
+    Each step is transformed over its whole dwell with the Hann window L3 uses.
+    The level in bin ``k`` is ``|X_k|^2 / (sum w)^2``: the power of a tone that
+    would give that bin, so it compares directly with an echo; for a noise-like
+    residual it is the density times the cell bandwidth, which is how
+    ``noise_cell_dbw`` is defined.  The echo band is ``2 K_i R / c`` from 100 km
+    to R_max, on the side the echoes fall (positive for an up-sweep).  In it:
+
+    * ``pedestal_dbw``: the largest of the means over up to ``sub_bands``
+      equal parts of the band, each at least ``min_part_bins`` wide, so a
+      pedestal that is not flat is read where it is highest (the largest of
+      four means of 64 exponential bins reads a flat pedestal about 1 dB high,
+      of 240 bins about 0.4 dB);
+      ``pedestal_mean_dbw`` is the mean over the whole band;
+    * ``line_dbw``: the strongest line, NaN when there is none (below);
+    * ``level_dbw``: the larger of the two, which is what INS-24 is scored on.
+
+    A line is a bin that stands above its part's pedestal (the part's mean
+    without its largest bin) by more than ``ln(N / false_alarm)``, which a
+    noise-like pedestal of ``N`` exponentially distributed bins exceeds in a
+    step with probability ``false_alarm``, and that is confirmed by the same
+    frequency standing ``ln(1 / confirm_false_alarm)`` above the pedestal in
+    a neighbouring step.  A transmitter line sits at the same de-chirped
+    offset in every step; a noise peak does not.  Without the confirmation one
+    step in a sweep or so would carry a false line some 10 dB above its
+    pedestal, and the worst step is what INS-24 is scored on.  A line is found
+    only if it stands 11 to 12 dB above the pedestal (the 100 to 1000 bins of
+    an A1 echo band); deterministic spurs are checked against INS-22
+    analytically (Phase 2) and need not be found here.
+
+    Returned arrays are in ascending frequency.
+    """
+    x = np.asarray(residual, dtype=complex)
+    fs = float(fs_hz)
+    dwell = float(sweep.step_dwell_s)
+    n_steps = sweep_law.step_count(sweep)
+    order = _step_order(sweep, n_steps)
+    d = 1.0 if int(sweep.direction) >= 0 else -1.0
+    keys = ("pedestal_dbw", "pedestal_mean_dbw", "line_dbw", "line_offset_hz", "level_dbw")
+    out = {k: np.full(n_steps, np.nan) for k in keys}
+    bands: list[tuple[np.ndarray, np.ndarray, np.ndarray] | None] = [None] * n_steps
+    for i in range(n_steps):                       # transmission order
+        lo = int(math.ceil((i * dwell - float(t0_s)) * fs))
+        hi = int(math.floor(((i + 1) * dwell - float(t0_s)) * fs))
+        lo, hi = max(lo, 0), min(hi, x.size)
+        if hi - lo < 16:
+            continue
+        seg = x[lo:hi]
+        w = np.hanning(seg.size)
+        spec = np.abs(np.fft.fft(seg * w)) ** 2 / np.sum(w) ** 2
+        f = np.fft.fftfreq(seg.size, 1.0 / fs)
+        j = order[i]
+        b_lo, b_hi = float(levels["beat_min_hz"][j]), float(levels["beat_max_hz"][j])
+        sel = np.flatnonzero((d * f >= b_lo) & (d * f <= min(b_hi, fs / 2.0)))
+        if sel.size == 0:
+            continue
+        sel = sel[np.argsort(d * f[sel])]
+        vals = spec[sel]
+        n_parts = max(1, min(int(sub_bands), vals.size // max(int(min_part_bins), 1)))
+        parts = np.array_split(np.arange(vals.size), n_parts)
+        ref = np.empty(vals.size)
+        for q in parts:
+            v = vals[q]
+            ref[q] = (np.sum(v) - np.max(v)) / max(v.size - 1, 1)
+        bands[i] = (f[sel], vals, vals / np.maximum(ref, 1e-300))
+        ped = max(float(np.mean(vals[q])) for q in parts)
+        out["pedestal_dbw"][j] = 10.0 * np.log10(ped + 1e-300)
+        out["pedestal_mean_dbw"][j] = 10.0 * np.log10(float(np.mean(vals)) + 1e-300)
+        out["level_dbw"][j] = out["pedestal_dbw"][j]
+
+    t_confirm = math.log(1.0 / float(confirm_false_alarm))
+    for i, band in enumerate(bands):
+        if band is None:
+            continue
+        fb, vals, excess = band
+        thresh = math.log(vals.size / float(false_alarm))
+        best = -np.inf
+        best_f = np.nan
+        for m in np.flatnonzero(excess > thresh):
+            confirmed = False
+            for nb in (i - 1, i + 1):
+                if 0 <= nb < n_steps and bands[nb] is not None:
+                    fn, _vn, en = bands[nb]
+                    k = int(np.argmin(np.abs(fn - fb[m])))
+                    if abs(fn[k] - fb[m]) <= fs / max(vals.size, 1) and en[max(k - 1, 0) : k + 2].max() > t_confirm:
+                        confirmed = True
+            if confirmed and vals[m] > best:
+                best, best_f = float(vals[m]), float(fb[m])
+        if np.isfinite(best):
+            j = order[i]
+            out["line_dbw"][j] = 10.0 * np.log10(best + 1e-300)
+            out["line_offset_hz"][j] = best_f
+            out["level_dbw"][j] = max(out["level_dbw"][j], out["line_dbw"][j])
+    out["f_hz"] = np.asarray(levels["f_hz"], dtype=float)
+    return out
 
 
 def score_ins23_ins24(
     f_hz: np.ndarray,
     model: LeakageModel,
-    signal: ReceivedSignal | None = None,
-) -> Mapping[str, Any]:
-    """Score the isolation and the residual together.  WP3 Phase 4."""
-    del f_hz, model, signal
-    raise NotImplementedError(_PHASE4)
+    residual: Mapping[str, np.ndarray] | None = None,
+    *,
+    levels: Mapping[str, np.ndarray] | None = None,
+    canceller_residual: Mapping[str, np.ndarray] | None = None,
+) -> dict[str, Any]:
+    """Score the isolation and the residual together.
+
+    INS-23 is the least isolation of ``model`` over ``f_hz``.  INS-24 (decision
+    G5a, 2026-10-28) is the margin of the residual's level (the larger of its
+    pedestal and its strongest line, :func:`dechirped_residual`) below the
+    weakest echo INS-10 admits, ``weakest_echo_dbw - level_dbw``, at its worst
+    step;
+    10 dB is the threshold.  The margin against the free-space echo from R_max
+    (Rev G's reading, which INS-22 uses) is reported beside it, and so is the
+    margin with an ideal canceller ahead of the receiver when
+    ``canceller_residual`` is given.  Steps whose residual could not be
+    measured are left out and counted.
+    """
+    f = np.asarray(f_hz, dtype=float)
+    iso = isolation_profile_db(f, model)
+    i_iso = int(np.argmin(iso))
+    out: dict[str, Any] = {
+        "isolation_db_min": float(iso[i_iso]),
+        "isolation_db_min_freq_hz": float(f[i_iso]),
+        "ins23_met": bool(iso[i_iso] >= INS23_THRESHOLD_DB),
+    }
+    if residual is None or levels is None:
+        return out
+
+    def _margins(res: Mapping[str, np.ndarray]) -> dict[str, Any]:
+        pk = np.asarray(res["level_dbw"], dtype=float)
+        weak = np.asarray(levels["weakest_echo_dbw"], dtype=float) - pk
+        rmax = np.asarray(levels["echo_rmax_dbw"], dtype=float) - pk
+        ok = np.isfinite(weak)
+        if not np.any(ok):
+            return {"margin_db": None}
+        j = int(np.flatnonzero(ok)[np.argmin(weak[ok])])
+        return {
+            "margin_db": float(weak[j]),
+            "worst_freq_hz": float(np.asarray(levels["f_hz"])[j]),
+            "margin_db_rmax": float(np.nanmin(rmax)),
+            "steps_failing": int(np.count_nonzero(weak[ok] < INS24_MARGIN_DB)),
+            "steps_scored": int(np.count_nonzero(ok)),
+            "per_step_margin_db": weak,
+            "per_step_margin_db_rmax": rmax,
+        }
+
+    m = _margins(residual)
+    out.update({
+        "ins24_margin_db": m["margin_db"],
+        "ins24_worst_freq_hz": m.get("worst_freq_hz"),
+        "ins24_margin_db_rmax": m.get("margin_db_rmax"),
+        "ins24_steps_failing": m.get("steps_failing"),
+        "ins24_steps_scored": m.get("steps_scored"),
+        "ins24_per_step_margin_db": m.get("per_step_margin_db"),
+        "ins24_per_step_margin_db_rmax": m.get("per_step_margin_db_rmax"),
+    })
+    if canceller_residual is not None:
+        c = _margins(canceller_residual)
+        out["ins24_margin_db_canceller"] = c["margin_db"]
+        out["ins24_steps_failing_canceller"] = c.get("steps_failing")
+    return out

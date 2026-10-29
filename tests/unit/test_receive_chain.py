@@ -18,9 +18,14 @@ from tss.l2_instrument.baseline import BaselineInstrument
 from tss.studies.data_volume import A1
 
 
-def _cfg(leakage=True):
+def _cfg(leakage=True, ideal_transmitter=True):
+    """The baseline configuration with the leakage switched as asked.  The
+    transmitter is ideal unless asked otherwise, so that what these tests see
+    is the receive chain's doing and not the AM allocation's (WP3 Phase 4)."""
     cfg = copy.deepcopy(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
     cfg["leakage"]["enabled"] = leakage
+    if ideal_transmitter:
+        cfg["transmit_impairments"] = {}
     return cfg
 
 
@@ -181,7 +186,9 @@ def test_the_bandpass_equivalent_model_is_the_passband_nonlinearity_after_de_chi
 # ----------------------------------------------------------------------------
 
 
-def test_leakage_is_off_by_default_and_on_loads_the_mom_bus_profile():
+def test_leakage_is_on_by_default_and_loads_the_mom_bus_profile():
+    default = BaselineInstrument.from_config(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
+    assert default.leakage_enabled and default.leakage_primed
     off = BaselineInstrument.from_config(_cfg(False))
     assert not off.leakage_enabled and not off.highpass_enabled and not off.front_end_enabled
     on = BaselineInstrument.from_config(_cfg(True))

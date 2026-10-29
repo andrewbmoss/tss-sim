@@ -83,29 +83,10 @@ def test_perturbations_keeps_the_measured_statistics_it_is_parameterised_on():
 
 
 # ---------------------------------------------------------------------------
-# WP3: transmit-to-receive leakage.  The model is built (Phase 1, tested in
-# test_leakage.py); the residual and its score are Phase 4 stubs.
+# WP3: transmit-to-receive leakage.  The model (Phase 1), the receive chain
+# (Phase 3) and the residual and its score (Phase 4) are built and tested in
+# test_leakage.py, test_receive_chain.py and test_leakage_scoring.py.
 # ---------------------------------------------------------------------------
-def test_leakage_dechirped_residual_names_wp3():
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.dechirped_residual(None, None)
-    assert "WP3" in str(excinfo.value)
-
-
-def test_leakage_scoring_names_wp3():
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.score_ins23_ins24(np.array([1.0e6]), None)
-    assert "WP3" in str(excinfo.value)
-
-
-def test_leakage_stub_says_it_is_on_the_critical_path():
-    """It is the difference between a gap and a blocker, and a reader has to be
-    able to tell which this is without reading the work-package table."""
-    with pytest.raises(NotImplementedError) as excinfo:
-        leakage.dechirped_residual(None, None)
-    assert "critical path" in str(excinfo.value)
-
-
 def test_leakage_keeps_the_requirement_thresholds_it_will_be_scored_against():
     assert leakage.BASELINE_ISOLATION_DB == pytest.approx(40.0)
     assert leakage.BASELINE_COUPLING_DELAY_S == pytest.approx(3.0e-9)

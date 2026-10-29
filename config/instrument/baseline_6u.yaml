@@ -39,16 +39,23 @@ receiver:
   # Give sample_rate_hz instead to fix the rate whatever the sweep.
   design_range_m: 1.05e+6
 
-# Transmit-to-receive leakage in the samples (WP3 Phase 3).  Off until Phase 4
-# scores it (decision of 2026-10-28).  When on, the isolation profile is the
-# moment-method one of the dipoles on the 6U bus (profile: mom_bus), or flat at
-# isolation.transmit_receive_db (profile: flat).  The front end and the leakage
-# high-pass follow `enabled` unless their own `enabled` is set.
+# Transmit-to-receive leakage in the samples (WP3 Phase 3), on by default since
+# Phase 4 scores it (INS-11, INS-23, INS-24; decision of 2026-10-28).  The
+# isolation profile is the moment-method one of the dipoles on the 6U bus
+# (profile: mom_bus), or flat at isolation.transmit_receive_db (profile: flat).
+# The front end and the leakage high-pass follow `enabled` unless their own
+# `enabled` is set.  primed: the transmitter runs between sweeps, so the
+# leakage is present and the high-pass settled when a sweep starts (operating
+# assumption, 2026-10-28; false is a cold start).  canceller_bound_db: the
+# residual is also reported behind an ideal canceller of this depth (WP5 owns
+# the real one; null to omit).
 leakage:
-  enabled: false
+  enabled: true
   profile: mom_bus
   mom_geometry: bus_crossed_ends_offset   # or bus_parallel_ends, crossed_offset, parallel
   mom_match: simultaneous                 # or self
+  primed: true
+  canceller_bound_db: 30.0
 
 front_end:
   enabled: null              # null: follow leakage.enabled
@@ -67,17 +74,23 @@ isolation:
   coupling_delay_s: 3.0e-9    # open item 13, deployed geometry not yet fixed
 
 # Transmitter impairments in the samples (WP3 Phase 2, tss.l2_instrument.impairments).
-# All off: the baseline is the ideal chirp, as every run before Phase 2 was.
+# Since Phase 4 the scored transmitter carries its allocations at threshold
+# (decision of 2026-10-28): the baseline oscillator part below, the phase-noise
+# floor and AM noise at the levels the corrected masks allow, and two PM spurs
+# at INS-22's -82 dBc.  Set them off (false, null, []) for the ideal chirp every
+# run before Phase 4 used.
 # Keys: oscillator_noise (the oscillator block below, scaled to the carrier),
 # phase_noise_floor_dbc_hz, am_noise_dbc_hz (single-sideband), spurs (list of
 # {offset_hz, level_dbc, kind: pm|am}), sweep_nonlinearity (use the sweep's
 # nonlinearity_ppm), single_reference (INS-21; defaults to the oscillator's),
 # doppler (apply EchoSet.doppler_hz to the echoes).
 transmit_impairments:
-  oscillator_noise: false
-  phase_noise_floor_dbc_hz: null
-  am_noise_dbc_hz: null
-  spurs: []
+  oscillator_noise: true
+  phase_noise_floor_dbc_hz: -123.0
+  am_noise_dbc_hz: -133.0
+  spurs:
+    - {offset_hz: 16100.0, level_dbc: -82.0, kind: pm}
+    - {offset_hz: 39200.0, level_dbc: -82.0, kind: pm}
   sweep_nonlinearity: false
   doppler: false
 

@@ -87,7 +87,10 @@ def test_spur_indices():
 def test_the_configuration_block_reads_and_absent_means_none():
     cfg = load_yaml(resolve_path("instrument/baseline_6u.yaml"))
     inst = BaselineInstrument.from_config(cfg)
-    assert not inst.impairments.any
+    # Since WP3 Phase 4 the scored transmitter carries its allocations.
+    assert inst.impairments.any and inst.impairments.am_noise_dbc_hz == -133.0
+    assert not im.TransmitImpairments.from_config(None).any
+    assert not im.TransmitImpairments.from_config({}).any
     imp = im.TransmitImpairments.from_config(
         {"oscillator_noise": True, "am_noise_dbc_hz": -130, "spurs": [{"offset_hz": 1e4, "level_dbc": -70}],
          "doppler": True},
@@ -280,13 +283,15 @@ def test_doppler_moves_the_echo_beat_by_minus_fd(direction):
 
 def test_the_baseline_carries_every_impairment_on_its_echoes():
     cfg = load_yaml(resolve_path("instrument/baseline_6u.yaml"))
-    base = BaselineInstrument.from_config(cfg, quantise=False)
+    base = BaselineInstrument.from_config(
+        cfg, quantise=False, impairments=im.TransmitImpairments.none(), leakage_enabled=False
+    )
     imp = im.TransmitImpairments(
         oscillator=base.oscillator, phase_noise_floor_dbc_hz=-120.0, am_noise_dbc_hz=-120.0,
         spurs=(im.Spur(1.0e4, -60.0), im.Spur(2.0e4, -60.0, kind="am")), sweep_nonlinearity=True,
         doppler=True,
     )
-    inst = BaselineInstrument.from_config(cfg, impairments=imp, quantise=False)
+    inst = BaselineInstrument.from_config(cfg, impairments=imp, quantise=False, leakage_enabled=False)
     sweep = A1.schedule()
     echo = _echo(5.0e6, 600e3, doppler_hz=10.0)
     clean = base.receive(echo, sweep, np.random.default_rng(2))

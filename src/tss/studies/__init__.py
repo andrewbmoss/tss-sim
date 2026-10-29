@@ -803,6 +803,7 @@ from tss.studies import (  # noqa: E402,F401
     field_inversion,
     isis_validation,
     leakage_receive_chain,
+    leakage_residual,
     link_budget,
     min_frequency,
     reference_echo,

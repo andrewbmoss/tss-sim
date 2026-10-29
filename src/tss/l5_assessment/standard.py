@@ -100,6 +100,7 @@ class StandardAssessment(AssessmentBase):
         *,
         platform: PlatformState | None = None,
         truth_echo_snr: Mapping[str, Any] | None = None,
+        l2_metrics: Mapping[str, Any] | None = None,
     ) -> Assessment:
         """Return a scored :class:`~tss.interfaces.Assessment`.  Nothing is mutated.
 
@@ -107,6 +108,11 @@ class StandardAssessment(AssessmentBase):
         the one the tier was built with; the pipeline passes it.
         ``truth_echo_snr`` is the SNR L3 measured at every truth echo, which
         INS-10 is scored on; without it INS-10 is not evaluated.
+        ``l2_metrics`` is the requirement evidence the L2 tier put on the
+        record (``ReceivedSignal.flags["l2_metrics"]``, WP3 Phase 4): INS-11,
+        INS-23 and INS-24 from the leakage, INS-14 and INS-26 declared.  The
+        tier's own ``extra_metrics`` override it, as a campaign's deliberate
+        choice.
         """
         if not configuration:
             raise ValueError(
@@ -120,7 +126,7 @@ class StandardAssessment(AssessmentBase):
             truth,
             ionogram,
             platform=platform if platform is not None else self.platform,
-            extra=self.extra_metrics,
+            extra={**dict(l2_metrics or {}), **self.extra_metrics},
             truth_echo_snr=truth_echo_snr,
         )
         records = check_requirements(metrics, self.requirements)

@@ -325,11 +325,6 @@ def test_a_retune_transient_decays_from_each_step_boundary():
     assert level[0] < 1e-3
 
 
-def test_phase4_functions_say_so():
-    with pytest.raises(NotImplementedError, match="Phase 4"):
-        lk.score_ins23_ins24(np.array([5e6]), lk.LeakageModel())
-
-
 # ----------------------------------------------------------------------------
 # The moment-method anchor (G1(b))
 # ----------------------------------------------------------------------------

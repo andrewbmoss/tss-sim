@@ -7,6 +7,7 @@ measurement and hold the two together.
 
 from __future__ import annotations
 
+import copy
 import math
 
 import numpy as np
@@ -23,7 +24,13 @@ from tss.studies.data_volume import A1, A2
 
 @pytest.fixture(scope="module")
 def inst():
-    return BaselineInstrument.from_config(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
+    # The chain's calibration is checked on an ideal transmitter with the
+    # leakage off: the default since WP3 Phase 4 carries the AM allocation,
+    # whose pedestal is INS-24's business (test_leakage_scoring.py).
+    cfg = copy.deepcopy(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
+    cfg["leakage"]["enabled"] = False
+    cfg["transmit_impairments"] = {}
+    return BaselineInstrument.from_config(cfg)
 
 
 @pytest.fixture(scope="module")

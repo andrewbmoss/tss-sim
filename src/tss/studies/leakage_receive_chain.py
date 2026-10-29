@@ -54,6 +54,10 @@ def _instrument(**overrides: Any) -> Any:
     cfg = load_yaml(resolve_path("instrument/baseline_6u.yaml"))
     cfg = json.loads(json.dumps(cfg))
     cfg.setdefault("leakage", {})["enabled"] = True
+    # The receive chain is studied on an ideal transmitter, as it was when this
+    # study was written (Phase 3); the allocations the default carries since
+    # Phase 4 are the business of the leakage_residual study.
+    cfg["transmit_impairments"] = {}
     return BaselineInstrument.from_config(cfg, **overrides)
 
 
