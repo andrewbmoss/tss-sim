@@ -47,7 +47,8 @@ INS-08      mode_discrimination                Boolean.  False from a scalar rec
 INS-09      residual_range_bias_cells          Residual after the WP5 separation, in
                                                INS-05 cells.  None until WP5 exists.
 INS-10      snr_db_min_at_truth_echoes         Worst per-cell SNR measured at every
-                                               echo the truth returned.
+                                               echo the truth returned, less each
+                                               mode's last step below cutoff (G5c).
 INS-11      dynamic_range_db_at_digitiser      From L2: the configured range, verified by
                                                the record (WP3 Phase 4).
 INS-14      transmit_power_w                   From L2: declared, the configured value.
@@ -234,7 +235,9 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
         "truth returned, both modes, detected or not (decision of 2026-10-17).  The "
         "minimum over detected cells only, snr_db_min, is carried as a diagnostic: a "
         "cell is detected only if it already clears the 10 dB threshold, so it could "
-        "not fail.",
+        "not fail.  Each mode's last step below its penetration frequency is reported "
+        "separately (snr_db_min_at_cutoff_steps) and not scored (decision G5c, "
+        "2026-10-29).",
     ),
     (
         "INS-11",
@@ -373,6 +376,9 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "snr_db_min_at_truth_echoes_freq_hz",
     "snr_db_min_at_truth_echoes_o",
     "snr_db_min_at_truth_echoes_x",
+    "snr_db_min_at_cutoff_steps",
+    "snr_db_min_at_truth_echoes_incl_cutoff",
+    "n_cutoff_step_echoes",
     "n_truth_echoes",
     "n_truth_echoes_measured",
     "n_truth_echoes_unmeasured",

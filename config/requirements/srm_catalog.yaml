@@ -10,7 +10,7 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: fd710466d153d0935ceb27210a5e0ab0ca7cd4b95123b811801d8edfff82be2c
+source_sha256: d42f6e8a7dda9804302aebca128187085dd065c173f1327dec29e2836a220ee0
 revision: G
 counts:
   SCI: 28
@@ -607,13 +607,19 @@ requirements:
     sheet: Instrument & Mission
     family: INS
     requirement: Sensitivity
-    value: SNR ≥10 dB per range cell at R_max across the band, against the SCI-20 noise reference, in
-      the fraction of sweeps SCI-28 requires, outside declared interference intervals
+    value: 'SNR ≥10 dB per range cell at every echo the ionosphere returns, both modes, against the SCI-20
+      noise reference, in the fraction of sweeps SCI-28 requires, outside declared interference intervals.
+      Each mode''s last frequency step below its penetration frequency is excluded and reported separately:
+      its SNR depends on where that step falls against foF2 or fxF2, and moves by several decibels for
+      a fraction of a per cent of foF2. Restated 2026-10-29 from "at R_max across the band", which the
+      5 m dipole fails below 1.26 MHz, where real echoes are far nearer than R_max.'
     flows_from: SCI-19, SCI-20, SCI-28
-    status: 'tss-sim link_budget: median 38.5 dB and minimum 33.1 dB SNR per range cell over the band
-      against the 10 dB threshold, on the Franklin and MacLean reference (measured above 0.6 MHz). Availability
-      clause waits on SCI-28.'
-    verification: A, S, B. Link budget; L5 metric snr_db_min; bench. Availability clause waits on SCI-28.
+    status: 'tss-sim smoke campaign, A1 on the 5 m dipole with INS-30 and INS-31 at threshold (2026-10-29):
+      25.9 dB minimum over the scored echoes; the two cutoff-step echoes reach 18.9 dB. The earlier 38.5
+      dB median and 33.1 dB minimum came from the inherited TISC link budget (300 km, legacy antenna).
+      Availability clause waits on SCI-28.'
+    verification: A, S, B. Link budget; L5 metric snr_db_min_at_truth_echoes, with the cutoff steps reported
+      as snr_db_min_at_cutoff_steps; bench. Availability clause waits on SCI-28.
     verification_methods:
     - A
     - S

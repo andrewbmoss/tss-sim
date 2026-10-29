@@ -458,6 +458,14 @@ def truth_echo_cells(echoes: EchoSet) -> dict[str, Any]:
     range is ``c tau / 2``, the range the de-chirp maps the echo to.  Both
     modes are kept: INS-10 is about whether the instrument can see what the
     ionosphere returns, and the X echo is returned.
+
+    ``cutoff_step`` marks the echoes of each mode's last step below its
+    penetration frequency: the highest frequency at which that mode returned
+    an echo, when the same mode penetrates at a higher frequency in the same
+    echo set.  INS-10 does not score them (decision G5c, 2026-10-29); they are
+    reported separately, because the SNR there depends on where the step
+    happens to land against foF2 or fxF2 (WP3 Phase 0: a fraction of a per
+    cent of foF2 moves it by 7 dB).
     """
     freq = np.asarray(echoes.freq_hz, dtype=float)
     delay = np.asarray(echoes.group_delay_s, dtype=float)
@@ -474,10 +482,23 @@ def truth_echo_cells(echoes: EchoSet) -> dict[str, Any]:
         np.isfinite(freq) & np.isfinite(delay) & (delay > 0.0)
         & np.array([fl not in _NO_ECHO_FLAGS for fl in flags], dtype=bool)
     )
+    kept_mode = [m for m, k in zip(mode, ok, strict=True) if k]
+    kept_freq = freq[ok]
+    cutoff = np.zeros(kept_freq.size, dtype=bool)
+    for m in set(kept_mode):
+        mine = np.array([x == m for x in kept_mode], dtype=bool)
+        top = float(np.max(kept_freq[mine]))
+        penetrates_above = any(
+            fl == "penetrating" and mo == m and np.isfinite(f) and f > top
+            for fl, mo, f in zip(flags, mode, freq, strict=True)
+        )
+        if penetrates_above:
+            cutoff |= mine & (kept_freq == top)
     return {
-        "freq_hz": freq[ok],
+        "freq_hz": kept_freq,
         "range_m": C_LIGHT * delay[ok] / 2.0,
-        "mode": [m for m, k in zip(mode, ok, strict=True) if k],
+        "mode": kept_mode,
+        "cutoff_step": cutoff,
     }
 
 
@@ -498,6 +519,9 @@ def truth_echo_metrics(truth_echo_snr: Mapping[str, Any] | None) -> dict[str, An
         "n_truth_echoes": None,
         "n_truth_echoes_measured": None,
         "n_truth_echoes_unmeasured": None,
+        "snr_db_min_at_cutoff_steps": None,
+        "snr_db_min_at_truth_echoes_incl_cutoff": None,
+        "n_cutoff_step_echoes": None,
     }
     if not truth_echo_snr:
         return out
@@ -508,6 +532,18 @@ def truth_echo_metrics(truth_echo_snr: Mapping[str, Any] | None) -> dict[str, An
     out["n_truth_echoes"] = int(snr.size)
     out["n_truth_echoes_measured"] = int(np.count_nonzero(measured))
     out["n_truth_echoes_unmeasured"] = int(snr.size - np.count_nonzero(measured))
+    if not np.any(measured):
+        return out
+    # G5c (2026-10-29): each mode's last step below its cutoff is reported
+    # separately and not scored.
+    cut = np.asarray(truth_echo_snr.get("cutoff_step", np.zeros(snr.size, dtype=bool)), dtype=bool)
+    if cut.size != snr.size:
+        cut = np.zeros(snr.size, dtype=bool)
+    out["n_cutoff_step_echoes"] = int(np.count_nonzero(cut))
+    out["snr_db_min_at_truth_echoes_incl_cutoff"] = float(np.min(snr[measured]))
+    if np.any(measured & cut):
+        out["snr_db_min_at_cutoff_steps"] = float(np.min(snr[measured & cut]))
+    measured = measured & ~cut
     if not np.any(measured):
         return out
     worst = int(np.flatnonzero(measured)[np.argmin(snr[measured])])

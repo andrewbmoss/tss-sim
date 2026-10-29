@@ -272,3 +272,26 @@ def test_the_pipeline_scores_ins10_at_the_truth_echoes():
     # And SCI-09 is now scored, from the platform the pipeline passes to L5.
     sci09 = result.assessment.requirements["SCI-09"]
     assert sci09["achieved"] == pytest.approx(4.26 * 7.69e3, rel=0.02)
+
+
+def test_ins10_reports_each_modes_last_step_below_cutoff_separately():
+    """G5c (2026-10-29): the cusp echo is reported, not scored."""
+    from tss.interfaces import EchoSet
+
+    f = np.array([3e6, 4e6, 5e6, 3e6, 4e6, 5e6, 6e6, 6e6])
+    mode = np.array(["O", "O", "O", "X", "X", "X", "O", "X"], dtype=object)
+    flags = np.array(["", "", "", "", "", "", "penetrating", ""], dtype=object)
+    delay = np.full(f.size, 4e-3)
+    echoes = EchoSet(freq_hz=f, mode=mode, group_delay_s=delay, amplitude_db=np.zeros(f.size),
+                     absorption_db=np.zeros(f.size), flags=flags, source="test")
+    cells = truth_echo_cells(echoes)
+    # O penetrates at 6 MHz, so its 5 MHz echo is the cutoff step; X does not
+    # penetrate inside the set, so none of its echoes is.
+    assert list(cells["cutoff_step"]) == [False, False, True, False, False, False, False]
+    snr = np.array([20.0, 18.0, 4.0, 22.0, 21.0, 19.0, 15.0])
+    m = truth_echo_metrics({**cells, "snr_db": snr})
+    assert m["snr_db_min_at_truth_echoes"] == 15.0
+    assert m["snr_db_min_at_cutoff_steps"] == 4.0
+    assert m["snr_db_min_at_truth_echoes_incl_cutoff"] == 4.0
+    assert m["n_cutoff_step_echoes"] == 1
+    assert m["snr_db_min_at_truth_echoes_o"] == 18.0

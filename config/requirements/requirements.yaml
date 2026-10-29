@@ -252,7 +252,13 @@ requirements:
       over detected cells, could not fail, because a cell is detected only
       when it already clears 10 dB; it is kept as the diagnostic snr_db_min.
       Echoes folded beyond the unambiguous range are counted and not scored.
-      SNR per range cell at maximum range, across the band.  Resolved
+      Each mode's last step below its penetration frequency is reported
+      separately (snr_db_min_at_cutoff_steps) and not scored, because its SNR
+      depends on where the step lands against foF2 or fxF2 (decision G5c,
+      2026-10-29; Requirements Rev G INS-10 restated "at every echo the
+      ionosphere returns" in place of "at maximum range, across the band").
+      Rev G's earlier wording was SNR per range cell at maximum range, across
+      the band.  Resolved
       affirmative with large margin over the band where a measured noise
       reference exists.  Below 0.6 MHz the reference is an extrapolation, which
       is what WP12 exists to close.  Rev G adds an availability clause: the
