@@ -1,0 +1,81 @@
+{
+  "config": {
+    "grid": {
+      "alt_max_m": 2000000.0,
+      "alt_min_m": 90000.0,
+      "alt_step_m": 5000.0
+    },
+    "instrument": "instrument/baseline_6u",
+    "name": "default",
+    "paths": {
+      "data_external": "data/external",
+      "data_reference": "data/reference",
+      "figures": "results/figures",
+      "results": "results"
+    },
+    "requirements": "requirements/requirements",
+    "run": {
+      "keep_intermediates": true,
+      "strict_provenance": false
+    },
+    "seed": 20260921,
+    "sweep": {
+      "direction": 1,
+      "f_start_hz": 330000.0,
+      "f_stop_hz": 20000000.0,
+      "nonlinearity_ppm": 0.0,
+      "step_cap_hz": 150000.0,
+      "step_dwell_s": 0.0268,
+      "step_fraction": 0.05,
+      "sweep_period_s": 0.0
+    },
+    "tiers": {
+      "l0": "chapman",
+      "l1": "analytic",
+      "l2": "baseline",
+      "l3": "baseline",
+      "l4": "lamination_magnetoionic",
+      "l5": "standard"
+    }
+  },
+  "config_sha256": "204dc9965d08fba394f0c71d02846922b40bd512595f963eaef6ddda43457406",
+  "configuration": "",
+  "created_utc": "2026-10-29T01:15:49+00:00",
+  "environment": {
+    "host": "HeartOfGold",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.16",
+    "user": "Andrew"
+  },
+  "git": {
+    "branch": "wp3-p1",
+    "commit": "06bcf3776d43cad8024c4c116affab9ba6babcc0",
+    "dirty": false,
+    "dirty_files": []
+  },
+  "inputs": [],
+  "notes": "WP3 Phase 4: residual leakage in the echo band and the INS-24 margin, per step, A1 and A2",
+  "outputs": [
+    "data\\reference\\wp3_residual\\A1_alloc_primed.csv",
+    "data\\reference\\wp3_residual\\A1_alloc_cold.csv",
+    "data\\reference\\wp3_residual\\A1_am_off.csv",
+    "data\\reference\\wp3_residual\\A1_flat40.csv",
+    "data\\reference\\wp3_residual\\A2_alloc_primed.csv",
+    "data\\reference\\wp3_residual\\A2_alloc_cold.csv",
+    "data\\reference\\wp3_residual\\A2_am_off.csv",
+    "data\\reference\\wp3_residual\\A2_flat40.csv",
+    "data\\reference\\wp3_residual\\leakage_residual.json",
+    "data\\reference\\wp3_residual\\summary.md"
+  ],
+  "seed": 20260921,
+  "study": "leakage_residual",
+  "tiers": {
+    "claims": [
+      "C4"
+    ],
+    "status": "implemented",
+    "work_packages": [
+      "WP3"
+    ]
+  }
+}
