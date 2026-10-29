@@ -10,7 +10,7 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: 818274d2e0e4dbffb09b57ad63b7618e15bb32f224b9fff8d9ecad341891f013
+source_sha256: fd710466d153d0935ceb27210a5e0ab0ca7cd4b95123b811801d8edfff82be2c
 revision: G
 counts:
   SCI: 28
@@ -817,13 +817,18 @@ requirements:
     sheet: Instrument & Mission
     family: INS
     requirement: Transmit-to-receive isolation
-    value: '≥40 dB threshold, ≥60 dB goal, across the band, between the transmit and receive apertures
-      as deployed. The figure is a deployed-configuration property, not a component specification, and
-      it trades directly against INS-22: every decibel of isolation buys a decibel of relaxation in transmit
-      purity. At INS-22''s −82 dBc threshold the 40 dB threshold holds for A1 and A2 alike, with 0.9 dB
-      to spare at the binding step (Derivations F187; amended 2026-10-27, A2 was ≥56.5 dB).'
+    value: '≥35 dB threshold, ≥60 dB goal, across the band, between the transmit and receive apertures
+      as deployed. The figure is a deployed-configuration property, not a component specification. With
+      the leakage cancellation of INS-31, which removes the transmitter''s spurs and AM with its carrier,
+      the leakage that reaches the receiver is at least 61 dB below the transmitter: INS-29 then holds
+      by 4.7 dB at the 0.338 MHz step, and INS-22''s −82 dBc by 21.9 dB at its binding step. Without a
+      canceller, isolation trades against INS-22 decibel for decibel, and 35 dB would ask −87 dBc. Relaxed
+      2026-10-29 from 40 dB, which closed INS-22 with 0.9 dB to spare and, once INS-31 was added, nothing
+      else; the moment-method model of the 6U bus geometry gives 36.6 dB (§5.9; Derivations §25).'
     flows_from: INS-24; §5.9
-    status: Not specified.
+    status: 'Relaxed 2026-10-29 from 40 dB. Moment-method model of crossed dipoles with a feed offset
+      on the 6U bus: 36.6 dB, flat below 3 MHz (WP3). An angle error of 1° in deployment takes it to 14–21
+      dB (Open Item 13).'
     verification: A, B, O. NEC deployed-geometry model; bench surrogate; in-flight measurement. Deployed
       property (Open Item 13).
     verification_methods:

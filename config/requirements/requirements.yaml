@@ -344,18 +344,19 @@ requirements:
     title: Transmit to receive isolation
     sense: min
     unit: dB
-    threshold: 40.0
+    threshold: 35.0
     goal: 60.0
     claims: [C4]
     work_packages: [WP3, WP5, WP9]
     source: derived
-    derivation: "Allocation to the INS-24 leakage floor (Requirements Rev G sec. 5.9); a deployed-configuration property that trades against INS-22"
+    derivation: "Allocation to INS-29 with the cancellation of INS-31: at 35 dB INS-29 holds by 4.7 dB and INS-22 by 21.9 dB (Requirements Rev G sec. 5.9, amended 2026-10-29; SRM Derivations sec. 25)"
     notes: >-
       Scored since WP3 Phase 4 (2026-10-28) as the least isolation of the L2
       leakage model over the sweep (metric isolation_db_min).  The default model
       is the moment-method profile of the crossed, offset dipoles on the 6U bus,
-      36.6 dB at its least, near 1.4 MHz, so this entry fails until a mount or a
-      canceller is chosen.  A WP9 bench measurement replaces it.
+      36.6 dB at its least, near 1.4 MHz.  Relaxed from 40 dB on 2026-10-29,
+      once INS-31's canceller made 40 dB close nothing; the bus geometry now
+      meets it.  A WP9 bench measurement replaces the model.
 
   INS-24:
     title: Residual leakage floor

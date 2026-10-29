@@ -138,7 +138,10 @@ __all__ = [
     "RFCanceller",
 ]
 
-#: INS-23 threshold, dB.  A requirement, not a measurement.
+#: The flat isolation the Phase 1 to 4 analyses bracket around, dB: INS-23's
+#: threshold until it was relaxed to 35 dB on 2026-10-29 (see
+#: :data:`INS23_THRESHOLD_DB`).  Kept at 40 dB so that those analyses and their
+#: reference data reproduce.
 BASELINE_ISOLATION_DB = 40.0
 
 #: Coupling delay of the baseline configuration, seconds.  Open Item 13: the
@@ -735,8 +738,9 @@ def coupled_resonator_isolation_db(k: np.ndarray | float, q: float) -> np.ndarra
 
 #: INS-24: the residual shall lie this far below the weakest admitted echo.
 INS24_MARGIN_DB = 10.0
-#: INS-23 threshold, dB.
-INS23_THRESHOLD_DB = 40.0
+#: INS-23 threshold, dB (relaxed from 40 dB on 2026-10-29: with INS-31's
+#: cancellation the leakage is at least 61 dB below the transmitter).
+INS23_THRESHOLD_DB = 35.0
 
 
 def _step_order(sweep: SweepSchedule, n_steps: int) -> np.ndarray:

@@ -88,7 +88,8 @@ def test_perturbations_keeps_the_measured_statistics_it_is_parameterised_on():
 # test_leakage.py, test_receive_chain.py and test_leakage_scoring.py.
 # ---------------------------------------------------------------------------
 def test_leakage_keeps_the_requirement_thresholds_it_will_be_scored_against():
-    assert leakage.BASELINE_ISOLATION_DB == pytest.approx(40.0)
+    assert leakage.BASELINE_ISOLATION_DB == pytest.approx(40.0)     # the analyses' bracket
+    assert leakage.INS23_THRESHOLD_DB == pytest.approx(35.0)        # relaxed 2026-10-29
     assert leakage.BASELINE_COUPLING_DELAY_S == pytest.approx(3.0e-9)
 
 

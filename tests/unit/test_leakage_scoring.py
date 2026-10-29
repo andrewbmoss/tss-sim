@@ -242,7 +242,7 @@ def test_l5_scores_the_l2_evidence_and_says_what_kind_it_is():
     rec = check_requirements(m)
     assert rec["INS-11"]["verdict"] == "threshold" and "verified" in rec["INS-11"]["basis"]
     assert rec["INS-14"]["verdict"] == "threshold" and rec["INS-14"]["basis"].startswith("declared")
-    assert rec["INS-23"]["verdict"] == "fail"
+    assert rec["INS-23"]["verdict"] == "threshold"   # 36.6 dB against 35 dB since 2026-10-29
     assert rec["INS-24"]["verdict"] == "fail"
     assert rec["INS-26"]["verdict"] == "goal" and rec["INS-26"]["basis"].startswith("declared")
     off = BaselineInstrument.from_config(_cfg(enabled=False))

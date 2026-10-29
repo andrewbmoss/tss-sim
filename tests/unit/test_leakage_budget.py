@@ -145,7 +145,8 @@ def test_the_default_carries_ins30_and_ins31_at_threshold_and_meets_ins24():
     assert rec["INS-29"]["verdict"] == "threshold"
     assert rec["INS-30"]["verdict"] == "threshold" and rec["INS-30"]["basis"].startswith("declared")
     assert rec["INS-31"]["verdict"] == "threshold"
-    assert rec["INS-23"]["verdict"] == "fail"           # 36.6 dB; left as it stands
+    assert rec["INS-23"]["verdict"] == "threshold"      # 36.6 dB against 35 (2026-10-29)
+    assert m["isolation_db_min"] < 40.0
 
 
 def test_without_a_canceller_ins31_says_why_it_is_not_evaluated():

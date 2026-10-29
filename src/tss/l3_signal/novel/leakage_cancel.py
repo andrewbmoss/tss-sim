@@ -26,9 +26,12 @@ the waveform to the isolation, and this module is where it now sits.
 
 What the requirements ask
 --------------------------
-INS-23 asks for 40 dB of transmit-to-receive isolation at threshold and 60 dB
-at goal, which is what the antennas, the physical separation and the front end
-deliver before any processing.  INS-24 asks that the de-chirped leakage
+INS-23 asks for 35 dB of transmit-to-receive isolation at threshold and 60 dB
+at goal (40 dB until 2026-10-29), which is what the antennas and the physical
+separation deliver before any processing.  Since WP3 Phase 5 an RF canceller
+ahead of the front end (INS-31, :class:`tss.l2_instrument.leakage.RFCanceller`)
+takes at least 26 dB more, with the transmitter's AM, which a canceller after
+digitisation cannot remove.  INS-24 asks that the de-chirped leakage
 residual sit at least 10 dB below the weakest echo INS-10 admits, 20 dB at
 goal.  INS-11 asks for 60 dB of instantaneous receiver dynamic range at
 threshold and 90 dB at goal, which is what the receiver must have in order that
