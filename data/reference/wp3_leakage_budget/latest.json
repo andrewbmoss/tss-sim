@@ -1,0 +1,46 @@
+{
+  "study": "leakage_budget",
+  "status": "implemented",
+  "run_directory": "data\\reference\\wp3_leakage_budget",
+  "manifest": "data\\reference\\wp3_leakage_budget\\manifest.json",
+  "outputs": [
+    "data\\reference\\wp3_leakage_budget\\leakage_budget_grid.csv",
+    "data\\reference\\wp3_leakage_budget\\leakage_budget.json",
+    "data\\reference\\wp3_leakage_budget\\summary.md"
+  ],
+  "metrics": {
+    "am_needed_mom_1w_none": -159.73751451595857,
+    "am_needed_mom_1w_ideal20": -139.9258192344439,
+    "am_needed_mom_1w_ideal26_ins31": -133.92583703241965,
+    "am_needed_mom_1w_ideal30": -129.92583804108037,
+    "am_needed_mom_1w_ideal40": -119.92583822913105,
+    "am_needed_mom_1w_rf_good": -133.8146496635363,
+    "am_needed_mom_1w_rf_moderate": -140.3958452409598,
+    "am_needed_mom_1w_rf_poor": -144.01740048591074,
+    "am_needed_mom_1w_rf_good_bias_only": -126.38176147572744,
+    "am_needed_mom_1w_rf_good_uncorrelated": null,
+    "am_needed_mom_1w_rf_good_stepped": null,
+    "am_needed_mom_1w_rf_good_stepped_uncorrelated": null,
+    "am_needed_mom_1w_rf_one_setting": -138.4517228744523,
+    "am_needed_mom_1w_jump_0.001dB": -112.82846713864251,
+    "am_needed_mom_1w_jump_0.003dB": null,
+    "am_needed_mom_1w_jump_0.01dB": null,
+    "am_needed_mom_1w_jump_0.03dB": null,
+    "am_needed_mom_1w_rf_good_active": null,
+    "am_needed_a2_mom_1w_none": -160.1199349962451,
+    "am_needed_a2_mom_1w_ideal26_ins31": -134.30675426188762,
+    "am_needed_a2_mom_1w_rf_good": -123.02863482269404,
+    "am_needed_a2_mom_1w_rf_moderate": -132.06800982752273,
+    "am_needed_a2_mom_1w_rf_one_setting": -148.10330888394972,
+    "am_needed_a2_mom_1w_rf_good_stepped": null,
+    "am_needed_a2_mom_1w_rf_good_active": null,
+    "validation_max_abs_error_db": 0.04762193561435879,
+    "ins10_validation_max_abs_error_db": 1.4813257482883166
+  },
+  "work_packages": [
+    "WP3"
+  ],
+  "claims": [
+    "C4"
+  ]
+}
