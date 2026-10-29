@@ -26,6 +26,7 @@ def _cfg(leakage=True, ideal_transmitter=True):
     cfg["leakage"]["enabled"] = leakage
     if ideal_transmitter:
         cfg["transmit_impairments"] = {}
+    cfg["canceller"] = {"enabled": False}      # the Phase 3 chain, no canceller
     return cfg
 
 

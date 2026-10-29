@@ -88,7 +88,7 @@ def test_the_configuration_block_reads_and_absent_means_none():
     cfg = load_yaml(resolve_path("instrument/baseline_6u.yaml"))
     inst = BaselineInstrument.from_config(cfg)
     # Since WP3 Phase 4 the scored transmitter carries its allocations.
-    assert inst.impairments.any and inst.impairments.am_noise_dbc_hz == -133.0
+    assert inst.impairments.any and inst.impairments.am_noise_dbc_hz == -140.0   # INS-30
     assert not im.TransmitImpairments.from_config(None).any
     assert not im.TransmitImpairments.from_config({}).any
     imp = im.TransmitImpairments.from_config(

@@ -20,8 +20,12 @@ from tss.studies.data_volume import A1
 
 
 def _cfg(**leak):
+    """The Phase 4 default this file was written against: the masks' AM and no
+    canceller (Phase 5 moved the default to INS-30 and INS-31)."""
     cfg = copy.deepcopy(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
     cfg["leakage"].update(leak)
+    cfg["transmit_impairments"]["am_noise_dbc_hz"] = -133.0
+    cfg["canceller"] = {"enabled": False}
     return cfg
 
 
@@ -135,7 +139,7 @@ def test_the_score_is_the_worst_step_against_the_weakest_echo():
 # ----------------------------------------------------------------------------
 
 
-def test_the_default_instrument_carries_its_allocations_and_the_leakage():
+def test_the_phase4_instrument_carries_its_allocations_and_the_leakage():
     inst = BaselineInstrument.from_config(_cfg())
     assert inst.leakage_enabled and inst.leakage_primed and inst.canceller_bound_db == 30.0
     imp = inst.impairments
@@ -181,7 +185,8 @@ def test_the_l2_metrics_score_ins11_ins23_ins24_and_declare_ins14_ins26():
     assert r.flags["n_clipped"] == 0 and r.flags["leakage_primed"]
     from tss.l5_assessment.requirements_check import L2_EVIDENCE_METRICS
 
-    assert set(L2_EVIDENCE_METRICS) <= set(m)
+    # Every one but the canceller's, which this (Phase 4) instrument does not fit.
+    assert set(L2_EVIDENCE_METRICS) - {"rf_canceller_min_depth_db"} <= set(m)
 
 
 def test_without_the_high_pass_the_record_does_not_support_the_configured_range():

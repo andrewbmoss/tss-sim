@@ -50,6 +50,10 @@ def _cfg(case: str) -> dict[str, Any]:
 
     cfg = copy.deepcopy(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
     cfg["leakage"]["enabled"] = True
+    # Pinned to the Phase 4 default, which this study records: the masks' AM
+    # and no canceller (Phase 5 moved the default to INS-30 and INS-31).
+    cfg["transmit_impairments"]["am_noise_dbc_hz"] = -133.0
+    cfg["canceller"] = {"enabled": False}
     if case == "alloc_cold":
         cfg["leakage"]["primed"] = False
     elif case == "am_off":

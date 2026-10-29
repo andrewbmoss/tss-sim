@@ -2,7 +2,7 @@
 WP: WP0, WP7
 Claims: C1, C2, C3, C4, C5
 Status: implemented
-Requirements: INS-01a, INS-01b, INS-02, INS-03, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, SCI-05, SCI-07, SCI-09, SCI-15, SCI-23
+Requirements: INS-01a, INS-01b, INS-02, INS-03, INS-04, INS-05, INS-07, INS-08, INS-09, INS-10, INS-11, INS-14, INS-15, INS-18, INS-23, INS-24, INS-26, INS-29, INS-30, INS-31, SCI-05, SCI-07, SCI-09, SCI-15, SCI-23
 
 Map computed metrics onto requirement IDs and score them.
 
@@ -60,6 +60,11 @@ INS-24      leakage_residual_margin_db         From L2: residual below the weake
                                                admitted echo, worst step (G5a).
 INS-26      allan_deviation_composite          From L2: declared, the oscillator part,
                                                at 0.05 s and 1.15 s.  See "INS-26".
+INS-29      leakage_noise_over_system_noise_db From L2: leakage pedestal over the system
+                                               noise, worst step (WP3 Phase 5).
+INS-30      transmit_am_noise_dbc_hz           From L2: declared, the AM allocation.
+INS-31      rf_canceller_min_depth_db          From L2: the canceller's least depth over
+                                               the steps.  Absent without a canceller.
 SCI-05      ne_rms_fractional                  Density error against truth (SW-01).
                                                Scored only when the field is treated
                                                consistently; see "SCI-05 and SCI-07".
@@ -273,6 +278,23 @@ MAPPING_TABLE: tuple[tuple[str, str | None, str], ...] = (
         "it meets the goal, otherwise at 0.05 s.",
     ),
     (
+        "INS-29",
+        "leakage_noise_over_system_noise_db",
+        "from L2 (WP3 Phase 5): the leakage residual's pedestal less the system noise in "
+        "the same cell, at the worst step.  INS-24 restated as a noise density.",
+    ),
+    (
+        "INS-30",
+        "transmit_am_noise_dbc_hz",
+        "from L2, declared: the configured AM noise of the transmitter.",
+    ),
+    (
+        "INS-31",
+        "rf_canceller_min_depth_db",
+        "from L2: the least depth of the RF canceller over the steps, from the carrier it "
+        "leaves per dwell.  The continuity and added-noise clauses are not scored here.",
+    ),
+    (
         "SCI-05",
         "ne_rms_fractional",
         "rms fractional density error of the L4 profile against its L0 truth, the "
@@ -368,10 +390,12 @@ CARRY_IN_ERRORS: tuple[str, ...] = (
     "leakage_residual_margin_db_canceller",
     "leakage_residual_steps_failing_canceller",
     "leakage_canceller_bound_db",
+    "rf_canceller_nominal_depth_db",
     "ins11_configured_db",
     "ins11_rejection_margin_db",
     "ins11_rejection_margin_freq_hz",
     "ins11_residual_peak_over_clip_db",
+    "leakage_noise_over_system_noise_freq_hz",
 )
 
 #: Metrics only the L2 tier reports (WP3 Phase 4), and why one is absent when
@@ -388,6 +412,11 @@ ABSENT_REASON: dict[str, str] = {
     ),
     "transmit_power_w": "the L2 tier did not report its declared values",
     "allan_deviation_composite": "the L2 tier did not report its declared values",
+    "leakage_noise_over_system_noise_db": (
+        "the leakage is off in this configuration, or the sweep is not stepped (WP3 Phase 5)"
+    ),
+    "transmit_am_noise_dbc_hz": "the transmitter is ideal in this configuration: no AM allocation is declared",
+    "rf_canceller_min_depth_db": "no RF canceller is fitted in this configuration, or the leakage is off",
 }
 L2_EVIDENCE_METRICS: tuple[str, ...] = tuple(ABSENT_REASON)
 

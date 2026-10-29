@@ -57,6 +57,28 @@ leakage:
   primed: true
   canceller_bound_db: 30.0
 
+# RF canceller ahead of the front end (WP3 Phase 5, tss.l2_instrument.leakage.
+# RFCanceller): a weighted sample of the PA output subtracted from the receive
+# path, so it cancels the leakage's AM and phase noise with the carrier.  The
+# default carries INS-31 at threshold (decision of 2026-10-28): 26 dB at every
+# step, with the weight moved continuously, modelled as an ideal 26 dB.  The
+# leakage_budget study trades the error model: set ideal_depth_db to null to
+# use it.  Errors are RMS per
+# calibration; retune: track (calibrated per step, weight moved continuously),
+# step (switched at each step boundary) or sweep (once, at calibration_hz);
+# added_noise_dbm_hz: null for a passive attenuator and phase shifter, about
+# -158 for an active vector modulator behind a 10 dB coupler.
+canceller:
+  enabled: true
+  amplitude_error_db: 0.1
+  phase_error_deg: 1.0
+  delay_mismatch_s: 1.0e-9
+  retune: track
+  calibration_hz: 1.0e+6
+  added_noise_dbm_hz: null
+  ideal_depth_db: 26.0       # INS-31 threshold
+  error_draw: random
+
 front_end:
   enabled: null              # null: follow leakage.enabled
   input_p1db_dbm: 1.0        # a level-7 diode mixer, about +1 dBm (assumed; WP9-2)
@@ -76,8 +98,9 @@ isolation:
 # Transmitter impairments in the samples (WP3 Phase 2, tss.l2_instrument.impairments).
 # Since Phase 4 the scored transmitter carries its allocations at threshold
 # (decision of 2026-10-28): the baseline oscillator part below, the phase-noise
-# floor and AM noise at the levels the corrected masks allow, and two PM spurs
-# at INS-22's -82 dBc.  Set them off (false, null, []) for the ideal chirp every
+# floor at the level the corrected masks allow, AM noise at INS-30's -140 dBc/Hz
+# (Phase 5; it was -133 from the masks in Phase 4), and two PM spurs at INS-22's
+# -82 dBc.  Set them off (false, null, []) for the ideal chirp every
 # run before Phase 4 used.
 # Keys: oscillator_noise (the oscillator block below, scaled to the carrier),
 # phase_noise_floor_dbc_hz, am_noise_dbc_hz (single-sideband), spurs (list of
@@ -87,7 +110,7 @@ isolation:
 transmit_impairments:
   oscillator_noise: true
   phase_noise_floor_dbc_hz: -123.0
-  am_noise_dbc_hz: -133.0
+  am_noise_dbc_hz: -140.0     # INS-30 threshold (with INS-31's canceller)
   spurs:
     - {offset_hz: 16100.0, level_dbc: -82.0, kind: pm}
     - {offset_hz: 39200.0, level_dbc: -82.0, kind: pm}

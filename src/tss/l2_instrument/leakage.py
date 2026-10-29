@@ -134,6 +134,8 @@ __all__ = [
     "score_ins23_ins24",
     "INS24_MARGIN_DB",
     "INS23_THRESHOLD_DB",
+    "CANCELLER_RETUNE",
+    "RFCanceller",
 ]
 
 #: INS-23 threshold, dB.  A requirement, not a measurement.
@@ -925,3 +927,227 @@ def score_ins23_ins24(
         out["ins24_margin_db_canceller"] = c["margin_db"]
         out["ins24_steps_failing_canceller"] = c.get("steps_failing")
     return out
+
+
+# ----------------------------------------------------------------------------
+# Phase 5: the RF canceller
+# ----------------------------------------------------------------------------
+
+#: Retuning policies of :class:`RFCanceller`.
+CANCELLER_RETUNE = ("track", "step", "sweep")
+
+
+@dataclass(frozen=True)
+class RFCanceller:
+    """An analog canceller ahead of the receiver, fed by a sample of the PA output.
+
+    A coupler takes a sample of the transmitted signal; an attenuator and phase
+    shifter (or a vector modulator) set a complex weight ``W``; the result is
+    subtracted from the receive path ahead of the front end.  Because the
+    sample is the transmitted signal itself, it carries the transmitter's AM
+    and phase noise, and what is cancelled is the leakage *with* its noise
+    (WP3 Phase 5, decision of 2026-10-28).  A digital canceller after the
+    converter could remove the carrier but not the random AM; that is why the
+    canceller is modelled at radio frequency.
+
+    The weight is set to null the coupling at a calibration frequency, with an
+    error.  For a coupling ``H(f)`` of delay ``tau_c`` and a canceller path of
+    delay ``tau_s``, the leakage that remains is the leakage times
+
+        g(f) = 1 - (1 + e_a) e^(j e_p) [H(f_k) / H(f)] e^(-j 2 pi (f - f_k) dtau)
+
+    (conjugated in the de-chirped convention), with ``f_k`` the calibration
+    frequency, ``dtau = tau_s - tau_c`` and ``(e_a, e_p)`` the fractional
+    amplitude and phase errors of the weight.  At ``f = f_k`` the depth is
+    ``|1 - (1 + e_a) e^(j e_p)|^2``, about ``e_a^2 + e_p^2``: 0.1 dB and 1
+    degree give 34 dB; 0.5 dB and 3 degrees give 21 dB.
+
+    Parameters
+    ----------
+    amplitude_error_db, phase_error_deg
+        RMS of the weight's errors, drawn for each calibration (each step when
+        ``retune`` is ``"track"`` or ``"step"``).  ``error_draw="worst"`` uses
+        them as one fixed error, the same at every calibration (a bias).
+    error_correlation_steps
+        Correlation length of the drawn errors across calibrations, in steps
+        (Gaussian smoothing of independent draws, rescaled to keep the RMS).
+        Zero is independent per step.  A controller that fits a smooth model of
+        the coupling across the band has correlated errors; one that nulls each
+        step on its own has independent ones.  It matters because the residual
+        carrier is some 100 dB above the noise in a cell: any change of the
+        weight inside or between dwells puts that carrier's change into the
+        echo band (``"step"``: a jump at the boundary that the high-pass rings
+        on; ``"track"``: a kink at each calibration point).
+    delay_mismatch_s
+        ``tau_s - tau_c``.  It decorrelates the canceller across a step and
+        between the calibration frequency and the rest of the band.
+    retune
+        ``"track"``: calibrated at the centre of every step and interpolated
+        linearly in frequency between them, so the weight moves continuously.
+        ``"step"``: calibrated at the centre of every step and switched at the
+        step boundary (159 settings for A1); the residual carrier then jumps at
+        each boundary and the leakage high-pass rings into the echo band.
+        ``"sweep"``: one setting for the whole sweep, calibrated at
+        ``calibration_hz``.
+    calibration_hz
+        Calibration frequency for ``retune="sweep"``.
+    added_noise_dbm_hz
+        Noise the canceller adds at the receiver input, dBm/Hz, white.  ``None``
+        for a passive attenuator and phase shifter, whose thermal noise is
+        already in the receiver's noise figure; an active vector modulator
+        (about -148 dBm/Hz at its output, behind a 10 dB injection coupler)
+        adds about -158 dBm/Hz.
+    ideal_depth_db
+        When given, the canceller is ideal: a constant suppression of this
+        depth everywhere, errors ignored.  This is the Phase 4 bound.
+    """
+
+    amplitude_error_db: float = 0.0
+    phase_error_deg: float = 0.0
+    delay_mismatch_s: float = 0.0
+    retune: str = "track"
+    calibration_hz: float = 1.0e6
+    added_noise_dbm_hz: float | None = None
+    ideal_depth_db: float | None = None
+    error_draw: str = "random"
+    error_correlation_steps: float = 0.0
+    label: str = ""
+
+    def __post_init__(self) -> None:
+        if self.retune not in CANCELLER_RETUNE:
+            raise ValueError(f"retune must be one of {CANCELLER_RETUNE}, got {self.retune!r}")
+        if self.error_draw not in ("random", "worst"):
+            raise ValueError("error_draw must be 'random' or 'worst'")
+        if self.amplitude_error_db < 0.0 or self.phase_error_deg < 0.0:
+            raise ValueError("canceller errors are magnitudes and must not be negative")
+        if self.ideal_depth_db is not None and self.ideal_depth_db < 0.0:
+            raise ValueError("ideal_depth_db must not be negative")
+        if self.error_correlation_steps < 0.0:
+            raise ValueError("error_correlation_steps must not be negative")
+
+    # -- the weight errors ------------------------------------------------------
+
+    def nominal_depth_db(self) -> float:
+        """Expected depth at the calibration frequency, ``-10 log10 E|1 - w|^2``."""
+        if self.ideal_depth_db is not None:
+            return float(self.ideal_depth_db)
+        ea = 10.0 ** (self.amplitude_error_db / 20.0) - 1.0
+        ep = math.radians(self.phase_error_deg)
+        if self.error_draw == "worst":
+            d = abs(1.0 - (1.0 + ea) * complex(math.cos(ep), math.sin(ep)))
+            return float("inf") if d == 0.0 else -20.0 * math.log10(d)
+        v = ea**2 + ep**2
+        return float("inf") if v == 0.0 else -10.0 * math.log10(v)
+
+    def weight_errors(self, n: int, rng: np.random.Generator | None) -> np.ndarray:
+        """``(1 + e_a) e^(j e_p)`` for ``n`` calibrations."""
+        n = int(n)
+        if self.error_draw == "worst" or rng is None:
+            ea = 10.0 ** (self.amplitude_error_db / 20.0) - 1.0
+            ep = math.radians(self.phase_error_deg)
+            return np.full(n, (1.0 + ea) * np.exp(1j * ep))
+        za = self._correlated(rng.normal(size=n))
+        zp = self._correlated(rng.normal(size=n))
+        ea = 10.0 ** (self.amplitude_error_db * za / 20.0) - 1.0
+        ep = np.radians(self.phase_error_deg * zp)
+        return (1.0 + ea) * np.exp(1j * ep)
+
+    def _correlated(self, z: np.ndarray) -> np.ndarray:
+        """Unit-RMS draws smoothed over ``error_correlation_steps``."""
+        L = float(self.error_correlation_steps)
+        if L <= 0.0 or z.size < 2:
+            return z
+        half = int(math.ceil(4.0 * L))
+        k = np.exp(-0.5 * (np.arange(-half, half + 1) / L) ** 2)
+        k = k / math.sqrt(float(np.sum(k**2)))
+        # Reflected at the ends, so the ends keep the RMS of the middle.
+        return np.convolve(np.pad(z, half, mode="reflect"), k, mode="valid")
+
+    # -- the residual -----------------------------------------------------------
+
+    def residual_factor(
+        self,
+        sweep: SweepSchedule,
+        t_s: np.ndarray,
+        model: LeakageModel,
+        rng: np.random.Generator | None = None,
+        *,
+        errors: np.ndarray | None = None,
+    ) -> np.ndarray:
+        """``conj(g)`` at each sample time: what multiplies the de-chirped leakage.
+
+        ``t_s`` are the sample times of the record.  The frequency arriving at
+        each sample is ``f(t - tau_c)``, held at the first step's before the
+        sweep starts (a primed transmitter).  ``errors`` overrides the drawn
+        weight errors (one per calibration).
+        """
+        t = np.asarray(t_s, dtype=float)
+        if self.ideal_depth_db is not None:
+            return np.full(t.shape, 10.0 ** (-float(self.ideal_depth_db) / 20.0), dtype=complex)
+        te = np.clip(t - float(model.coupling_delay_s), 0.0, None)
+        law = _replace(sweep, nonlinearity_ppm=0.0)
+        f = np.asarray(_tx_frequency_hz(law, te), dtype=float)
+        dtau = float(self.delay_mismatch_s)
+        per_step = self.retune in ("track", "step") and sweep_law.is_stepped(sweep)
+        if per_step:
+            n_cal = sweep_law.step_count(sweep)
+            dwell = float(sweep.step_dwell_s)
+            f_cal = np.asarray(_tx_frequency_hz(law, (np.arange(n_cal) + 0.5) * dwell), dtype=float)
+        else:
+            n_cal = 1
+            f_cal = np.array([float(self.calibration_hz)])
+        w = self.weight_errors(n_cal, rng) if errors is None else np.asarray(errors, dtype=complex)
+        if w.size != n_cal:
+            raise ValueError(f"need {n_cal} weight errors, got {w.size}")
+        # The calibrated weights, relative to the coupling: W_k = w_k H(f_k) e^(j 2 pi f_k dtau).
+        wk = w * coupling_response(f_cal, model) * np.exp(2j * np.pi * f_cal * dtau)
+        if per_step and self.retune == "step":
+            idx = np.clip(np.asarray(sweep_law.step_index(sweep, te), dtype=int), 0, n_cal - 1)
+            wf = wk[idx]
+        elif per_step:
+            # A smooth (C2) path of the weight through the calibrations.
+            from scipy.interpolate import CubicSpline
+
+            order = np.argsort(f_cal)
+            fc, wc = f_cal[order], wk[order]
+            # Extrapolated, not held, over the outer half-steps: holding would
+            # put a kink there.
+            wf = CubicSpline(fc, wc.real)(f) + 1j * CubicSpline(fc, wc.imag)(f)
+        else:
+            wf = np.full(f.shape, wk[0])
+        rho = wf * np.exp(-2j * np.pi * f * dtau) / coupling_response(f, model)
+        return np.conj(1.0 - rho)
+
+    def added_noise(self, n: int, fs_hz: float, rng: np.random.Generator) -> np.ndarray | None:
+        """The canceller's own noise at the receiver input, complex root-watts."""
+        if self.added_noise_dbm_hz is None or self.ideal_depth_db is not None:
+            return None
+        n0 = 10.0 ** ((float(self.added_noise_dbm_hz) - 30.0) / 10.0)
+        sigma = math.sqrt(n0 * float(fs_hz) / 2.0)
+        return sigma * (rng.normal(size=int(n)) + 1j * rng.normal(size=int(n)))
+
+    def describe(self) -> Mapping[str, Any]:
+        d = asdict(self)
+        d["nominal_depth_db"] = self.nominal_depth_db()
+        return d
+
+    @classmethod
+    def from_config(cls, cfg: Mapping[str, Any] | None) -> RFCanceller | None:
+        """``None`` unless ``cfg`` is enabled."""
+        c = dict(cfg or {})
+        if not bool(c.get("enabled", False)):
+            return None
+        noise = c.get("added_noise_dbm_hz")
+        depth = c.get("ideal_depth_db")
+        return cls(
+            amplitude_error_db=float(c.get("amplitude_error_db", 0.0)),
+            phase_error_deg=float(c.get("phase_error_deg", 0.0)),
+            delay_mismatch_s=float(c.get("delay_mismatch_s", 0.0)),
+            retune=str(c.get("retune", "step")),
+            calibration_hz=float(c.get("calibration_hz", 1.0e6)),
+            added_noise_dbm_hz=None if noise is None else float(noise),
+            ideal_depth_db=None if depth is None else float(depth),
+            error_draw=str(c.get("error_draw", "random")),
+            error_correlation_steps=float(c.get("error_correlation_steps", 0.0)),
+            label=str(c.get("label", "")),
+        )

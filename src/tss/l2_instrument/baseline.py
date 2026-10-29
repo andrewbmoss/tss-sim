@@ -339,6 +339,7 @@ class BaselineInstrument:
         highpass_enabled: bool | None = None,
         leakage_primed: bool = True,
         canceller_bound_db: float | None = 30.0,
+        canceller: Any = None,
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
         configuration_notes: tuple[str, ...] = (),
@@ -394,6 +395,9 @@ class BaselineInstrument:
         # owns the real one).
         self.leakage_primed = bool(leakage_primed)
         self.canceller_bound_db = None if canceller_bound_db is None else float(canceller_bound_db)
+        # WP3 Phase 5: an RF canceller ahead of the front end
+        # (tss.l2_instrument.leakage.RFCanceller), or None.
+        self.canceller = canceller
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
         self.configuration_notes = tuple(str(n) for n in configuration_notes)
@@ -447,6 +451,10 @@ class BaselineInstrument:
         kwargs["leakage_primed"] = bool(leak_cfg.get("primed", True))
         cb = leak_cfg.get("canceller_bound_db", 30.0)
         kwargs["canceller_bound_db"] = None if cb is None else float(cb)
+        if "canceller" not in overrides:
+            from tss.l2_instrument.leakage import RFCanceller
+
+            kwargs["canceller"] = RFCanceller.from_config(cfg.get("canceller"))
         kwargs.update(overrides)
         return cls(**kwargs)
 
@@ -738,6 +746,8 @@ class BaselineInstrument:
         # and the receive chain, and drawn from the record's impairment
         # realization so that it and the echoes share one oscillator.
         leak = None
+        leak_uncancelled = None
+        g_canc = None
         if self.leakage_enabled and self.leakage is not None:
             from tss.l2_instrument import leakage as _lk
 
@@ -747,6 +757,17 @@ class BaselineInstrument:
                 tx_chain_efficiency_db=self.tx_chain_efficiency_db,
                 impairments=imp, realization=realization, primed=self.leakage_primed,
             )
+            leak_uncancelled = leak
+            g_canc = None
+            if self.canceller is not None:
+                # WP3 Phase 5: the RF canceller subtracts a weighted sample of
+                # the transmitted signal, so the leakage keeps its noise in
+                # proportion; it adds its own noise when it is active.
+                g_canc = self.canceller.residual_factor(sweep, t, self.leakage, rng)
+                leak = leak * g_canc
+                c_noise = self.canceller.added_noise(n_samples, fs_hz, rng)
+                if c_noise is not None:
+                    leak = leak + c_noise
             samples = samples + leak
 
         # Noise.  The antenna temperature follows the sweep, because the sky is
@@ -795,7 +816,10 @@ class BaselineInstrument:
         l2_metrics = self._declared_metrics()
         per_step: dict[str, Any] | None = None
         if leak is not None:
-            leak_metrics, per_step = self._leakage_metrics(leak, sweep, fs_hz, t_sys, clip_level_w)
+            leak_metrics, per_step = self._leakage_metrics(
+                leak, sweep, fs_hz, t_sys, clip_level_w, uncancelled=leak_uncancelled,
+                canceller_factor=g_canc,
+            )
             l2_metrics.update(leak_metrics)
 
         floor_f_mhz = unique_f / 1.0e6 if unique_f.size else np.array([1.0])
@@ -863,6 +887,9 @@ class BaselineInstrument:
             "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
             "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},
             "leakage_primed": bool(leak is not None and self.leakage_primed),
+            "rf_canceller": (
+                dict(self.canceller.describe()) if (leak is not None and self.canceller is not None) else None
+            ),
             "l2_metrics": l2_metrics,
             "leakage_per_step": per_step,
             "vector_channels_are_placeholders": channels > 1,
@@ -916,7 +943,13 @@ class BaselineInstrument:
             comp = s_g
         else:
             comp = max(s_t, float(np.nextafter(_osc.INS26_ALLAN_GOAL, np.inf)))
+        am = getattr(self.impairments, "am_noise_dbc_hz", None)
         return {
+            **(
+                {"transmit_am_noise_dbc_hz": float(am),
+                 "transmit_am_noise_dbc_hz_basis": "declared: the configured AM noise allocation"}
+                if am is not None else {}
+            ),
             "transmit_power_w": float(self.tx_power_w),
             "transmit_power_w_basis": "declared: the configured transmit power",
             "allan_deviation_composite": comp,
@@ -935,6 +968,9 @@ class BaselineInstrument:
         fs_hz: float,
         t_sys: np.ndarray,
         clip_level_w: float,
+        *,
+        uncancelled: np.ndarray | None = None,
+        canceller_factor: np.ndarray | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any] | None]:
         """INS-11, INS-23 and INS-24 from the leakage of this record.
 
@@ -978,7 +1014,8 @@ class BaselineInstrument:
             resid = _lk.dechirped_residual(res, sweep, fs_hz, levels=levels)
             canc = None
             if self.canceller_bound_db is not None:
-                _, res_c = chain(leak * 10.0 ** (-self.canceller_bound_db / 20.0))
+                base = leak if uncancelled is None else uncancelled
+                _, res_c = chain(base * 10.0 ** (-self.canceller_bound_db / 20.0))
                 canc = _lk.dechirped_residual(res_c, sweep, fs_hz, levels=levels)
             sc = _lk.score_ins23_ins24(
                 f_eval, self.leakage, resid, levels=levels, canceller_residual=canc
@@ -996,6 +1033,15 @@ class BaselineInstrument:
             }
             if canc is not None:
                 per_step["residual_level_dbw_canceller"] = np.asarray(canc["level_dbw"]).tolist()
+            # INS-29 (WP3 Phase 5): the noise the leakage brings, against the
+            # system noise in the same cell.
+            over = np.asarray(resid["pedestal_dbw"]) - np.asarray(levels["noise_cell_dbw"], dtype=float)
+            per_step["leakage_noise_over_system_noise_db"] = over.tolist()
+            if np.any(np.isfinite(over)):
+                out["leakage_noise_over_system_noise_db"] = float(np.nanmax(over))
+                out["leakage_noise_over_system_noise_freq_hz"] = float(
+                    np.asarray(levels["f_hz"])[int(np.nanargmax(over))]
+                )
         else:
             sc = _lk.score_ins23_ins24(f_eval, self.leakage)
             out["ins24_not_scored_reason"] = "INS-24 is scored per step and needs a stepped sweep"
@@ -1015,6 +1061,24 @@ class BaselineInstrument:
                 out[name] = sc[key]
         if self.canceller_bound_db is not None and stepped:
             out["leakage_canceller_bound_db"] = self.canceller_bound_db
+        if self.canceller is not None:
+            out["rf_canceller_nominal_depth_db"] = float(self.canceller.nominal_depth_db())
+            if canceller_factor is not None and stepped:
+                # INS-31: the depth the canceller achieved at its worst step,
+                # the carrier it leaves averaged over each dwell.
+                dwell = float(sweep.step_dwell_s)
+                n_st = sweep_law.step_count(sweep)
+                idx = np.clip((np.arange(canceller_factor.size) / float(fs_hz) / dwell).astype(int), 0, n_st - 1)
+                g2 = np.bincount(idx, weights=np.abs(canceller_factor) ** 2, minlength=n_st)
+                cnt = np.bincount(idx, minlength=n_st)
+                depth = -10.0 * np.log10(np.maximum(g2[cnt > 0] / cnt[cnt > 0], 1e-30))
+                # Rounded to a micro-decibel, so that an ideal canceller at a
+                # threshold scores at it rather than a rounding error below.
+                out["rf_canceller_min_depth_db"] = round(float(np.min(depth)), 6)
+                out["rf_canceller_min_depth_db_basis"] = (
+                    "measured in the record: the carrier left per dwell; the continuity part of "
+                    "INS-31 is not scored here"
+                )
 
         # INS-11: the configured range, verified by the record.
         dr = float(self.receiver.instantaneous_dynamic_range_db)
@@ -1089,6 +1153,7 @@ class BaselineInstrument:
             "leakage_modelled": bool(self.leakage_enabled),
             "leakage_primed": bool(self.leakage_primed),
             "canceller_bound_db": self.canceller_bound_db,
+            "rf_canceller": None if self.canceller is None else dict(self.canceller.describe()),
             "leakage": None if self.leakage is None else dict(self.leakage.describe()),
             "front_end": {"enabled": self.front_end_enabled, **dict(self.front_end.describe())},
             "leakage_highpass": {"enabled": self.highpass_enabled, **dict(self.highpass.describe())},

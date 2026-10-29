@@ -10,11 +10,11 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: 688fa456021c87315df4b9432f7d94ce853726449dcbb3aac37966e9cdbbe304
+source_sha256: 818274d2e0e4dbffb09b57ad63b7618e15bb32f224b9fff8d9ecad341891f013
 revision: G
 counts:
   SCI: 28
-  INS: 29
+  INS: 32
   MIS: 11
   SW: 4
 requirements:
@@ -837,9 +837,10 @@ requirements:
     value: 'After de-chirping and any cancellation, the leakage pedestal shall lie ≥10 dB below the weakest
       echo admitted by INS-10, at every beat frequency in the echo band. This is the primary requirement
       of the family: it is the quantity that can be measured, in simulation and on a bench, and INS-21
-      to INS-23 are allocations to it. The transmit phase-noise mask derived in the M&S plan (−108 dBc/Hz
-      at 40 dB isolation as derived there; −123 dBc/Hz at 5 MHz on the leakage-to-echo ratio corrected
-      2026-10-27) is subsumed here, since sweep spurs and phase noise contribute to the same pedestal.'
+      to INS-23 and, from 2026-10-28, INS-29 to INS-31 are allocations to it. The transmit phase-noise
+      mask derived in the M&S plan (−108 dBc/Hz at 40 dB isolation as derived there; −123 dBc/Hz at 5
+      MHz on the leakage-to-echo ratio corrected 2026-10-27) is subsumed here, since sweep spurs and phase
+      noise contribute to the same pedestal.'
     flows_from: SCI-19, INS-10; §5.9
     status: Absent. This is what the bench phase of the prototype measures.
     verification: B, S. De-chirped residual through a calibrated delay line; L2 leakage model. Primary
@@ -917,6 +918,71 @@ requirements:
     verification_methods:
     - T
     - B
+  INS-29:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Leakage-borne noise at the receiver input
+    value: 'The noise the transmit-to-receive leakage carries into the receiver — the transmitter''s AM
+      noise and the phase noise that range correlation does not remove, after any cancellation, and any
+      noise a canceller adds — shall not exceed the system noise density k·T_sys at any sounding frequency,
+      in the echo band of every step: ≤ 0 dB relative to k·T_sys threshold, ≤ −10 dB goal. With the 5
+      m dipole this is −166.3 dBm/Hz at the 0.338 MHz step (T_sys ≈ 1700 K), −158.2 dBm/Hz at 1.26 MHz
+      and −148.5 dBm/Hz at 5 MHz. It is INS-24 restated as a noise density: the weakest echo INS-10 admits
+      lies 10 dB above the noise in its cell, so a pedestal 10 dB below that echo equals the noise. At
+      threshold the pedestal doubles the noise in the cell (3 dB of SNR); the goal holds the loss to 0.4
+      dB. New 2026-10-28.'
+    flows_from: INS-24, INS-10; §5.9
+    status: New 2026-10-28 (WP3 Phase 5). With the AM of the corrected masks (−133 dBc/Hz) and no canceller,
+      the leakage noise is 26.7 dB above k·T_sys at 0.338 MHz on the 6U bus isolation (tss-sim leakage_residual,
+      leakage_budget). With INS-30 and INS-31 at threshold it is 6.3 dB below.
+    verification: 'A, S, B. Leakage budget (tss-sim leakage_budget; metric leakage_noise_over_system_noise_db);
+      bench: de-chirped residual through a calibrated delay line with the canceller fitted (WP9).'
+    verification_methods:
+    - A
+    - S
+    - B
+  INS-30:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Transmit amplitude noise
+    value: 'Amplitude noise of the radiated chirp, single sideband, at offsets spanning the echo band
+      of every step (0.4 to 39 kHz for A1, to 261 kHz for A2): ≤ −140 dBc/Hz threshold, ≤ −150 dBc/Hz
+      goal. The threshold is an allocation to INS-29 that assumes the leakage cancellation of INS-31;
+      a design without a canceller needs ≤ −160 dBc/Hz on the 6U bus isolation, close to the thermal AM
+      floor of a DDS-driven chain. Range correlation does not remove AM, so unlike phase noise it reaches
+      the echo band at the level the transmitter carries it. New 2026-10-28.'
+    flows_from: INS-29, INS-31; §5.9
+    status: New 2026-10-28 (WP3 Phase 5). Phase 4 carried −133 dBc/Hz from the masks; tss-sim's default
+      now carries −140.
+    verification: B, A. AM noise of the PA output at the antenna port (detector and FFT analyser; cross-correlation
+      below −150 dBc/Hz); leakage budget (tss-sim leakage_budget).
+    verification_methods:
+    - B
+    - A
+  INS-31:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Transmit-to-receive leakage cancellation
+    value: A passive RF canceller ahead of the receiver front end, fed by a sample of the transmitted
+      signal, shall suppress the leakage by ≥26 dB threshold, ≥34 dB goal, at every step of the sweep.
+      Its complex weight shall follow the sweep continuously, with no step change larger than 0.001 dB
+      in amplitude or 0.0066° in phase (−79 dB of the leakage), and its calibration errors shall vary
+      smoothly across the band rather than independently from step to step. It shall add no more than
+      −170 dBm/Hz of noise at the receiver input, which excludes an active vector modulator (about −158
+      dBm/Hz behind a 10 dB coupler). Because the sample carries the transmitter's noise, the canceller
+      removes the leakage's AM with its carrier, which a digital canceller after the converter cannot.
+      New 2026-10-28.
+    flows_from: INS-29, INS-11, INS-24; §5.9
+    status: New 2026-10-28 (WP3 Phase 5). Not in any baseline design. A tracking canceller at 0.1 dB and
+      1° RMS (33.6 dB) meets INS-24 with AM up to −133.8 dBc/Hz; the same canceller switched at step boundaries
+      fails at any AM, because the residual carrier's jump rings the leakage high-pass into the echo band.
+      It also takes the front end 31 dB clear of compression (Phase 3's −41 dBc echo images).
+    verification: B, A. Carrier suppression per step with the chirp running, and the de-chirped residual
+      through a calibrated delay line (INS-24); noise added, transmitter off; tss-sim leakage_budget (metric
+      rf_canceller_min_depth_db).
+    verification_methods:
+    - B
+    - A
   MIS-01:
     sheet: Instrument & Mission
     family: MIS

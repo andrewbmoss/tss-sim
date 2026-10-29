@@ -58,6 +58,7 @@ def _instrument(**overrides: Any) -> Any:
     # study was written (Phase 3); the allocations the default carries since
     # Phase 4 are the business of the leakage_residual study.
     cfg["transmit_impairments"] = {}
+    cfg["canceller"] = {"enabled": False}
     return BaselineInstrument.from_config(cfg, **overrides)
 
 

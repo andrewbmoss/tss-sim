@@ -45,6 +45,9 @@
 # "threshold", so scores on those entries can drop from "goal" to "threshold"
 # with no change in performance.
 #
+# 2026-10-28 (WP3 Phase 5): INS-29, INS-30 and INS-31 added from the amended
+# SRM (the leakage budget), scored from the L2 record.
+#
 # To take in a new SRM revision: run `python scripts/import_srm.py <workbook>`,
 # review the diff of srm_catalog.yaml, amend the scored entries and the
 # not_scored reasons whose text changed, and run `tss requirements`.
@@ -395,6 +398,53 @@ requirements:
       WP3 Phase 4 from the configured oscillator part, labelled declared (metric
       allan_deviation_composite: sigma_y at 1.15 s when it meets the goal,
       otherwise at 0.05 s).
+
+  INS-29:
+    title: Leakage-borne noise at the receiver input
+    sense: max
+    unit: dB
+    threshold: 0.0
+    goal: -10.0
+    claims: [C4]
+    work_packages: [WP3, WP5, WP9]
+    source: derived
+    derivation: "INS-24 restated as a noise density: the weakest echo INS-10 admits lies 10 dB above the noise in its cell, so a pedestal 10 dB below it equals the noise.  Goal: 0.4 dB of SNR loss.  Requirements Rev G sec. 5.9 (amended 2026-10-28); SRM Derivations sec. 25"
+    notes: >-
+      Scored (WP3 Phase 5) as the largest, over the steps of the sweep, of the
+      leakage residual's pedestal less the system noise in the same cell
+      (metric leakage_noise_over_system_noise_db, from the L2 record).  Not
+      evaluated when the leakage is off.
+
+  INS-30:
+    title: Transmit amplitude noise
+    sense: max
+    unit: dBc/Hz
+    threshold: -140.0
+    goal: -150.0
+    claims: [C4]
+    work_packages: [WP3, WP9]
+    source: derived
+    derivation: "Allocation to INS-29 with the cancellation of INS-31 on the 6U bus isolation; -160 dBc/Hz without a canceller.  Requirements Rev G sec. 5.9 (amended 2026-10-28); tss-sim leakage_budget"
+    notes: >-
+      Scored from the configured AM allocation, labelled declared (metric
+      transmit_am_noise_dbc_hz).  Not evaluated when the transmitter is ideal.
+
+  INS-31:
+    title: Transmit-to-receive leakage cancellation
+    sense: min
+    unit: dB
+    threshold: 26.0
+    goal: 34.0
+    claims: [C4]
+    work_packages: [WP3, WP5, WP9]
+    source: derived
+    derivation: "Allocation to INS-29 with INS-30's AM on the 6U bus isolation; a canceller that switches its weight at step boundaries, or that is active, fails INS-24 at any AM.  Requirements Rev G sec. 5.9 (amended 2026-10-28); tss-sim leakage_budget"
+    notes: >-
+      Scored as the least depth over the steps of the sweep, from the carrier
+      the canceller leaves in each dwell of the L2 record (metric
+      rf_canceller_min_depth_db).  INS-31's continuity and added-noise clauses
+      are not scored by this entry; the leakage_budget study and INS-29 carry
+      them.  Not evaluated when no canceller is fitted.
 
   SCI-05:
     title: Absolute electron density accuracy
