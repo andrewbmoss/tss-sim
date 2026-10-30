@@ -408,3 +408,26 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   status fields point to the bench tests; `srm_catalog.yaml` re-imported.
 * **WP3 closed (2026-10-29).**  C4 is answered in simulation; its two hardware
   allocations (INS-30, INS-31) are measured by WP9.
+
+## WP4 Phases 0 and 1 (2026-10-30)
+
+* Phase 0 (af28d58, 7ba8814): study `wp4_campaign`, six Chapman ionospheres
+  (mid-latitude noon at solar max and min, mid-latitude night, equatorial
+  evening, high-latitude night, the smoke ionosphere) x five seeds, scored on
+  SCI-05, SCI-07, INS-05, INS-10 and the O-trace completeness (with the X,
+  false, missed and spurious counts and the range bias).  Baseline reference
+  run `data/reference/wp4_baseline`: SCI-05 0.176 and SCI-07 18.8 km median,
+  O completeness 0.14 (the chain follows X above f_x on half the O columns and
+  reads 5 to 15 km short).
+* Phase 1 (9fdeb53): the clutter generator, `tss.l1_propagation.clutter`
+  (`docs/clutter.md`): ground echo above penetration, plasma resonances at the
+  spacecraft (f_N, f_UH, n f_H), spread F, broadcast carriers above foF2
+  (rendered by `tss.l2_instrument.interference`); the compression image listed.
+  Flagged EchoSet rows plus `EchoSet.interference`; truth scoring ignores them.
+  On by default (`clutter` block in `config/default.yaml`), pinned off in the
+  smoke campaign, optional climatology.  The second hop is left out.  Clutter
+  off reproduces the baseline in all 30 runs.  Clutter on
+  (`data/reference/wp4_p1_clutter`): O completeness 0.00, INS-10 median 5.9 dB.
+  The ground echo takes the extractor (P4); the resonances and a carrier in an
+  X column lower INS-10 (gate G1: score INS-10 against noise or against
+  noise plus clutter).
