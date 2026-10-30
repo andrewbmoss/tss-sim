@@ -1,0 +1,32 @@
+{
+  "study": "wp4_campaign",
+  "status": "implemented",
+  "run_directory": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_baseline",
+  "manifest": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_baseline\\manifest.json",
+  "outputs": [
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_baseline\\wp4_campaign_runs.csv",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_baseline\\wp4_campaign.json",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_baseline\\summary.md"
+  ],
+  "metrics": {
+    "clutter": "off",
+    "n_runs": 30,
+    "sci05_median": 0.17629349830197433,
+    "sci05_worst": 1.1718827684024493,
+    "sci07_median_m": 18795.008121567378,
+    "sci07_worst_m": 108280.65935219817,
+    "ins10_median_db": 14.389997640004566,
+    "ins10_worst_db": -13.91986258569122,
+    "completeness_o_median": 0.13636363636363635,
+    "completeness_o_worst": 0.0,
+    "fraction_on_x_median": 0.5076628352490422
+  },
+  "work_packages": [
+    "WP4"
+  ],
+  "claims": [
+    "C1",
+    "C2",
+    "C4"
+  ]
+}

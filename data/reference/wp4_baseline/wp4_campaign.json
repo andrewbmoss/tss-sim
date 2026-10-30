@@ -1,0 +1,275 @@
+{
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "profiles": [
+    "mid_day_max",
+    "mid_day_min",
+    "mid_night_min",
+    "eq_evening_max",
+    "high_night",
+    "smoke"
+  ],
+  "configuration": "leo_500km_single",
+  "clutter": "off",
+  "clutter_description": null,
+  "profile_definitions": {
+    "mid_day_max": {
+      "lat_deg": 40.0,
+      "local_time_h": 12.0,
+      "fof2_hz": 11000000.0,
+      "hmf2_m": 320000.0,
+      "hp_m": 120000.0,
+      "description": "mid-latitude noon, solar maximum"
+    },
+    "mid_day_min": {
+      "lat_deg": 40.0,
+      "local_time_h": 12.0,
+      "fof2_hz": 6500000.0,
+      "hmf2_m": 260000.0,
+      "hp_m": 80000.0,
+      "description": "mid-latitude noon, solar minimum"
+    },
+    "mid_night_min": {
+      "lat_deg": 40.0,
+      "local_time_h": 0.0,
+      "fof2_hz": 3500000.0,
+      "hmf2_m": 300000.0,
+      "hp_m": 150000.0,
+      "description": "mid-latitude midnight, solar minimum"
+    },
+    "eq_evening_max": {
+      "lat_deg": 5.0,
+      "local_time_h": 21.0,
+      "fof2_hz": 12000000.0,
+      "hmf2_m": 420000.0,
+      "hp_m": 180000.0,
+      "description": "equatorial evening, solar maximum"
+    },
+    "high_night": {
+      "lat_deg": 70.0,
+      "local_time_h": 0.0,
+      "fof2_hz": 3000000.0,
+      "hmf2_m": 300000.0,
+      "hp_m": 110000.0,
+      "description": "high-latitude midnight"
+    },
+    "smoke": {
+      "lat_deg": 0.0,
+      "local_time_h": 12.0,
+      "fof2_hz": null,
+      "hmf2_m": 300000.0,
+      "hp_m": 100000.0,
+      "description": "the smoke campaign's ionosphere (Chapman defaults)"
+    }
+  },
+  "tolerance": "2 x column range resolution + 15 km",
+  "aggregate": {
+    "overall": {
+      "n_runs": 30,
+      "sci05_median": 0.17629349830197433,
+      "sci05_worst": 1.1718827684024493,
+      "sci07_median_m": 18795.008121567378,
+      "sci07_worst_m": 108280.65935219817,
+      "ins10_median_db": 14.389997640004566,
+      "ins10_worst_db": -13.91986258569122,
+      "completeness_o_median": 0.13636363636363635,
+      "completeness_o_worst": 0.0,
+      "fraction_on_x_median": 0.5076628352490422,
+      "fraction_false_median": 0.11781609195402298,
+      "spurious_median": 0.0,
+      "range_error_o_rms_median_m": 9474.275898457669,
+      "range_error_o_mean_median_m": -8282.088245709452,
+      "range_error_x_mean_median_m": -7366.288886090962,
+      "sci05_verdicts": {
+        "fail": 15,
+        "goal": 5,
+        "threshold": 10
+      },
+      "sci07_verdicts": {
+        "fail": 14,
+        "threshold": 16
+      },
+      "ins10_verdicts": {
+        "fail": 5,
+        "threshold": 25
+      }
+    },
+    "by_profile": {
+      "mid_day_max": {
+        "n_runs": 5,
+        "sci05_median": 0.12458612795787406,
+        "sci05_worst": 0.13468120944875725,
+        "sci07_median_m": 20162.13588488032,
+        "sci07_worst_m": 21527.967920769606,
+        "ins10_median_db": 13.67975113973742,
+        "ins10_worst_db": 11.31197116531564,
+        "completeness_o_median": 0.10344827586206896,
+        "completeness_o_worst": 0.10344827586206896,
+        "fraction_on_x_median": 0.8620689655172413,
+        "fraction_false_median": 0.034482758620689655,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": 12071.196474773205,
+        "range_error_o_mean_median_m": -11559.979417769304,
+        "range_error_x_mean_median_m": -7094.50544407395,
+        "sci05_verdicts": {
+          "threshold": 5
+        },
+        "sci07_verdicts": {
+          "fail": 4,
+          "threshold": 1
+        },
+        "ins10_verdicts": {
+          "threshold": 5
+        }
+      },
+      "mid_day_min": {
+        "n_runs": 5,
+        "sci05_median": 0.2186484339184646,
+        "sci05_worst": 0.22108610795351585,
+        "sci07_median_m": 18691.144142888184,
+        "sci07_worst_m": 18759.142567774838,
+        "ins10_median_db": 11.762344205857318,
+        "ins10_worst_db": 11.25646512611354,
+        "completeness_o_median": 0.15151515151515152,
+        "completeness_o_worst": 0.15151515151515152,
+        "fraction_on_x_median": 0.8181818181818182,
+        "fraction_false_median": 0.030303030303030304,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": 6813.438729223442,
+        "range_error_o_mean_median_m": -5027.833423196421,
+        "range_error_x_mean_median_m": -6001.233035196442,
+        "sci05_verdicts": {
+          "fail": 5
+        },
+        "sci07_verdicts": {
+          "threshold": 5
+        },
+        "ins10_verdicts": {
+          "threshold": 5
+        }
+      },
+      "mid_night_min": {
+        "n_runs": 5,
+        "sci05_median": 0.5471009747776144,
+        "sci05_worst": 0.5474454102861779,
+        "sci07_median_m": 93769.44175959466,
+        "sci07_worst_m": 93810.97465906334,
+        "ins10_median_db": -13.593898399787747,
+        "ins10_worst_db": -13.91986258569122,
+        "completeness_o_median": 0.0,
+        "completeness_o_worst": 0.0,
+        "fraction_on_x_median": 0.1111111111111111,
+        "fraction_false_median": 0.3333333333333333,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": NaN,
+        "range_error_o_mean_median_m": NaN,
+        "range_error_x_mean_median_m": -16104.186997404904,
+        "sci05_verdicts": {
+          "fail": 5
+        },
+        "sci07_verdicts": {
+          "fail": 5
+        },
+        "ins10_verdicts": {
+          "fail": 5
+        }
+      },
+      "eq_evening_max": {
+        "n_runs": 5,
+        "sci05_median": 0.04645434872541823,
+        "sci05_worst": 0.05675721911686678,
+        "sci07_median_m": 16239.563364030795,
+        "sci07_worst_m": 16850.575151303117,
+        "ins10_median_db": 18.930717758154344,
+        "ins10_worst_db": 17.79683580243281,
+        "completeness_o_median": 0.2,
+        "completeness_o_worst": 0.2,
+        "fraction_on_x_median": 0.0,
+        "fraction_false_median": 0.8,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": 1699.9087285552923,
+        "range_error_o_mean_median_m": -1699.9087285552923,
+        "range_error_x_mean_median_m": NaN,
+        "sci05_verdicts": {
+          "goal": 5
+        },
+        "sci07_verdicts": {
+          "threshold": 5
+        },
+        "ins10_verdicts": {
+          "threshold": 5
+        }
+      },
+      "high_night": {
+        "n_runs": 5,
+        "sci05_median": 1.1696675718351457,
+        "sci05_worst": 1.1718827684024493,
+        "sci07_median_m": 108165.21885678094,
+        "sci07_worst_m": 108280.65935219817,
+        "ins10_median_db": 15.901775046400047,
+        "ins10_worst_db": 13.840914737931001,
+        "completeness_o_median": 0.0,
+        "completeness_o_worst": 0.0,
+        "fraction_on_x_median": 0.16666666666666666,
+        "fraction_false_median": 0.16666666666666666,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": NaN,
+        "range_error_o_mean_median_m": NaN,
+        "range_error_x_mean_median_m": -14212.587518838962,
+        "sci05_verdicts": {
+          "fail": 5
+        },
+        "sci07_verdicts": {
+          "fail": 5
+        },
+        "ins10_verdicts": {
+          "threshold": 5
+        }
+      },
+      "smoke": {
+        "n_runs": 5,
+        "sci05_median": 0.11587370528335512,
+        "sci05_worst": 0.12224696794157379,
+        "sci07_median_m": 14883.066252559196,
+        "sci07_worst_m": 14944.150138903744,
+        "ins10_median_db": 21.191496334161457,
+        "ins10_worst_db": 19.739690471890356,
+        "completeness_o_median": 0.13636363636363635,
+        "completeness_o_worst": 0.13636363636363635,
+        "fraction_on_x_median": 0.8636363636363636,
+        "fraction_false_median": 0.0,
+        "spurious_median": 0.0,
+        "range_error_o_rms_median_m": 13680.259099874556,
+        "range_error_o_mean_median_m": -13441.964731966125,
+        "range_error_x_mean_median_m": -7366.288886090962,
+        "sci05_verdicts": {
+          "threshold": 5
+        },
+        "sci07_verdicts": {
+          "threshold": 5
+        },
+        "ins10_verdicts": {
+          "threshold": 5
+        }
+      }
+    }
+  },
+  "metrics": {
+    "clutter": "off",
+    "n_runs": 30,
+    "sci05_median": 0.17629349830197433,
+    "sci05_worst": 1.1718827684024493,
+    "sci07_median_m": 18795.008121567378,
+    "sci07_worst_m": 108280.65935219817,
+    "ins10_median_db": 14.389997640004566,
+    "ins10_worst_db": -13.91986258569122,
+    "completeness_o_median": 0.13636363636363635,
+    "completeness_o_worst": 0.0,
+    "fraction_on_x_median": 0.5076628352490422
+  }
+}
