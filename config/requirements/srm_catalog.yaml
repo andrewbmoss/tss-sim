@@ -10,7 +10,7 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: d42f6e8a7dda9804302aebca128187085dd065c173f1327dec29e2836a220ee0
+source_sha256: 510485777c5e1a828c84769b374b8ad55d63984739aca01b2885c456ce0f4c98
 revision: G
 counts:
   SCI: 28
@@ -795,7 +795,10 @@ requirements:
       by 33 to 83 dB across the echo beat band (§5.9). A second, independent synthesiser forfeits all
       of it.'
     flows_from: INS-24; §5.9
-    status: Unspecified in every baseline document.
+    status: 'Unspecified in every baseline document. WP3 (closed 2026-10-29): a second, independent synthesiser
+      loses the range-correlation credit, 50.4 dB at a 10 m path in simulation. Met by construction on
+      the WP9 bench; one-die, one-clock and independent comparisons in the WP9 Bench Test Specification
+      Rev A, T7a.'
     verification: I. Schematic and architecture review.
     verification_methods:
     - I
@@ -815,7 +818,9 @@ requirements:
       Amended 2026-10-27, from −70 dBc threshold and −80 dBc goal at 3.7 to 39.2 kHz (A2: −86.5 dBc),
       derived on the inherited 122 dB leakage-to-echo ratio.'
     flows_from: INS-04, INS-05, INS-24; §5.9
-    status: Not specified. The M&S plan names this the critical path.
+    status: 'Not specified in the baseline. The M&S plan named this the critical path. WP3 (closed 2026-10-29):
+      with INS-31 the leakage is at least 61 dB below the transmitter and −82 dBc holds by 21.9 dB at
+      its binding step. Bench: WP9-4 (Spec Rev A T0.5), with the AD9910 fallback.'
     verification: B. Spectrum analyser on the radiated chirp.
     verification_methods:
     - B
@@ -834,7 +839,8 @@ requirements:
     flows_from: INS-24; §5.9
     status: 'Relaxed 2026-10-29 from 40 dB. Moment-method model of crossed dipoles with a feed offset
       on the 6U bus: 36.6 dB, flat below 3 MHz (WP3). An angle error of 1° in deployment takes it to 14–21
-      dB (Open Item 13).'
+      dB (Open Item 13). WP3 closed 2026-10-29. The WP9 bench emulates the path (WP9-6, Spec Rev A T2);
+      the deployed figure remains Open Item 13.'
     verification: A, B, O. NEC deployed-geometry model; bench surrogate; in-flight measurement. Deployed
       property (Open Item 13).
     verification_methods:
@@ -853,7 +859,9 @@ requirements:
       MHz on the leakage-to-echo ratio corrected 2026-10-27) is subsumed here, since sweep spurs and phase
       noise contribute to the same pedestal.'
     flows_from: SCI-19, INS-10; §5.9
-    status: Absent. This is what the bench phase of the prototype measures.
+    status: 'Absent in the baseline. WP3 (closed 2026-10-29): met in simulation at +16.1 dB with INS-30
+      and INS-31 at threshold (smoke campaign; tss-sim leakage_budget). Measured on the WP9 bench, now
+      required: WP9-6 and WP9-8 (Spec Rev A T2, T5.4).'
     verification: B, S. De-chirped residual through a calibrated delay line; L2 leakage model. Primary
       requirement of its family.
     verification_methods:
@@ -943,9 +951,11 @@ requirements:
       threshold the pedestal doubles the noise in the cell (3 dB of SNR); the goal holds the loss to 0.4
       dB. New 2026-10-28.'
     flows_from: INS-24, INS-10; §5.9
-    status: New 2026-10-28 (WP3 Phase 5). With the AM of the corrected masks (−133 dBc/Hz) and no canceller,
+    status: 'New 2026-10-28 (WP3 Phase 5). With the AM of the corrected masks (−133 dBc/Hz) and no canceller,
       the leakage noise is 26.7 dB above k·T_sys at 0.338 MHz on the 6U bus isolation (tss-sim leakage_residual,
-      leakage_budget). With INS-30 and INS-31 at threshold it is 6.3 dB below.
+      leakage_budget). With INS-30 and INS-31 at threshold it is 6.3 dB below. WP3 closed 2026-10-29;
+      smoke campaign −6.1 dB. Bench: WP9-6 (Spec Rev A T2; path E1 = 35 + 26 dB, predicted −4.5 dB at
+      0.338 MHz) and WP9-8 (T5.4).'
     verification: 'A, S, B. Leakage budget (tss-sim leakage_budget; metric leakage_noise_over_system_noise_db);
       bench: de-chirped residual through a calibrated delay line with the canceller fitted (WP9).'
     verification_methods:
@@ -963,8 +973,9 @@ requirements:
       floor of a DDS-driven chain. Range correlation does not remove AM, so unlike phase noise it reaches
       the echo band at the level the transmitter carries it. New 2026-10-28.'
     flows_from: INS-29, INS-31; §5.9
-    status: New 2026-10-28 (WP3 Phase 5). Phase 4 carried −133 dBc/Hz from the masks; tss-sim's default
-      now carries −140.
+    status: 'New 2026-10-28 (WP3 Phase 5). Phase 4 carried −133 dBc/Hz from the masks; tss-sim''s default
+      now carries −140. WP3 closed 2026-10-29. Bench: WP9-5 (Spec Rev A T1), floor about −159 dBc/Hz in
+      one chain and −174 dBc/Hz by cross-spectrum.'
     verification: B, A. AM noise of the PA output at the antenna port (detector and FFT analyser; cross-correlation
       below −150 dBc/Hz); leakage budget (tss-sim leakage_budget).
     verification_methods:
@@ -984,10 +995,12 @@ requirements:
       removes the leakage's AM with its carrier, which a digital canceller after the converter cannot.
       New 2026-10-28.
     flows_from: INS-29, INS-11, INS-24; §5.9
-    status: New 2026-10-28 (WP3 Phase 5). Not in any baseline design. A tracking canceller at 0.1 dB and
-      1° RMS (33.6 dB) meets INS-24 with AM up to −133.8 dBc/Hz; the same canceller switched at step boundaries
-      fails at any AM, because the residual carrier's jump rings the leakage high-pass into the echo band.
-      It also takes the front end 31 dB clear of compression (Phase 3's −41 dBc echo images).
+    status: 'New 2026-10-28 (WP3 Phase 5). Not in any baseline design. A tracking canceller at 0.1 dB
+      and 1° RMS (33.6 dB) meets INS-24 with AM up to −133.8 dBc/Hz; the same canceller switched at step
+      boundaries fails at any AM, because the residual carrier''s jump rings the leakage high-pass into
+      the echo band. It also takes the front end 31 dB clear of compression (Phase 3''s −41 dBc echo images).
+      WP3 closed 2026-10-29. Bench (Phase 1b, required): WP9-8 (Spec Rev A T5.1 to T5.4); the weight noise
+      under drive must stay below about −165 dBc/Hz of the leakage.'
     verification: B, A. Carrier suppression per step with the chirp running, and the de-chirped residual
       through a calibrated delay line (INS-24); noise added, transmitter off; tss-sim leakage_budget (metric
       rf_canceller_min_depth_db).

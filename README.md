@@ -177,13 +177,13 @@ is open there and the honest statement is that the band edge derived at
 | WP0 | Close the science requirements | Complete (2026-10-20).  Requirement set at Rev G as amended 2026-10-20 (72 requirements). |
 | WP1 | Ionosphere truth model and perturbation library | Partial.  IRI-2020 in use; NeQuick 2 and the depletion generator outstanding. |
 | WP2 | Propagation and echo model | Partial.  Absorption delivered and tested; ray-traced tier and off-vertical echoes outstanding. |
-| WP3 | Instrument model and link budget | In progress.  Link budget complete; Phase 0 (reference echo, INS-10 trace) done 2026-10-20.  Leakage and de-chirped residual next.  **Critical path.** |
+| WP3 | Instrument model, link budget and leakage | Complete (2026-10-29).  Link budget; leakage model, transmitter impairments, receive chain, residual scoring and the leakage budget (`docs/leakage.md`; studies `leakage_receive_chain`, `leakage_residual`, `leakage_budget`, `wp9_bench`).  C4 closes in simulation with a passive canceller (INS-31) and AM <= -140 dBc/Hz (INS-30) at 35 dB isolation. |
 | WP4 | Baseline signal processing chain | Not started.  Next package to start. |
 | WP5 | Novel algorithms | Not started.  Motion-based Doppler and range decoupling, leakage suppression. |
 | WP6 | Retrieval and error budget | Not started. |
 | WP7 | Trade study and design closure | Not started.  Feasibility maps per configuration. |
 | WP8 | Verification and validation | Partial.  Link budget suite and archive comparison delivered. |
-| WP9 | Prototype specification | Not started.  Bench build. |
+| WP9 | Prototype bench | Specified; the conducted bench is required (2026-10-29).  WP9 Bench Test Specification Rev A; pass limits from `tss study wp9_bench`. |
 | WP10 | Plasma bubble modelling | Not started, goal level. |
 | WP11 | Vector receive and arrival angle | Not started, goal level. |
 | WP12 | Sub-megahertz sky noise reference | Not started, newly created. |

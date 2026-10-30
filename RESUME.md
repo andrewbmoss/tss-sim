@@ -381,3 +381,30 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   Cold start loses step 1 for 25 ms and clips the converter by 50 dB there.
   The front end is 7.6 dB under P1dB below 3 MHz (WP9-2 asks 10), with an echo
   image at -41 dBc.
+
+## WP3 Phases 4 to 7 and close-out (2026-10-28 to 2026-10-29)
+
+* Phase 4 (f75e811): `leakage.dechirped_residual` and `score_ins23_ins24`;
+  `l2_metrics` on every record; L5 maps INS-11, -14, -23, -24, -26.  Leakage on
+  by default (MoM bus isolation, primed).  Finding: the transmitter's AM noise,
+  carried on the leakage and not removed by range correlation, sets the INS-24
+  pedestal; at -133 dBc/Hz INS-24 failed by 26.7 dB at 0.338 MHz.
+* Phase 5 (a37ad40, db35b7f): `leakage.RFCanceller` (amplitude, phase and delay
+  errors; retune track / step / sweep; added noise) and study `leakage_budget`.
+  Allocation: passive canceller >= 26 dB with a continuously moved weight
+  (INS-31) and AM <= -140 dBc/Hz (INS-30); INS-29 (leakage-borne noise <=
+  k T_sys) added.  Default: AM -140, ideal 26 dB canceller.
+* INS-23 relaxed to 35 dB (0931733); INS-10 restated with each mode's cutoff
+  step reported separately (G5c, e881594).
+* Phase 6 (8df56b7, 79c059f): study `wp9_bench`, the predictions and pass
+  limits of the WP9 conducted bench (paths E0/E1/E2 = 39/61/69 dB emulating
+  INS-23 + INS-31 by attenuation).  WP9 Bench Test Specification Rev A in the
+  Dissertation folder.  WP9's conducted bench is required from 2026-10-29.
+* Phase 7 (4667679, 5fed541): `leakage_budget` scores INS-10 without the
+  cutoff-step echoes, and its reference run is regenerated (ideal instrument
+  24.9 dB; no echo below 10 dB at any power in the grid).  The Technical
+  Volume's leakage section is rewritten around the result, with two new
+  figures from `wp3_isolation_mom` and `wp3_leakage_budget`.  Rev G and SRM
+  status fields point to the bench tests; `srm_catalog.yaml` re-imported.
+* **WP3 closed (2026-10-29).**  C4 is answered in simulation; its two hardware
+  allocations (INS-30, INS-31) are measured by WP9.
