@@ -3,6 +3,14 @@
 Module: `tss.l2_instrument.leakage`.  Tests: `tests/unit/test_leakage.py`.
 Plan: project note `claude/wp3-plan.md`.  Reference echo: `docs/reference-echo.md`.
 
+**Status: WP3 closed 2026-10-29.**  Claim C4 closes in simulation.  The
+transmitter's AM noise, not phase noise or isolation, sets the residual; the
+budget closes with a passive RF canceller of at least 26 dB whose weight moves
+continuously (INS-31), AM of at most -140 dBc/Hz (INS-30) and 35 dB of isolation
+(INS-23), stated as leakage-borne noise no greater than k T_sys (INS-29).  The
+two hardware allocations are measured by the WP9 conducted bench (study
+`wp9_bench`; WP9 Bench Test Specification Rev A).  Phases 1 to 7 follow.
+
 ## Phase 1 (2026-10-27): the model
 
 Decisions: G1, parametric isolation brackets (30, 40, 50, 60 dB, with ripple and
@@ -159,10 +167,133 @@ Module: `tss.l2_instrument.receive_chain`.  Study: `leakage_receive_chain`
   above it.  At flat 40 dB isolation the margin is 11 dB and the image 55 dB
   down.
 
-### Not yet
+## Phase 4 (2026-10-28): the residual and its score
 
-* `dechirped_residual` and `score_ins23_ins24` (the in-band residual of
-  spurs, phase noise and AM, against INS-24) and the L5 routes are Phase 4.
-* The `leakage_budget` grid and the isolation trade are Phase 5.
-* `dechirped_residual` and `score_ins23_ins24` are Phase 4.
-* The canceller (`tss.l3_signal.leakage_suppress`) is WP5.
+Decisions (2026-10-28): INS-24 scored against the weakest admitted echo, noise
++ 10 dB (G5a), with the R_max reading beside it; scored without a canceller,
+an ideal 30 dB bound beside it (G3); the default transmitter carries its
+allocations at threshold; the transmitter runs before the sweep (primed).
+Study: `leakage_residual` (`data/reference/wp3_residual`, pinned to its own
+configuration).
+
+* `dechirped_residual(...)`: per step, a Hann transform over the dwell in the
+  echo band (100 km to R_max).  The **pedestal** is the largest of up to four
+  sub-band means; a **line** is a bin above `ln(N / 1e-3)` times its part's mean,
+  confirmed at the same offset in a neighbouring step (without the confirmation
+  about one step per sweep carried a false line); the **level** is the larger.
+* `score_ins23_ins24(...)`: INS-23 is the least isolation over the sweep;
+  INS-24 the worst-step margin of the level below the weakest echo, with the
+  R_max margin, the canceller bound and the number of failing steps.
+* `leakage_signal(primed=True)` and `LeakageHighpass.steady_state` start the
+  record with the filter settled on the carrier.
+* The L2 baseline puts `l2_metrics` on every record and the per-step residual in
+  `flags["leakage_per_step"]`; L5 maps INS-11, INS-14, INS-23, INS-24 and INS-26.
+  Leakage is on by default from Phase 4.
+
+**Finding.**  The pedestal is the transmitter's AM noise carried on the
+leakage, `P_leak + L_AM + 10 log10 B_cell`, reproduced to 0.5 dB.  Range
+correlation leaves the phase noise of a 3 ns path about 36 dB below the cell
+noise but does nothing for AM.  The cell noise falls toward the band bottom with
+the dipole's efficiency, so at -133 dBc/Hz the pedestal stood 9 dB over the
+noise at 5 MHz and 27 dB at 0.338 MHz: INS-24 failed by 26.7 dB.  A flat 40 dB
+isolation still left -13.5 dB; a cold start took INS-11 to 29.9 dB.
+
+## Phase 5 (2026-10-28): the leakage budget and the canceller
+
+Study: `leakage_budget` (`data/reference/wp3_leakage_budget`).  Tests:
+`tests/unit/test_leakage_budget.py`.
+
+`RFCanceller` (in this module) subtracts a weighted sample of the PA output
+ahead of the front end, so it removes the leakage's AM with its carrier.  The
+residual factor is `g = 1 - w [H(f_k)/H(f)] exp(-j 2 pi (f - f_k) dtau)`, with:
+
+* calibration errors of amplitude, phase and delay: RMS per calibration,
+  correlated over `error_correlation_steps`, or a fixed bias
+  (`error_draw="worst"`);
+* `retune`: `track` (a C2 spline through the per-step calibrations), `step`
+  (switched at each boundary) or `sweep` (one setting at `calibration_hz`);
+* `added_noise_dbm_hz` for an active vector modulator; `ideal_depth_db` for a
+  bound.
+
+The study runs the full L2 chain at two AM levels (-133 and -153 dBc/Hz) with
+matched draws, which splits the residual exactly into the AM part `X` and the
+rest `Y` per unit leakage; the grid over AM, isolation, power and canceller
+then follows by scaling, `ped = P_leak (X 10^((AM+133)/10) + Y)`.  Sixteen
+grid points re-simulated directly agree to 0.05 dB.
+
+| Canceller (A1, bus isolation, 1 W) | AM that meets INS-24 (dBc/Hz) | INS-24 at -140 (dB) |
+|---|---|---|
+| none | -159.7 | -9.7 |
+| ideal 26 dB (INS-31 threshold) | -133.9 | +16.1 |
+| 0.1 dB / 1 deg, tracked (33.6 dB) | -133.8 | +16.2 |
+| 0.3 dB / 2 deg, tracked | -140.4 | +9.6 |
+| 0.5 dB / 3 deg, tracked | -144.0 | +6.0 |
+| one setting at 1 MHz | -138.5 (A2 -148.1) | +11.5 |
+| switched at each step | none suffices | -0.4 |
+| independent errors per step | none suffices | -0.2 |
+| active vector modulator (-158 dBm/Hz) | none suffices | +1.6 |
+
+* Dynamics matter as much as depth: boundary jumps of 0.001 / 0.003 / 0.01 dB
+  RMS leave INS-24 at +12.8 / +3.5 / -6.9 dB, so the weight must move
+  continuously (steps no larger than 0.001 dB or 0.0066 deg, -79 dB of the
+  leakage) and its errors must be smooth across the band.
+* The canceller must be passive.  Lowering the power does not close the budget
+  (0.1 W still needs -150 dBc/Hz without a canceller); isolation buys it dB
+  for dB.
+* Behind the canceller the front end is 38.6 dB clear of a level-7 mixer's
+  P1dB and the echo image vanishes.
+* One settling dwell before the first step is equivalent to priming.
+
+Rev G gained INS-29 (leakage-borne noise <= k T_sys), INS-30 (AM <= -140 dBc/Hz,
+goal -150) and INS-31 (passive canceller); all three are scored
+(`leakage_noise_over_system_noise_db`, `transmit_am_noise_dbc_hz`,
+`rf_canceller_min_depth_db`).  The default `baseline_6u.yaml` carries AM at
+-140 dBc/Hz and an ideal 26 dB canceller (the `canceller` block).
+
+INS-23 was relaxed to 35 dB on 2026-10-29 (`INS23_THRESHOLD_DB`;
+`BASELINE_ISOLATION_DB` stays 40 as the analyses' bracket): with INS-31 the
+leakage is at least 61 dB below the transmitter, INS-29 holds by 4.7 dB and
+INS-22 by 21.9 dB.  Smoke campaign at the default: INS-24 +16.1 dB, INS-29
+-6.1 dB, INS-10 25.9 dB over the scored echoes (each mode's cutoff step,
+reported separately under G5c, at 18.9 dB).
+
+## Phase 6 (2026-10-29): the WP9 bench predictions
+
+Study: `wp9_bench` (`data/reference/wp9_bench`).  Tests:
+`tests/unit/test_wp9_bench.py`.  The conducted bench emulates INS-31 by extra
+attenuation in a flat leakage path from the PA output, which lowers the AM
+with the carrier as a canceller does: E0 39 dB (no canceller; a level-7 mixer at
+WP9-2's 10 dB margin), E1 61 dB (35 + 26), E2 69 dB (35 + 34), each through the
+RG-58 delay set (0.66 to 19.8 m).  The study gives, per step, the INS-29 limit
+in dBm/Hz, the predicted leakage-borne noise, the rise of an assumed
+-165 dBm/Hz bench floor, the front-end margin and image, the stray-coupling
+limits and the AM measurement floor.
+
+* Behind E1 at -140 dBc/Hz: INS-29 -4.5 dB at 0.338 MHz, a floor rise of
+  1.0 dB; at the INS-29 limit the floor would rise at least 2.4 dB.  E1 passes
+  for AM up to -135.5 dBc/Hz.
+* The delay set changes the residual by under 0.6 dB at -140 dBc/Hz, up to
+  3.4 dB above 7 MHz at -150 on 19.8 m, where phase noise begins to show.
+* AD9959 crosstalk (> 65 dB) limits a synthesiser-channel echo to about
+  -86 dBm behind E1, so weak echoes with leakage present come from the DRFM.
+* AM measurement floor by in-phase homodyne detection: about -159 dBc/Hz in one
+  chain, -174 by a two-chain cross-spectrum of 1000 averages.
+
+## Phase 7 (2026-10-29): close-out
+
+* `leakage_budget` scores INS-10 without each mode's cutoff-step echoes, as L5
+  has since G5c; the reference run is regenerated (ideal instrument 24.9 dB, no
+  echo below 10 dB at any power in the grid).
+* The Technical Volume's section 5.5 is rewritten around these results, with
+  figures from `data/reference/wp3_isolation_mom` and
+  `data/reference/wp3_leakage_budget`; Rev G and the SRM point the status of
+  INS-21 to INS-24 and INS-29 to INS-31 at the bench tests.
+
+## Not modelled, and where it goes
+
+* The plasma sheath, booms, panels, harness and matching-network coupling in
+  the isolation (Open Item 13).
+* AM noise that is not white across an echo band; the canceller as a circuit
+  rather than a weight with errors.  Both are bench items (WP9-5, WP9-8).
+* `tss.l3_signal.leakage_suppress` (WP5) is no longer needed for C4: the
+  suppression is analog (INS-31).
