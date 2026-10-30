@@ -35,7 +35,7 @@
     "am_needed_a2_mom_1w_rf_good_stepped": null,
     "am_needed_a2_mom_1w_rf_good_active": null,
     "validation_max_abs_error_db": 0.04762193561435879,
-    "ins10_validation_max_abs_error_db": 1.4813257482883166
+    "ins10_validation_max_abs_error_db": 1.6408849608564111
   },
   "work_packages": [
     "WP3"
