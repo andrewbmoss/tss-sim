@@ -317,11 +317,17 @@ def smoke_truth_echoes(instrument_cfg: dict[str, Any] | None = None, campaign: s
                                  freq_hz=freq_hz, alt_m=alt_m, epoch=epoch)
     tes = res.truth_echo_snr or {}
     snr = np.asarray(tes.get("snr_db", []), dtype=float)
+    # G5c (2026-10-29): each mode's last step below its penetration frequency
+    # is excluded from INS-10 and reported separately.
+    cut = np.asarray(tes.get("cutoff_step", np.zeros(snr.size, dtype=bool)), dtype=bool)
+    scored = snr[~cut]
     return {
         "freq_hz": np.asarray(tes.get("freq_hz", []), dtype=float),
         "range_m": np.asarray(tes.get("range_m", []), dtype=float),
         "snr_db": snr,
-        "ins10_min_db": float(np.nanmin(snr)) if np.any(np.isfinite(snr)) else float("nan"),
+        "cutoff_step": cut,
+        "ins10_min_db": float(np.nanmin(scored)) if np.any(np.isfinite(scored)) else float("nan"),
+        "ins10_min_db_incl_cutoff": float(np.nanmin(snr)) if np.any(np.isfinite(snr)) else float("nan"),
         "assessment": res.assessment,
         "sweep": sweep,
     }
@@ -332,16 +338,22 @@ def ins10_predicted(truth: dict[str, Any], f_steps: np.ndarray, ped_over_noise_d
     """INS-10 at a grid point from the ideal instrument's truth-echo SNR."""
     f = truth["freq_hz"]
     snr0 = truth["snr_db"]
+    cut0 = np.asarray(truth.get("cutoff_step", np.zeros(snr0.size, dtype=bool)), dtype=bool)
     ok = np.isfinite(snr0)
     j = np.clip(np.searchsorted(f_steps, f[ok]) , 0, f_steps.size - 1)
     j = np.where((j > 0) & (np.abs(f_steps[np.maximum(j - 1, 0)] - f[ok]) < np.abs(f_steps[j] - f[ok])), j - 1, j)
     loss = 10.0 * np.log10(1.0 + _lin(ped_over_noise_db[j]))
-    snr = snr0[ok] + 10.0 * math.log10(float(power_w)) - loss - float(coupler_loss_db)
+    snr_all = snr0[ok] + 10.0 * math.log10(float(power_w)) - loss - float(coupler_loss_db)
+    cut = cut0[ok]
+    # G5c: INS-10 is scored without each mode's cutoff-step echoes.
+    snr = snr_all[~cut]
     return {
         "ins10_min_db": float(np.min(snr)) if snr.size else float("nan"),
         "ins10_echoes_below": int(np.count_nonzero(snr < INS10_SNR_DB)),
         "ins10_echoes": int(snr.size),
         "ins10_median_db": float(np.median(snr)) if snr.size else float("nan"),
+        "ins10_min_db_incl_cutoff": float(np.min(snr_all)) if snr_all.size else float("nan"),
+        "ins10_cutoff_echoes": int(np.count_nonzero(cut)),
     }
 
 
@@ -499,7 +511,9 @@ def compute(*, seeds: tuple[int, ...] = SEEDS, validate: int = 16) -> dict[str, 
         if spec is not None:
             depths[name] = RFCanceller(**spec).nominal_depth_db()
     return {"rows": rows, "checks": checks, "ins10_checks": ins10_checks, "startup": startup,
-            "truth_echoes": {"n": int(truth["snr_db"].size), "ins10_min_ideal_db": truth["ins10_min_db"]},
+            "truth_echoes": {"n": int(truth["snr_db"].size), "ins10_min_ideal_db": truth["ins10_min_db"],
+                             "n_cutoff_step": int(np.count_nonzero(truth["cutoff_step"])),
+                             "ins10_min_ideal_db_incl_cutoff": truth["ins10_min_db_incl_cutoff"]},
             "nominal_depth_db": depths,
             "steps": {k: int(sweep_law.step_count(v)) for k, v in sweeps.items()}}
 

@@ -182,3 +182,19 @@ def test_the_am_needed_is_where_the_worst_step_meets_ins24():
     assert lb.am_needed_dbc_hz(ch2, iso_name="mom_bus", power_w=1.0) is None
     # Halving the power buys 3 dB of AM.
     assert lb.am_needed_dbc_hz(ch, iso_name="mom_bus", power_w=0.5) == pytest.approx(need + 3.0103, abs=1e-3)
+
+
+def test_ins10_predicted_excludes_cutoff_step_echoes():
+    """G5c: a mode's last step below its penetration frequency is reported, not scored."""
+    from tss.studies.leakage_budget import ins10_predicted
+
+    f_steps = np.array([1.0e6, 2.0e6, 3.0e6])
+    truth = {"freq_hz": np.array([1.0e6, 2.0e6, 3.0e6]), "snr_db": np.array([30.0, 25.0, 12.0]),
+             "cutoff_step": np.array([False, False, True])}
+    out = ins10_predicted(truth, f_steps, np.full(3, -100.0), power_w=1.0)
+    assert out["ins10_min_db"] == pytest.approx(25.0, abs=1e-6)
+    assert out["ins10_min_db_incl_cutoff"] == pytest.approx(12.0, abs=1e-6)
+    assert out["ins10_echoes"] == 2 and out["ins10_cutoff_echoes"] == 1
+    # Without the mask every echo is scored, as before.
+    del truth["cutoff_step"]
+    assert ins10_predicted(truth, f_steps, np.full(3, -100.0), power_w=1.0)["ins10_min_db"] == pytest.approx(12.0)
