@@ -815,4 +815,5 @@ from tss.studies import (  # noqa: E402,F401
     sky_noise,
     trade_space,
     transcription,
+    wp9_bench,
 )
