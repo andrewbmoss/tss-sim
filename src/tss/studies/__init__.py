@@ -684,6 +684,11 @@ def run_campaign(
     shared = build_tiers({k: v for k, v in loaded.tiers.items() if k != "l2"})
     keep = bool(config.get("run", {}).get("keep_intermediates", True))
     described: dict[str, Any] = {}
+    # WP4 Phase 1: the clutter generator, on unless the configuration's
+    # ``clutter`` block turns it off (``--set clutter.enabled=false``).
+    from tss.l1_propagation.clutter import ClutterGenerator
+
+    clutter = ClutterGenerator.from_config(config.get("clutter"))
 
     sweep, sweep_notes = _sweep_from_config(config, out_stream)
     alt_m, freq_hz = _grids(config)
@@ -699,6 +704,7 @@ def run_campaign(
             {**shared, "l2": build_instrument(loaded.tiers["l2"], config, configuration)},
             seed=loaded.seed,
             keep_intermediates=keep,
+            clutter=clutter,
         )
         described[name] = pipeline.describe()
         result = pipeline.run_configuration(

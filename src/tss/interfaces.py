@@ -147,6 +147,13 @@ class EchoSet:
     ``mode`` is ``"O"`` or ``"X"``.  ``flags`` carries per-row physical states,
     notably ``"evanescent"`` (below local plasma frequency) and
     ``"penetrating"`` (above foF2), which are results and not failures.
+
+    Rows flagged ``"clutter:<kind>"`` are not echoes of the profile but returns
+    the clutter generator of WP4 Phase 1 added (:mod:`tss.l1_propagation.clutter`):
+    L2 synthesises them, truth scoring ignores them.  ``interference`` lists
+    carriers that reach the antenna from elsewhere (keys ``freq_hz``,
+    ``power_dbm_iso``, ``phase_rad``), which L2 adds at the receiver input; it is
+    ``None`` when there are none.
     """
 
     freq_hz: np.ndarray
@@ -159,6 +166,7 @@ class EchoSet:
     reflection_alt_m: np.ndarray | None = None
     flags: np.ndarray | None = None
     source: str = ""
+    interference: Mapping[str, np.ndarray] | None = None
 
 
 @dataclass(frozen=True)

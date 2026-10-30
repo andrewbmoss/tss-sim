@@ -582,8 +582,13 @@ class BaselineInstrument:
 
             ref_phase_law = tx_phase
 
+        # Clutter rows (WP4 Phase 1, tss.l1_propagation.clutter) are synthesised
+        # like echoes but never join a mode's dispersion trace: they are not on
+        # it, and a trace with two delays at one frequency is not a trace.
+        is_clutter = np.array([str(f).startswith("clutter:") for f in flags_in.ravel()[: freq.size]],
+                              dtype=bool)
         traces = (
-            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable)
+            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable & ~is_clutter)
             if self.in_dwell_dispersion
             else {}
         )
@@ -678,7 +683,7 @@ class BaselineInstrument:
                 # -(f_R + f_d) on a down-sweep (tss.l1_propagation.doppler).
                 imp_phase = imp_phase - 2.0 * np.pi * float(dopp[row]) * tt
                 rows_doppler += 1
-            trace = traces.get(str(row_mode[row]))
+            trace = None if is_clutter[row] else traces.get(str(row_mode[row]))
             if trace is not None:
                 # The delay follows the trace through the dwell.  Find when each
                 # received sample left the antenna, t = t_e + tau_g(f(t_e)), and
@@ -741,6 +746,25 @@ class BaselineInstrument:
             else:
                 k_u = np.full(f_u.shape, k)
             rows_beyond = int(np.count_nonzero(k_u * delay[usable] > fs_hz / 2.0))
+
+        # Interference (WP4 Phase 1): carriers listed by the clutter generator,
+        # added at the receiver input like the echoes, before the leakage, the
+        # noise and the receive chain (tss.l2_instrument.interference).
+        carriers = getattr(echoes, "interference", None)
+        carrier_info: dict[str, Any] = {"carriers_listed": 0, "carriers_rendered": 0,
+                                        "carrier_power_dbm_max": None}
+        if carriers:
+            from tss.l2_instrument.interference import render_carriers
+
+            if stepped:
+                ref_phase_t = phi_rx
+            else:
+                ref_phase_t = ref_phase_law(t)
+            x_c, carrier_info = render_carriers(
+                carriers, phi_ref_rad=ref_phase_t, f_ref_hz=f_tx, t_s=t, fs_hz=fs_hz,
+                gain_dbi=self.gain_dbi, polarization_loss_db=self.polarization_loss_db,
+            )
+            samples = samples + x_c
 
         # Leakage (WP3 Phase 3).  Added at the receiver input, before the noise
         # and the receive chain, and drawn from the record's impairment
@@ -871,6 +895,9 @@ class BaselineInstrument:
             "noise_reference_extrapolated": bool(np.any(is_extrapolated(floor_f_mhz))),
             "transmit_impairments": dict(imp.describe()),
             "rows_doppler_applied": rows_doppler,
+            # WP4 Phase 1: clutter rows synthesised, and carriers at the input.
+            "clutter_rows_used": int(np.count_nonzero(usable & is_clutter)),
+            "interference": carrier_info,
             "leakage_modelled": leak is not None,
             "leakage_note": (
                 "Transmit-to-receive leakage is in these samples (WP3 Phase 3), "

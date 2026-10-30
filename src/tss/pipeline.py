@@ -11,6 +11,14 @@ layer against the one beneath it and cannot do that if only the final profile
 survives.  Second, the RNG is created once from the campaign seed and split per
 configuration, so two configurations in the same campaign do not share a noise
 realisation and a single configuration reruns identically.
+
+Between L1 and L2 the pipeline applies the clutter generator of WP4 Phase 1
+(:mod:`tss.l1_propagation.clutter`) when it is given one.  It is not a tier: it
+adds returns that are not echoes of the profile to whatever echo set L1 made,
+so it works with any L1 tier.  It draws from a generator of its own, derived
+from the same seed and configuration with a further spawn key, so clutter on or
+off does not by itself redraw L2's noise.  The default is no clutter; the
+campaign runner passes one when the configuration's ``clutter`` block is on.
 """
 
 from __future__ import annotations
@@ -86,10 +94,19 @@ class Pipeline:
     """Runs configurations through L0 to L5."""
 
     def __init__(self, tiers: Mapping[str, Any], *, seed: int = 0,
-                 keep_intermediates: bool = True) -> None:
+                 keep_intermediates: bool = True, clutter: Any = None) -> None:
         self.tiers = dict(tiers)
         self.seed = int(seed)
         self.keep_intermediates = keep_intermediates
+        self.clutter = clutter
+
+    def _clutter_rng(self, configuration: str) -> np.random.Generator:
+        """The clutter generator's own stream (spawn key 0xC1 after the configuration's)."""
+        mixed = np.random.SeedSequence(
+            entropy=self.seed,
+            spawn_key=(zlib.crc32(configuration.encode("utf-8")), 0xC1),
+        )
+        return np.random.default_rng(mixed)
 
     def _rng(self, configuration: str) -> np.random.Generator:
         """A generator unique to (seed, configuration) and stable across runs.
@@ -131,6 +148,12 @@ class Pipeline:
         t0 = time.perf_counter()
         echoes = self.tiers["l1"].echoes(truth, platform, freq_hz, rng)
         t["l1"] = time.perf_counter() - t0
+
+        if self.clutter is not None:
+            t0 = time.perf_counter()
+            echoes = self.clutter.augment(echoes, truth, platform, freq_hz, self._clutter_rng(configuration))
+            t["clutter"] = time.perf_counter() - t0
+            result.flags["clutter"] = dict(getattr(self.clutter, "last_report", {}) or {})
 
         t0 = time.perf_counter()
         signal = self.tiers["l2"].receive(echoes, sweep, rng)
@@ -205,4 +228,5 @@ class Pipeline:
             out[layer] = dict(tier.describe()) if hasattr(tier, "describe") else {
                 "name": getattr(tier, "name", type(tier).__name__)
             }
+        out["clutter"] = dict(self.clutter.describe()) if self.clutter is not None else {"enabled": False}
         return out

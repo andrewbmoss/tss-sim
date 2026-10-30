@@ -454,7 +454,9 @@ def truth_echo_cells(echoes: EchoSet) -> dict[str, Any]:
     """Every echo the truth returned, as (frequency, mode, virtual range) cells.
 
     A row is an echo when its frequency and group delay are finite and
-    positive and it is not flagged evanescent or penetrating.  The virtual
+    positive and it is not flagged evanescent or penetrating.  Rows the clutter
+    generator added (flag ``clutter:<kind>``, WP4 Phase 1) are not echoes of
+    the profile and are never cells.  The virtual
     range is ``c tau / 2``, the range the de-chirp maps the echo to.  Both
     modes are kept: INS-10 is about whether the instrument can see what the
     ionosphere returns, and the X echo is returned.
@@ -480,7 +482,7 @@ def truth_echo_cells(echoes: EchoSet) -> dict[str, Any]:
     )
     ok = (
         np.isfinite(freq) & np.isfinite(delay) & (delay > 0.0)
-        & np.array([fl not in _NO_ECHO_FLAGS for fl in flags], dtype=bool)
+        & np.array([fl not in _NO_ECHO_FLAGS and not fl.startswith("clutter:") for fl in flags], dtype=bool)
     )
     kept_mode = [m for m, k in zip(mode, ok, strict=True) if k]
     kept_freq = freq[ok]

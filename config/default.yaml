@@ -59,3 +59,47 @@ grid:
 run:
   keep_intermediates: true
   strict_provenance: false   # campaigns for publication set this true
+
+# The clutter generator (WP4 Phase 1, tss.l1_propagation.clutter): the returns
+# that crowd a real topside ionogram besides the O and X traces.  On by default
+# (decision D3, 2026-10-30) so every campaign tests the extractor against them;
+# turn it off with --set clutter.enabled=false, or any term with its own
+# `enabled`.  Strengths are declared, representative values (the module
+# docstring says where each comes from); `climatology: true` makes spread-F
+# occurrence, the D-region loss and the carrier level depend on latitude and
+# local time.  Truth scoring never counts a clutter row.  The compression image
+# is produced by L2's front end when the leakage compresses it; it is listed
+# here, not generated.
+clutter:
+  enabled: true
+  climatology: false
+  ground_echo:              # above foF2, through the F layer to the Earth and back
+    enabled: true
+    surface_reflection_db: -3.0
+    d_region_a_db_mhz2: 100.0   # two-way loss A / (f + f_L)^2, f in MHz
+    d_region_f_l_mhz: 1.2
+  spread_f:                 # oblique returns beyond the vertical echo
+    enabled: true
+    level_db: -6.0          # total, relative to the echo it accompanies
+    rows_per_echo: 12
+    mean_km: 30.0           # exponential offsets, truncated at extent_km
+    extent_km: 100.0
+    beyond_penetration_fraction: 0.05
+  plasma_resonances:        # ringing at the spacecraft, across the range scale
+    enabled: true
+    row_spacing_km: 3.0
+    extent_km: 1000.0
+    floor_db: 30.0          # rows stop this far below the first
+    fN:  {enabled: true, level_db: -70.0, decay_ms: 0.5}
+    fUH: {enabled: true, level_db: -70.0, decay_ms: 1.0}
+    nfH: {enabled: true, level_db: -70.0, decay_ms: 3.0, harmonics: 3}
+  interference:             # HF broadcast carriers, which reach orbit only above foF2
+    enabled: true
+    carriers_per_band: 3
+    power_dbm_iso: -70.0    # median, at an isotropic antenna
+    sigma_db: 6.0
+    raster_hz: 5000.0
+    only_above_fof2: true
+    # bands_mhz: ITU HF broadcast bands by default (tss.l1_propagation.clutter)
+  compression_image:
+    enabled: true

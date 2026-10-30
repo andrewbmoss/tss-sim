@@ -15,3 +15,8 @@ grid:
 seed: 1
 run:
   strict_provenance: false
+# Pinned clutter-off (WP4 Phase 1): the smoke numbers are cited by WP3 and its
+# reference runs, so they must keep reproducing.  wp4_campaign is the run with
+# clutter on.
+clutter:
+  enabled: false
