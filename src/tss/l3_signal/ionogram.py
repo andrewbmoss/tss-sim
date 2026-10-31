@@ -203,6 +203,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         dispersion: str = "none",
         dispersion_blocks: int = 4,
         rate_search_max_cells: int = 32,
+        rate_search_effective_looks: float = 10.0,
         transition: str = "accept",
     ) -> None:
         super().__init__(window=window)
@@ -239,6 +240,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         self.dispersion = str(dispersion)
         self.dispersion_blocks = max(int(dispersion_blocks), 1)
         self.rate_search_max_cells = max(int(rate_search_max_cells), 0)
+        self.rate_search_effective_looks = max(float(rate_search_effective_looks), 1.0)
         self.transition = str(transition)
 
     def detector_settings(self) -> dict[str, Any]:
@@ -428,9 +430,13 @@ class BaselineSignalProcessing(SignalProcessingBase):
             if peak > best_peak:
                 best, best_peak, best_gamma = s, peak, gamma
         # The noise reference stays the unchirped transform's (white noise is
-        # unchanged by the chirp); the selection over rates is a choice among
-        # looks, which the detector's per-look P_fa accounts for.
-        return _replace(best, negative_power_db=base.negative_power_db, n_looks=len(js) + 1,
+        # unchanged by the chirp).  The selection over rates is a choice among
+        # looks, which the detector's per-look P_fa accounts for.  The 35
+        # rates are strongly correlated: calibrated on noise-only A1 records
+        # (2026-10-30) they act as about 10 independent looks; 35 gave a
+        # measured P_fa of 2.9e-5 against the stated 1e-4.
+        return _replace(best, negative_power_db=base.negative_power_db,
+                        n_looks=int(round(self.rate_search_effective_looks)),
                         rate_hz_per_s2=np.full(rng.size, best_gamma))
 
     def _transition_steps(self, signal: ReceivedSignal) -> np.ndarray:

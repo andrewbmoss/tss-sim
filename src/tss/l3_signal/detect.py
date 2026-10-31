@@ -204,6 +204,42 @@ def _quantile_over_mean(m: int, p: float) -> float:
     return float(gammaincinv(m, 1.0 - p)) / m
 
 
+_GAMMA_ALPHA: dict[tuple[int, int, float], float] = {}
+
+
+def gamma_median_alpha(pfa: float, m: int, n_eff: int, draws: int = 4000) -> float:
+    """Threshold over the reference median for averages of ``m`` exponential cells.
+
+    The reference median is itself estimated from ``n_eff`` cells, and its
+    scatter raises the false-alarm probability of a known-noise threshold
+    (by a factor of 1.5 at ``m = 4`` and ``n_eff`` of about 170, measured
+    2026-10-30).  So the threshold solves ``E[Q(m, m alpha med)] = pfa`` over the
+    sampling distribution of the median, drawn once with a fixed seed and
+    cached.  ``Q`` is the regularised upper incomplete gamma function.
+    """
+    from scipy.special import gammaincc
+
+    key = (int(m), int(n_eff), float(pfa))
+    if key not in _GAMMA_ALPHA:
+        rng = np.random.default_rng(20261030)
+        med = np.median(rng.gamma(m, 1.0 / m, size=(draws, int(n_eff))), axis=1)
+
+        def f(a: float) -> float:
+            return float(np.mean(gammaincc(m, m * a * med))) - pfa
+
+        lo, hi = 0.0, 1.0
+        while f(hi) > 0.0:
+            hi *= 2.0
+        for _ in range(100):
+            mid = 0.5 * (lo + hi)
+            if f(mid) > 0.0:
+                lo = mid
+            else:
+                hi = mid
+        _GAMMA_ALPHA[key] = 0.5 * (lo + hi)
+    return _GAMMA_ALPHA[key]
+
+
 @dataclass(frozen=True)
 class CfarResult:
     """The detector's decision for one spectrum."""
@@ -314,9 +350,9 @@ def cfar_detect(spectrum: Any, *, channel: int = 0, pfa: float = DEFAULT_PFA,
         k = max(int(round(0.5 * n_eff)), 1)
         alpha = os_alpha(pfa_look, n_eff, k)
     else:
-        # Average of m_inc sub-blocks (option 1): a gamma variate; with ~700
-        # reference cells the known-noise quantile is used.
-        alpha = _quantile_over_mean(m_inc, pfa_look) / _median_over_mean(m_inc)
+        # Average of m_inc sub-blocks (option 1): a gamma variate, against a
+        # median estimated from fewer independent cells (gamma_median_alpha).
+        alpha = gamma_median_alpha(pfa_look, m_inc, n_eff)
     thr = alpha * float(ref["median_w"])
     mask = np.isfinite(p) & (p > thr)
     local_db = None
