@@ -78,15 +78,20 @@ def test_narrow_band_step_law():
 
 @pytest.mark.parametrize("kw", [{"dispersion": "blocks", "dispersion_blocks": 2},
                                 {"dispersion": "blocks", "dispersion_blocks": 4},
+                                {"dispersion": "rate_search", "rate_assign": "column"},
                                 {"dispersion": "rate_search"}, {"dispersion": "none", "transition": "gate"},
                                 {"dispersion": "none", "transition": "matched"}])
 def test_measured_pfa_under_each_treatment(kw):
     sweep = _sweep()
-    inst = _instrument(leakage=False)
+    # The default rate search (a rate per detection, WP4 Phase 4) is calibrated
+    # on the operational records, leakage and canceller on; the others on
+    # leakage-off records.
+    per_detection = kw.get("dispersion") == "rate_search" and kw.get("rate_assign", "detection") == "detection"
+    inst = _instrument(leakage=per_detection)
     l3 = BaselineSignalProcessing(**kw)
     hits = cells = 0
-    # The rate search's look count is calibrated (about 7 effective looks), so
-    # it is checked on six records of its own seeds, not the calibration's.
+    # The rate search's look count is calibrated, so it is checked on six
+    # records of its own seeds (200-205), not the calibration's (100-105).
     seeds = range(200, 206) if kw.get("dispersion") == "rate_search" else range(2)
     for seed in seeds:
         for sp in l3.spectra(inst.receive(_empty(), sweep, np.random.default_rng(seed))):
@@ -120,6 +125,61 @@ def test_rate_search_compresses_a_sliding_beat_and_returns_its_rate():
     assert rs.rate_hz_per_s2[0] == pytest.approx(gamma, rel=0.01)
     k = int(np.argmax(rs.power_db[0]))
     assert rs.beat_hz[k] == pytest.approx(f_b, abs=2 * fs / n)
+
+
+def _two_echo_block(j_strong, j_weak, f_strong, f_weak, weak_db, noise_db=-60.0, seed=0):
+    from tss.l3_signal.dechirp import Dechirped
+
+    fs, n = 78.4e3, 2100
+    dur = n / fs
+    t = (np.arange(n) - 0.5 * (n - 1)) / fs
+    rng = np.random.default_rng(seed)
+    x = np.exp(2j * np.pi * (f_strong * t + 0.5 * (j_strong / dur**2) * t**2))
+    x = x + 10 ** (weak_db / 20) * np.exp(2j * np.pi * (f_weak * t + 0.5 * (j_weak / dur**2) * t**2))
+    x = x + 10 ** (noise_db / 20) * (rng.standard_normal(n) + 1j * rng.standard_normal(n)) / np.sqrt(2)
+    blk = Dechirped(samples=x[None, :], fs_hz=fs, t_s=t + 1.0, sweep=_sweep(), oriented=True,
+                    centre_frequency_hz=10e6, k_f_hz_per_s=5.6e6)
+    return blk, n, fs
+
+
+def _peak_near(sp, f_hz, half_hz=300.0):
+    near = np.abs(sp.beat_hz - f_hz) <= half_hz
+    k = np.flatnonzero(near)[int(np.argmax(sp.power_db[0][near]))]
+    return float(sp.power_db[0][k]), k
+
+
+def test_rate_per_detection_compresses_a_weaker_echo_with_its_own_slope():
+    # A strong echo sliding 40 cells and a weak undispersed one far away in
+    # range: one rate per column transforms the weak echo at the strong echo's
+    # rate and smears it over 40 cells (10 dB lower peak); a rate per detection
+    # compresses each at its own rate (WP4 Phase 3 close-out, rate capture).
+    blk, n, fs = _two_echo_block(40, 0, 10e3, 30e3, -20.0)
+    col = BaselineSignalProcessing(rate_assign="column")._transform_block(blk, n)
+    det = BaselineSignalProcessing(rate_assign="detection")._transform_block(blk, n)
+    weak_col, _ = _peak_near(col, 30e3)
+    weak_det, k = _peak_near(det, 30e3)
+    assert weak_det == pytest.approx(-20.0, abs=0.7)
+    assert weak_col < weak_det - 6.0  # 10 dB measured
+    assert det.rate_hz_per_s2[k] == pytest.approx(0.0, abs=1e-9)
+    strong_det, ks = _peak_near(det, 10e3)
+    assert strong_det == pytest.approx(0.0, abs=0.7)
+    assert det.rate_hz_per_s2[ks] == pytest.approx(40 / (n / fs) ** 2, rel=1e-6)
+
+
+def test_rate_per_detection_keeps_a_strong_echo_s_smear_out():
+    # The per-cell maximum over rates would let the mismatched rates' smear
+    # ahead of the echo in, and the leading edge would read early (2026-10-30).
+    blk, n, fs = _two_echo_block(30, 0, 20e3, 20e3, -200.0)
+    col = BaselineSignalProcessing(rate_assign="column")._transform_block(blk, n)
+    det = BaselineSignalProcessing(rate_assign="detection")._transform_block(blk, n)
+    pk, k = _peak_near(det, 20e3)
+    lead = lambda sp: int(np.flatnonzero(sp.power_db[0] > pk - 30.0)[0])  # noqa: E731
+    assert lead(det) == lead(col)
+
+
+def test_unknown_rate_assignment_is_refused():
+    with pytest.raises(ValueError):
+        BaselineSignalProcessing(rate_assign="cell")
 
 
 def test_rate_search_and_narrow_steps_recover_the_dispersion_loss_on_a_dispersive_topside():
@@ -196,7 +256,8 @@ def test_matched_filter_removes_the_transition_skirt_of_a_long_range_echo():
 def test_the_rate_search_is_the_default_after_gate_g2():
     t = BaselineSignalProcessing()
     assert t.dispersion == "rate_search" and t.rate_search_max_cells == 64 and t.transition == "accept"
-    assert t.rate_search_effective_looks == pytest.approx(0.2 * 67)
+    assert t.rate_assign == "detection"  # WP4 Phase 4
+    assert t.rate_search_effective_looks == pytest.approx(0.22 * 67)
 
 
 def test_unknown_treatments_are_refused():

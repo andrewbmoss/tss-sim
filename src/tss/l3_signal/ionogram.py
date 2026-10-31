@@ -104,6 +104,85 @@ __all__ = ["BaselineSignalProcessing", "UNRESOLVED_MODE"]
 UNRESOLVED_MODE = "unresolved"
 
 
+#: Effective independent looks per searched rate, calibrated on noise-only A1
+#: records.  ``column`` (WP4 Phase 3, 2026-10-30, leakage off): about a fifth.
+#: ``detection`` (WP4 Phase 4, 2026-10-31): 0.22, 15 looks at the 64-cell span,
+#: calibrated on the operational records (leakage and canceller on), where it
+#: measures 0.96 to 1.05 times the stated P_fa on two sets of six records; with
+#: leakage off it measures 0.63 to 0.72 times (conservative).  The leakage
+#: residual leaves the positive half about 0.2 dB hotter than the negative-half
+#: reference, and a per-cell maximum over rates amplifies that tail.
+_LOOKS_PER_RATE = {"column": 0.2, "detection": 0.22}
+
+#: Rate assignment per detection: guard about a peak in range cells, the
+#: furthest a peak's own rate is carried from it, and the level over the
+#: column median a candidate peak must reach (about 8 dB over the mean noise,
+#: below any detection threshold).
+_ASSIGN_GUARD_CELLS = 2.0
+_ASSIGN_REACH_CELLS = 8.0
+_ASSIGN_FLOOR_DB = 9.6
+
+
+def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: np.ndarray,
+                 bins_per_cell: float, *, base_index: int = 0, max_peaks: int = 64,
+                 guard_cells: float = _ASSIGN_GUARD_CELLS, reach_cells: float = _ASSIGN_REACH_CELLS,
+                 floor_over_median_db: float = _ASSIGN_FLOOR_DB) -> tuple[np.ndarray, np.ndarray]:
+    """One column from the rate-search transforms, with a rate per detection.
+
+    ``power_db`` holds one row per searched rate ``j`` (beat slide of ``j``
+    cells per dwell).  The column starts as the row of the rate with the highest
+    peak (the WP4 Phase 3 rule).  Then the local maxima of the per-cell maximum
+    over rates are taken in decreasing order, and each is accepted as a further
+    echo if it lies outside the smear wedge of every echo accepted before it: an
+    echo compressed at rate ``j_a`` and range ``r_a`` spreads, at rate ``j``,
+    over ``r_a +- |j - j_a| / 2`` cells, so a peak inside that wedge is the
+    stronger echo's own smear, not a second echo.  An accepted echo's
+    neighbourhood (where its rate gives more than the column has, out to
+    ``reach_cells``) takes its rate's values.  A weaker echo with a different
+    slope in the same column is then compressed at its own rate instead of
+    being transformed at the stronger echo's (rate capture, WP4 Phase 3
+    close-out); the smear ahead of a strong echo is not let in, which is what
+    a plain per-cell maximum did.
+
+    Returns the column (dB) and, per cell, the index into ``js`` of the rate
+    it was taken from.  Inputs are not modified.
+    """
+    p = np.asarray(power_db, dtype=float)
+    srch = np.asarray(search, dtype=bool)
+    col = p[int(i_best)].copy()
+    owner = np.full(col.size, int(i_best), dtype=int)
+    m = np.max(p, axis=0)
+    jmax = np.argmax(p, axis=0)
+    finite = srch & np.isfinite(p[int(base_index)])
+    if not np.any(finite):
+        return col, owner
+    floor = float(np.median(p[int(base_index)][finite])) + float(floor_over_median_db)
+    jj = np.asarray(js, dtype=float)
+    bpc = max(float(bins_per_cell), 1.0)
+    r0 = int(np.argmax(np.where(srch, col, -np.inf)))
+    accepted = [(r0, int(i_best))]
+    inner = np.zeros(m.size, dtype=bool)
+    inner[1:-1] = (m[1:-1] >= m[:-2]) & (m[1:-1] > m[2:])
+    cand = np.flatnonzero(inner & srch & (m >= floor))
+    cand = cand[np.argsort(-m[cand])]
+    reach = int(round(reach_cells * bpc))
+    for r in cand:
+        if len(accepted) >= max_peaks:
+            break
+        jr = int(jmax[r])
+        if any(abs(int(r) - ra) <= bpc * (0.5 * abs(jj[jr] - jj[ja]) + guard_cells) for ra, ja in accepted):
+            continue
+        accepted.append((int(r), jr))
+        row = p[jr]
+        for step in (-1, 1):
+            k = int(r)
+            while 0 <= k < col.size and abs(k - int(r)) <= reach and row[k] >= col[k]:
+                col[k] = row[k]
+                owner[k] = jr
+                k += step
+    return col, owner
+
+
 @register("l3", "baseline")
 class BaselineSignalProcessing(SignalProcessingBase):
     """Conventional de-chirp, transform and leading-edge ionogram formation.
@@ -207,6 +286,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         dispersion_blocks: int = 4,
         rate_search_max_cells: int = 64,
         rate_search_effective_looks: float | None = None,
+        rate_assign: str = "detection",
         transition: str = "accept",
     ) -> None:
         super().__init__(window=window)
@@ -246,9 +326,13 @@ class BaselineSignalProcessing(SignalProcessingBase):
         # Calibrated on noise-only A1 records (2026-10-30): the rates act as
         # about a fifth as many independent looks (7 of 35 at a 32-cell span,
         # 12 to 14 of 67 at 64).
+        if rate_assign not in ("column", "detection"):
+            raise ValueError(f"unknown rate_assign {rate_assign!r}; expected 'column' or 'detection'")
+        self.rate_assign = str(rate_assign)
         n_rates = self.rate_search_max_cells + 3
         self.rate_search_effective_looks = max(
-            float(rate_search_effective_looks) if rate_search_effective_looks is not None else 0.2 * n_rates, 1.0)
+            float(rate_search_effective_looks) if rate_search_effective_looks is not None
+            else _LOOKS_PER_RATE[self.rate_assign] * n_rates, 1.0)
         self.transition = str(transition)
 
     def detector_settings(self) -> dict[str, Any]:
@@ -283,6 +367,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "dispersion": self.dispersion,
             "dispersion_blocks": self.dispersion_blocks if self.dispersion == "blocks" else None,
             "rate_search_max_cells": self.rate_search_max_cells if self.dispersion == "rate_search" else None,
+            "rate_assign": self.rate_assign if self.dispersion == "rate_search" else None,
             "transition": self.transition,
             "mode_discrimination": False,
             "doppler_separation": False,
@@ -420,33 +505,38 @@ class BaselineSignalProcessing(SignalProcessingBase):
         fs = float(block.fs_hz)
         t_rel = (np.arange(n, dtype=float) - 0.5 * (n - 1)) / fs
         dur = n / fs
-        # One rate per column, the one whose transform has the highest peak in
-        # the search range.  A per-cell maximum over rates was tried first: the
-        # mismatched rates spread an echo ahead of itself and the maximum keeps
-        # that spread, so the leading edge read early (2026-10-30).
         base = transform(block, window=self.window, n_fft=n_fft)
         rng = np.asarray(base.range_m, dtype=float)
         search = rng <= (self.max_range_m if self.max_range_m is not None else rng[-1])
-        best, best_peak, best_gamma = base, float(np.max(np.asarray(base.power_db)[0][search])), 0.0
-        js = [j for j in range(-2, self.rate_search_max_cells + 1) if j != 0]
+        js = list(range(-2, self.rate_search_max_cells + 1))
+        specs = []
         for j in js:
-            gamma = j / dur**2
-            chirp = np.exp(-1j * np.pi * gamma * t_rel**2)
-            s = transform(_replace(block, samples=block.samples * chirp[None, :]),
-                          window=self.window, n_fft=n_fft)
-            peak = float(np.max(np.asarray(s.power_db)[0][search]))
-            if peak > best_peak:
-                best, best_peak, best_gamma = s, peak, gamma
-        # The noise reference stays the unchirped transform's (white noise is
-        # unchanged by the chirp).  The selection over rates is a choice among
-        # looks, which the detector's per-look P_fa accounts for.  The 35
-        # rates are strongly correlated: calibrated on six noise-only A1
-        # records (2026-10-30) they act as about a fifth as many independent
-        # looks (``rate_search_effective_looks``); counting every rate gave a
-        # measured P_fa of 2.9e-5 against the stated 1e-4 at a 32-cell span.
-        return _replace(best, negative_power_db=base.negative_power_db,
-                        n_looks=int(round(self.rate_search_effective_looks)),
-                        rate_hz_per_s2=np.full(rng.size, best_gamma))
+            if j == 0:
+                specs.append(base)
+                continue
+            chirp = np.exp(-1j * np.pi * (j / dur**2) * t_rel**2)
+            specs.append(transform(_replace(block, samples=block.samples * chirp[None, :]),
+                                   window=self.window, n_fft=n_fft))
+        gammas = np.asarray(js, dtype=float) / dur**2
+        power = np.stack([np.asarray(s.power_db, dtype=float)[0] for s in specs])
+        i_best = int(np.argmax(np.max(np.where(search[None, :], power, -np.inf), axis=1)))
+        looks = int(round(self.rate_search_effective_looks))
+        if self.rate_assign == "column":
+            # One rate per column, the one whose transform has the highest peak
+            # in the search range (WP4 Phase 3).  A per-cell maximum over rates
+            # was tried first: the mismatched rates spread an echo ahead of
+            # itself and the maximum keeps that spread, so the leading edge read
+            # early (2026-10-30).  The noise reference stays the unchirped
+            # transform's (white noise is unchanged by the chirp); the choice
+            # among rates is a choice among looks, which the detector's
+            # per-look P_fa accounts for (looks calibrated on noise-only A1
+            # records: about a fifth of the rates).
+            return _replace(specs[i_best], negative_power_db=base.negative_power_db, n_looks=looks,
+                            rate_hz_per_s2=np.full(rng.size, gammas[i_best]))
+        col, owner = assign_rates(power, js, i_best, search, n_fft / n, base_index=js.index(0))
+        first = np.asarray(base.power_db, dtype=float).copy()
+        first[0] = col
+        return _replace(base, power_db=first, n_looks=looks, rate_hz_per_s2=gammas[owner])
 
     def _transition_steps(self, signal: ReceivedSignal) -> np.ndarray:
         """Per block, whether its step's rate differs from the step before it."""
