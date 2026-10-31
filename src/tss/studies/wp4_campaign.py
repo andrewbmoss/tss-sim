@@ -37,7 +37,9 @@ WHAT IS SCORED
 --------------
 Per run: SCI-05 and SCI-07 (achieved and verdict), INS-10 (the minimum SNR at
 the truth echoes, cutoff steps excluded per G5c), INS-05 (worst band), and the
-trace measures below.  Per profile and overall: medians and worst cases over
+trace measures below.  Since WP4 Phase 2 INS-10 is measured against the noise
+floor and ``scr_min_db`` reports the same minimum against the column, which
+clutter raises (signal to noise plus clutter).  Per profile and overall: medians and worst cases over
 seeds.
 
 Trace measures, per ionogram column that has an O truth echo (cutoff steps
@@ -250,6 +252,7 @@ def run_one(profile: str, seed: int, *, config: dict[str, Any], configuration: s
         "sci05": ach("SCI-05"), "sci05_verdict": ver("SCI-05"),
         "sci07_m": ach("SCI-07"), "sci07_verdict": ver("SCI-07"),
         "ins10_db": ach("INS-10"), "ins10_verdict": ver("INS-10"),
+        "scr_min_db": _scr_min(res.truth_echo_snr),
         "ins05_m": ach("INS-05"), "ins05_verdict": ver("INS-05"),
         "n_detected": int((res.ionogram.flags or {}).get("n_detected", 0)),
         **{k: v for k, v in tm.items() if k != "per_column"},
@@ -262,6 +265,16 @@ def run_one(profile: str, seed: int, *, config: dict[str, Any], configuration: s
     if keep:
         row["_result"] = res
     return row
+
+
+def _scr_min(tes: Any) -> float:
+    """Worst SNR at the scored truth echoes against the column (noise plus clutter), dB."""
+    if not tes or "snr_db_column" not in tes:
+        return float("nan")
+    col = np.asarray(tes["snr_db_column"], dtype=float)
+    cut = np.asarray(tes.get("cutoff_step", np.zeros(col.size, dtype=bool)), dtype=bool)
+    v = col[~cut] if cut.size == col.size else col
+    return float(np.nanmin(v)) if np.any(np.isfinite(v)) else float("nan")
 
 
 def _nanmed(v: list[float]) -> float:
@@ -290,6 +303,7 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "sci07_worst_m": _nanmax([r["sci07_m"] for r in rs]),
             "ins10_median_db": _nanmed([r["ins10_db"] for r in rs]),
             "ins10_worst_db": _nanmin([r["ins10_db"] for r in rs]),
+            "scr_min_median_db": _nanmed([r["scr_min_db"] for r in rs]),
             "completeness_o_median": _nanmed([r["completeness_o"] for r in rs]),
             "completeness_o_worst": _nanmin([r["completeness_o"] for r in rs]),
             "fraction_on_x_median": _nanmed([r["fraction_on_x"] for r in rs]),
@@ -348,14 +362,15 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         f"{len(res['profiles'])} profiles x {len(res['seeds'])} seeds on {res['configuration']}"
         f" ({o['n_runs']} runs).  Tolerance for a trace match: {res['tolerance']}.",
         "",
-        "| Profile | SCI-05 med (worst) | SCI-07 km med (worst) | INS-10 dB med (worst) | O complete med (worst)"
-        " | on X | false | spurious | O bias km | X bias km |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| Profile | SCI-05 med (worst) | SCI-07 km med (worst) | INS-10 dB med (worst) | S/(N+C) dB med"
+        " | O complete med (worst) | on X | false | spurious | O bias km | X bias km |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for p, b in list(agg["by_profile"].items()) + [("**all**", o)]:
         lines.append(
             f"| {p} | {_f(b['sci05_median'])} ({_f(b['sci05_worst'])}) | {_f(b['sci07_median_m'] / 1e3, 1)}"
             f" ({_f(b['sci07_worst_m'] / 1e3, 1)}) | {_f(b['ins10_median_db'], 1)} ({_f(b['ins10_worst_db'], 1)})"
+            f" | {_f(b['scr_min_median_db'], 1)}"
             f" | {_f(b['completeness_o_median'], 2)} ({_f(b['completeness_o_worst'], 2)})"
             f" | {_f(b['fraction_on_x_median'], 2)} | {_f(b['fraction_false_median'], 2)}"
             f" | {_f(b['spurious_median'], 0)} | {_f(b['range_error_o_mean_median_m'] / 1e3, 1)}"
