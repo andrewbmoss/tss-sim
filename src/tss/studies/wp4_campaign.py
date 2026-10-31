@@ -278,6 +278,10 @@ def run_one(profile: str, seed: int, *, config: dict[str, Any], configuration: s
         "sci07_m": ach("SCI-07"), "sci07_verdict": ver("SCI-07"),
         "ins10_db": ach("INS-10"), "ins10_verdict": ver("INS-10"),
         "scr_min_db": _scr_min(res.truth_echo_snr),
+        # SCI-05 and SCI-07 are scored from the truth peak up to the lowest
+        # height the retrieval reaches; how far above the peak that is says
+        # how much of the topside the scores cover (WP4 Phase 4).
+        "coverage_gap_m": _coverage_gap(res.retrieved, res.truth),
         "ins05_m": ach("INS-05"), "ins05_verdict": ver("INS-05"),
         "n_detected": int((res.ionogram.flags or {}).get("n_detected", 0)),
         **{k: v for k, v in tm.items() if k != "per_column"},
@@ -290,6 +294,19 @@ def run_one(profile: str, seed: int, *, config: dict[str, Any], configuration: s
     if keep:
         row["_result"] = res
     return row
+
+
+def _coverage_gap(retrieved: Any, truth: Any) -> float:
+    """Lowest retrieved height above the true hmF2, m (0 when it reaches the peak)."""
+    if retrieved is None or truth is None:
+        return float("nan")
+    alt = np.asarray(retrieved.alt_m, dtype=float)
+    ok = np.isfinite(alt) & np.isfinite(np.asarray(retrieved.ne, dtype=float))
+    if not np.any(ok):
+        return float("nan")
+    ne = np.asarray(truth.ne, dtype=float)
+    hm = float(np.asarray(truth.alt_m, dtype=float)[int(np.nanargmax(ne))])
+    return max(float(np.min(alt[ok])) - hm, 0.0)
 
 
 def _scr_min(tes: Any) -> float:
@@ -344,6 +361,8 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "range_error_o_rms_median_m": _nanmed([r["range_error_o_rms_m"] for r in rs]),
             "range_error_o_mean_median_m": _nanmed([r["range_error_o_mean_m"] for r in rs]),
             "range_error_x_mean_median_m": _nanmed([r["range_error_x_mean_m"] for r in rs]),
+            "coverage_gap_median_m": _nanmed([r.get("coverage_gap_m", float("nan")) for r in rs]),
+            "coverage_gap_worst_m": _nanmax([r.get("coverage_gap_m", float("nan")) for r in rs]),
             "labelling_error_median": _nanmed([r.get("labelling_error", float("nan")) for r in rs]),
             "labelling_error_pooled": _pooled_labelling_error(rs),
             "x_samples_median": _nanmed([r.get("n_x_on_x", 0) + r.get("n_x_on_o", 0) + r.get("n_x_false", 0)
@@ -399,8 +418,9 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         f" ({o['n_runs']} runs).  Tolerance for a trace match: {res['tolerance']}.",
         "",
         "| Profile | SCI-05 med (worst) | SCI-07 km med (worst) | INS-10 dB med (worst) | S/(N+C) dB med"
-        " | O complete med (worst) | on X | false | spurious | O bias km | X bias km | label err | X samples |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        " | O complete med (worst) | on X | false | spurious | O bias km | X bias km | label err | X samples"
+        " | gap above hmF2 km med (worst) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for p, b in list(agg["by_profile"].items()) + [("**all**", o)]:
         lines.append(
@@ -411,7 +431,8 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             f" | {_f(b['fraction_on_x_median'], 2)} | {_f(b['fraction_false_median'], 2)}"
             f" | {_f(b['spurious_median'], 0)} | {_f(b['range_error_o_mean_median_m'] / 1e3, 1)}"
             f" | {_f(b['range_error_x_mean_median_m'] / 1e3, 1)} | {_f(b['labelling_error_pooled'], 3)}"
-            f" | {_f(b['x_samples_median'], 0)} |")
+            f" | {_f(b['x_samples_median'], 0)}"
+            f" | {_f(b['coverage_gap_median_m'] / 1e3, 1)} ({_f(b['coverage_gap_worst_m'] / 1e3, 1)}) |")
     lines += ["", "Verdicts over all runs: "
               + "; ".join(f"{k.upper()} {o[k + '_verdicts']}" for k in ("sci05", "sci07", "ins10")), ""]
     metrics = {
@@ -423,6 +444,7 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "completeness_o_median": o["completeness_o_median"], "completeness_o_worst": o["completeness_o_worst"],
         "fraction_on_x_median": o["fraction_on_x_median"],
         "labelling_error_pooled": o["labelling_error_pooled"],
+        "coverage_gap_median_m": o["coverage_gap_median_m"],
     }
     return "\n".join(lines), metrics
 
