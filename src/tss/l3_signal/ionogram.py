@@ -143,13 +143,15 @@ class BaselineSignalProcessing(SignalProcessingBase):
     detector
         ``"cfar"`` (default since WP4 Phase 2, gate G1): the cell test of
         :mod:`tss.l3_signal.detect`, with ``pfa`` per range cell against the
-        negative-beat noise reference and a local ordered-statistic veto at
-        ``local_pfa``.  ``"fixed"``: ``threshold_db`` over the median of the
-        column, the WP3-era rule.
-    pfa, local_pfa, local_ref_cells, guard_cells, local_order
-        The detector's settings (decision G1: 1e-4 per cell; the veto at 1e-2
-        over 16 cells a side beyond 2 guard cells, at the 0.75 ordered
-        statistic).
+        negative-beat noise reference and sidelobe blanking under stronger
+        peaks.  ``"fixed"``: ``threshold_db`` over the median of the column,
+        the WP3-era rule.
+    pfa, local_pfa, local_ref_cells, guard_cells, local_order, sidelobe_margin_db
+        The detector's settings (decision G1: 1e-4 per cell).  ``local_pfa``
+        turns on the optional ordered-statistic veto (16 cells a side beyond 2
+        guard cells, at the 0.75 statistic); it is off by default because it
+        masks echoes spread in range by dispersion.  Sidelobe blanking at a
+        6 dB margin is on.
     max_range_m
         Search limit, INS-04's 1050 km by default.  ``None`` searches to the
         unambiguous range.
@@ -174,10 +176,11 @@ class BaselineSignalProcessing(SignalProcessingBase):
         chain_max_jump_m: float = 1.5e5,
         detector: str = "cfar",
         pfa: float = 1.0e-4,
-        local_pfa: float | None = 1.0e-2,
+        local_pfa: float | None = None,
         local_ref_cells: int = 16,
         guard_cells: int = 2,
         local_order: float = 0.75,
+        sidelobe_margin_db: float | None = 6.0,
         max_range_m: float | None = 1.05e6,
         snr_floor: str | None = None,
     ) -> None:
@@ -202,6 +205,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         self.local_ref_cells = int(local_ref_cells)
         self.guard_cells = int(guard_cells)
         self.local_order = float(local_order)
+        self.sidelobe_margin_db = None if sidelobe_margin_db is None else float(sidelobe_margin_db)
         self.max_range_m = None if max_range_m is None else float(max_range_m)
         floor = snr_floor or ("noise" if self.detector == "cfar" else "column")
         if floor not in ("noise", "column"):
@@ -212,6 +216,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         """Keyword arguments for :func:`tss.l3_signal.detect.cfar_detect`."""
         return {"pfa": self.pfa, "local_pfa": self.local_pfa, "local_ref_cells": self.local_ref_cells,
                 "guard_cells": self.guard_cells, "local_order": self.local_order,
+                "sidelobe_margin_db": self.sidelobe_margin_db,
                 "max_range_m": self.max_range_m, "exclude_below_m": self.exclude_below_m}
 
     # -- manifest -----------------------------------------------------------
@@ -233,6 +238,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "local_ref_cells": self.local_ref_cells,
             "guard_cells": self.guard_cells,
             "local_order": self.local_order,
+            "sidelobe_margin_db": self.sidelobe_margin_db if self.detector == "cfar" else None,
             "max_range_m": self.max_range_m,
             "snr_floor": self.snr_floor,
             "mode_discrimination": False,

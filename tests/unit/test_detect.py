@@ -204,6 +204,22 @@ def test_sidelobe_envelope_of_hann():
     assert np.all(np.diff(env) <= 0)
 
 
+def test_a_range_extended_echo_is_detected_and_the_optional_veto_would_mask_it():
+    # An echo smeared over about 100 cells, as dispersion within the dwell
+    # smears one near f_N and the cusp (wp4_campaign, 2026-10-30).
+    rng = np.random.default_rng(10)
+    n = 2048
+    amp = math.sqrt(10 ** 2.0 * 1.5 / n)  # 20 dB per cell
+    smear = sum(_tone(n, b, amp) * np.exp(1j * rng.uniform(0, 6.3)) for b in range(500, 600))
+    sp = _spectrum(smear + _noise(rng, n))
+    default = d.cfar_detect(sp, pfa=PFA)
+    with_os = d.cfar_detect(sp, pfa=PFA, local_pfa=1e-2)
+    body = slice(1000, 1200)
+    assert default.mask[body].sum() > 100
+    assert default.mask[996:1010].any()  # the leading edge is found
+    assert with_os.mask[body].sum() < 0.1 * default.mask[body].sum()
+
+
 def test_search_limit():
     rng = np.random.default_rng(6)
     sp = _spectrum(_tone(2048, 900, 30.0) + _noise(rng, 2048))

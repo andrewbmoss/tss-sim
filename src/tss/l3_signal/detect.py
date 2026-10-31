@@ -8,10 +8,18 @@ The detector (WP4 Phase 2): a cell test with a stated probability of false alarm
 
 Decisions of 2026-10-30 (gate G1): a false-alarm probability of 1e-4 per range
 cell; the noise reference taken from the echo-free negative-beat half of the
-spectrum, with a local ordered-statistic veto against sidelobes and clutter
-continua; single-cell detection here, with integration along the trace left to
-the tracker of Phase 4; and INS-10 measured against this noise reference rather
-than against noise plus clutter.
+spectrum, with a local check so that a strong return's window sidelobes are not
+called detections; single-cell detection here, with integration along the trace
+left to the tracker of Phase 4; and INS-10 measured against this noise
+reference rather than against noise plus clutter.
+
+The local check as built is sidelobe blanking against the window's known
+envelope (below).  The local ordered-statistic veto first built for it is kept
+as an option and is off by default: an echo smeared over many range cells by
+dispersion within the dwell (50 to 100 km near f_N and the cusp) fills its own
+reference window and was vetoed, which lost whole traces on the equatorial
+evening and mid-latitude night profiles of ``wp4_campaign``.  That is the
+self-masking of an extended target that an ordered-statistic CFAR is known for.
 
 THE NOISE REFERENCE
 -------------------
@@ -46,25 +54,29 @@ with ``N`` the number of independent cells, which is the number of bins used
 over the zero-padding factor and the window's noise bandwidth.  As ``N`` grows
 this tends to the known-noise threshold ``-ln(P_fa)`` times the mean.
 
-THE LOCAL VETO
---------------
+THE LOCAL CHECKS
+----------------
 A Hann window's first sidelobe is 31.5 dB down, so a return 40 dB over the
 noise, such as the ground echo or a resonance, has sidelobes that pass the
-global test.  Each cell must also exceed ``beta`` times the ``local_order``
-ordered statistic of ``local_ref_cells`` cells on each side, beyond
-``guard_cells``.  ``beta`` is set for ``local_pfa`` (1e-2) under the same
+global test.
+
+*Ordered-statistic veto (optional, ``local_pfa``; off by default).*  Each cell
+must also exceed ``beta`` times the ``local_order`` ordered statistic of
+``local_ref_cells`` cells on each side, beyond ``guard_cells``.  ``beta`` is set for ``local_pfa`` (1e-2) under the same
 formula.  In homogeneous noise the global test is far the stricter of the two,
 so the veto costs nothing.  Beside a strong return its window is filled by the
 sidelobes or the continuum, and a cell must stand out of that to count.  An
 ordered statistic at three quarters keeps a weaker echo beside a stronger one
 (O beside X) from being vetoed by it.
 
-The ordered statistic cannot remove the first one or two sidelobes of a very
-strong return: just outside the guard cells, the cell's own neighbourhood holds
+It masks range-extended echoes (above), and it cannot remove the first one or
+two sidelobes of a very strong return either: just outside the guard cells, the cell's own neighbourhood holds
 the main lobe on one side and lower sidelobes on the other, and the cell stands
 out of it.  On the near side of a strong echo those sidelobes would move the
-leading edge early.  The window's response is known exactly, so the local check
-also blanks every cell that lies under a stronger detected peak's sidelobe
+leading edge early.
+
+*Sidelobe blanking (the default local check, ``sidelobe_margin_db``).*  The
+window's response is known exactly, so the detector blanks every cell that lies under a stronger detected peak's sidelobe
 envelope plus ``sidelobe_margin_db`` (6 dB): the envelope is the upper bound
 of the window's transform over all fractional bin offsets, so it holds for an
 echo anywhere in its bin.  A genuine return under the skirt that is more than
@@ -259,7 +271,7 @@ def _sidelobe_blank(p: np.ndarray, candidates: np.ndarray, spectrum: Any, margin
 
 
 def cfar_detect(spectrum: Any, *, channel: int = 0, pfa: float = DEFAULT_PFA,
-                local_pfa: float | None = DEFAULT_LOCAL_PFA, local_ref_cells: int = 16,
+                local_pfa: float | None = None, local_ref_cells: int = 16,
                 guard_cells: int = 2, local_order: float = 0.75, near_guard_cells: float = 4.0,
                 sidelobe_margin_db: float | None = 6.0,
                 max_range_m: float | None = None, exclude_below_m: float = 0.0) -> CfarResult:
