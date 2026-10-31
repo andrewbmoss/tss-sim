@@ -8,7 +8,6 @@ tss.sweep_law; the comparison is the study tss.studies.wp4_dispersion.
 from __future__ import annotations
 
 import io
-import math
 
 import numpy as np
 import pytest
@@ -205,8 +204,8 @@ def test_unknown_treatments_are_refused():
 
 
 def test_measured_topside_keeps_the_data_and_adds_a_peak():
-    from types import SimpleNamespace
     import datetime as dt
+    from types import SimpleNamespace
 
     from tss.studies.wp4_dispersion import MeasuredTopside
 
