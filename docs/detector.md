@@ -134,7 +134,10 @@ it is the old 10 dB rule with a stated `P_fa`.
 **Clutter on.**
 - INS-10 is noise-limited again, which is what G1 asked for. The 5 failures are
   the mid-latitude-night profile, which fails with or without clutter: about
-  -14 dB at the bottom of the band, an antenna and sky-noise limit.
+  -14 dB at the bottom of the band.  (Corrected in P3, 2026-10-31: this was
+  attributed to the antenna and sky noise; it is in-dwell dispersion of the
+  echo just above f_N at the spacecraft, which the rate search recovers.  See
+  `docs/dispersion.md`.)
 - The trace is still lost to the ground echo. That is P4's work.
 
 **An observation for P4.** With the optional veto on, the high-latitude-night

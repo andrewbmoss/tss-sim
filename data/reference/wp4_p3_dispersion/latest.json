@@ -1,0 +1,28 @@
+{
+  "study": "wp4_dispersion",
+  "status": "implemented",
+  "run_directory": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p3_dispersion",
+  "manifest": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p3_dispersion\\manifest.json",
+  "outputs": [
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p3_dispersion\\wp4_dispersion_echoes.csv",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p3_dispersion\\wp4_dispersion.json",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p3_dispersion\\summary.md"
+  ],
+  "metrics": {
+    "loss_median_D0": 4.0927198792427575,
+    "loss_median_D1x2": 6.2958420180931896,
+    "loss_median_D1x4": 8.440819123617942,
+    "loss_median_D2": 0.14602792195761083,
+    "loss_median_D2w": 0.11362766717247297,
+    "loss_median_D3": 0.25883979491905507,
+    "loss_median_T1": 3.1905500278481256,
+    "loss_median_T2": 4.0927198792427575
+  },
+  "work_packages": [
+    "WP4"
+  ],
+  "claims": [
+    "C1",
+    "C2"
+  ]
+}

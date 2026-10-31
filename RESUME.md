@@ -443,3 +443,24 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   floor, signal to noise plus clutter beside it: with clutter on the INS-10
   median is 18.1 dB (P1 measure: 5.9).  Neutral on the trace with clutter off;
   the ground echo still takes the extractor (P4).
+* Phase 3 (0feb6ac, 196e895, fe20462, 5bd021a, 2d6854b): in-dwell dispersion
+  and the step transition (`docs/dispersion.md`, study `wp4_dispersion`,
+  `data/reference/wp4_p3_dispersion`).  Treatments in the baseline L3 tier:
+  `dispersion: none | blocks | rate_search`, `transition: accept | gate |
+  matched`, and the narrow step law (`narrow_lo_hz`, `narrow_hi_hz`,
+  `narrow_cap_hz`).  Echo level over 18 scenes (6 Chapman, 12 ISIS-1) x O, X x
+  3 seeds, and through the chain, clutter off.  G2: the rate search, span
+  widened to 64 cells, now the default (`rate_search_max_cells: 64`; smoke
+  pinned to `dispersion: none`); loss 0.10 dB median and 1.24 dB p90 for echoes
+  crossing up to 64 cells (94 %), the rest to P4's cusp model.  G3: accept the
+  skirt (gating fails INS-05; the matched filter equals accept in the chain).
+  The detector keeps 1e-4 per cell: gamma threshold over the median for
+  sub-blocks; an effective look count for the rate search (about 13 at 64).
+  G6: draft INS-32, a performance condition on the processing, for Rev G at
+  P6.  Clutter off (`wp4_p3_clutter_off`): SCI-05 0.145, SCI-07 17.4 km,
+  INS-10 median 20.2 dB, 3 fails.  P2's mid-latitude-night INS-10 fail was
+  dispersion, not sky noise.  Rate capture (one rate per column, set by the
+  strongest return) causes the 3 remaining fails and, with clutter on, lets
+  the resonances and ground echo take the rate: rate per detection is a P4
+  item.  Clutter on (`wp4_p3_clutter`): the ground echo still takes the
+  extractor.  L3 run time about 6 times D0's.
