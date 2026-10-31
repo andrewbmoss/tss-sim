@@ -233,6 +233,11 @@ class SweepSchedule:
     step_dwell_s: float = 0.0
     step_fraction: float = 0.0
     step_cap_hz: float = 0.0
+    # WP4 Phase 3, dispersion option 3: a narrower cap on the steps that start
+    # in [narrow_lo_hz, narrow_hi_hz).  Zero (the default) leaves the law alone.
+    narrow_lo_hz: float = 0.0
+    narrow_hi_hz: float = 0.0
+    narrow_cap_hz: float = 0.0
 
 
 @dataclass(frozen=True)

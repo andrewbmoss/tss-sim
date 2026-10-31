@@ -163,6 +163,17 @@ class RangeSpectrum:
         (index ``j`` is beat ``-(j + 1) fs / n_fft``).  No echo beats there, so
         it is the detector's noise reference (WP4 Phase 2,
         :mod:`tss.l3_signal.detect`).  ``None`` when not kept.
+    n_incoherent
+        Number of sub-blocks whose powers were averaged into ``power_db`` (WP4
+        Phase 3, dispersion option 1).  The noise per cell is then a gamma
+        variate of that order, which the detector's threshold accounts for.
+    n_looks
+        Number of transforms ``power_db`` is the per-cell maximum of (WP4
+        Phase 3, dispersion option 2, the rate search).  The detector sets its
+        per-look false-alarm probability so the stated one holds over all.
+    rate_hz_per_s2
+        For the rate search, the beat chirp rate that gave each cell its value;
+        ``dP'/df = rate * c / (2 K^2)``.  ``None`` otherwise.
     """
 
     power_db: np.ndarray
@@ -176,6 +187,9 @@ class RangeSpectrum:
     window: str
     enbw_bins: float
     negative_power_db: np.ndarray | None = None
+    n_incoherent: int = 1
+    n_looks: int = 1
+    rate_hz_per_s2: np.ndarray | None = None
 
     def describe(self) -> Mapping[str, Any]:
         """Small JSON-serialisable record of the transform, for diagnostics."""

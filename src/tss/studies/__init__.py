@@ -489,6 +489,9 @@ def _sweep_from_config(
         step_dwell_s=float(block.get("step_dwell_s", 0.0) or 0.0) if stepped else 0.0,
         step_fraction=float(block.get("step_fraction", 0.05)) if stepped else 0.0,
         step_cap_hz=float(block.get("step_cap_hz", 150.0e3)) if stepped else 0.0,
+        narrow_lo_hz=float(block.get("narrow_lo_hz", 0.0) or 0.0) if stepped else 0.0,
+        narrow_hi_hz=float(block.get("narrow_hi_hz", 0.0) or 0.0) if stepped else 0.0,
+        narrow_cap_hz=float(block.get("narrow_cap_hz", 0.0) or 0.0) if stepped else 0.0,
     )
     if stepped:
         notes["n_steps"] = sweep_law.step_count(schedule)
@@ -822,5 +825,6 @@ from tss.studies import (  # noqa: E402,F401
     trade_space,
     transcription,
     wp4_campaign,
+    wp4_dispersion,
     wp9_bench,
 )

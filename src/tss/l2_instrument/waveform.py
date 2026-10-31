@@ -318,6 +318,9 @@ def schedule_from_config(cfg: Mapping[str, Any]) -> SweepSchedule:
             sweep_period_s=float(cfg.get("sweep_period_s", 0.0) or 0.0),
             direction=int(cfg.get("direction", 1)),
             nonlinearity_ppm=float(cfg.get("nonlinearity_ppm", 0.0)),
+            narrow_lo_hz=float(cfg.get("narrow_lo_hz", 0.0) or 0.0),
+            narrow_hi_hz=float(cfg.get("narrow_hi_hz", 0.0) or 0.0),
+            narrow_cap_hz=float(cfg.get("narrow_cap_hz", 0.0) or 0.0),
         )
         stated = cfg.get("k_f_hz_per_s")
         if stated is not None and abs(float(stated) - schedule.k_f_hz_per_s) > (

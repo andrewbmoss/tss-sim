@@ -98,7 +98,8 @@ def is_stepped(sweep: SweepSchedule) -> bool:
 
 
 @lru_cache(maxsize=64)
-def _edges(f_start: float, f_stop: float, fraction: float, cap: float) -> np.ndarray:
+def _edges(f_start: float, f_stop: float, fraction: float, cap: float,
+           n_lo: float = 0.0, n_hi: float = 0.0, n_cap: float = 0.0) -> np.ndarray:
     if not (f_stop > f_start > 0.0):
         raise ValueError("a stepped sweep needs 0 < f_start_hz < f_stop_hz")
     if fraction <= 0.0 and cap <= 0.0:
@@ -112,6 +113,9 @@ def _edges(f_start: float, f_stop: float, fraction: float, cap: float) -> np.nda
             widths.append(fraction * f)
         if cap > 0.0:
             widths.append(cap)
+        if n_cap > 0.0 and n_lo <= f < n_hi:
+            # WP4 Phase 3, dispersion option 3: narrower steps in one band.
+            widths.append(n_cap)
         f = min(f + min(widths), f_stop)
         edges.append(f)
         if len(edges) > limit:
@@ -128,7 +132,15 @@ def step_edges_hz(sweep: SweepSchedule) -> np.ndarray:
         float(sweep.f_stop_hz),
         float(getattr(sweep, "step_fraction", 0.0) or 0.0),
         float(getattr(sweep, "step_cap_hz", 0.0) or 0.0),
+        *_narrow(sweep),
     )
+
+
+def _narrow(sweep: SweepSchedule) -> tuple[float, float, float]:
+    """The narrow band of WP4 Phase 3 option 3, ``(lo, hi, cap)``; zeros when unset."""
+    return (float(getattr(sweep, "narrow_lo_hz", 0.0) or 0.0),
+            float(getattr(sweep, "narrow_hi_hz", 0.0) or 0.0),
+            float(getattr(sweep, "narrow_cap_hz", 0.0) or 0.0))
 
 
 def step_count(sweep: SweepSchedule) -> int:
@@ -203,9 +215,10 @@ def _order(sweep: SweepSchedule) -> tuple[np.ndarray, np.ndarray, int]:
 def _phase_prefix(
     f_start: float, f_stop: float, fraction: float, cap: float,
     dwell: float, direction: int, eps: float,
+    n_lo: float = 0.0, n_hi: float = 0.0, n_cap: float = 0.0,
 ) -> np.ndarray:
     """Accumulated phase in cycles at the start of each step."""
-    e = _edges(f_start, f_stop, fraction, cap)
+    e = _edges(f_start, f_stop, fraction, cap, n_lo, n_hi, n_cap)
     widths = np.diff(e)
     if direction > 0:
         starts = e[:-1]
@@ -258,7 +271,7 @@ def phase_rad(sweep: SweepSchedule, t_s: np.ndarray | float) -> np.ndarray:
         float(sweep.f_start_hz), float(sweep.f_stop_hz),
         float(getattr(sweep, "step_fraction", 0.0) or 0.0),
         float(getattr(sweep, "step_cap_hz", 0.0) or 0.0),
-        dwell, d, eps,
+        dwell, d, eps, *_narrow(sweep),
     )
     cycles = prefix[i] + f0 * u + d * k * u**2 / 2.0
     if eps != 0.0:
@@ -301,6 +314,9 @@ def stepped_schedule(
     sweep_period_s: float = 0.0,
     direction: int = 1,
     nonlinearity_ppm: float = 0.0,
+    narrow_lo_hz: float = 0.0,
+    narrow_hi_hz: float = 0.0,
+    narrow_cap_hz: float = 0.0,
 ) -> SweepSchedule:
     """Build a stepped schedule with ``k_f_hz_per_s`` set to its peak rate.
 
@@ -312,6 +328,8 @@ def stepped_schedule(
         sweep_period_s=1.0, direction=int(direction),
         nonlinearity_ppm=float(nonlinearity_ppm), step_dwell_s=float(step_dwell_s),
         step_fraction=float(step_fraction), step_cap_hz=float(step_cap_hz),
+        narrow_lo_hz=float(narrow_lo_hz), narrow_hi_hz=float(narrow_hi_hz),
+        narrow_cap_hz=float(narrow_cap_hz),
     )
     peak = peak_rate_hz_per_s(probe)
     duration = active_duration_s(probe)
@@ -321,4 +339,6 @@ def stepped_schedule(
         sweep_period_s=period, direction=int(direction),
         nonlinearity_ppm=float(nonlinearity_ppm), step_dwell_s=float(step_dwell_s),
         step_fraction=float(step_fraction), step_cap_hz=float(step_cap_hz),
+        narrow_lo_hz=float(narrow_lo_hz), narrow_hi_hz=float(narrow_hi_hz),
+        narrow_cap_hz=float(narrow_cap_hz),
     )

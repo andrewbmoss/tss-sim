@@ -94,6 +94,8 @@ from tss.l3_signal.trace_extract import TraceSample, extract_trace, noise_floor_
 from tss.l3_signal.transform import RangeSpectrum, transform
 from tss.registry import register
 
+_C_LIGHT = 299_792_458.0
+
 __all__ = ["BaselineSignalProcessing", "UNRESOLVED_MODE"]
 
 #: The mode label used when the receiver cannot tell O from X.  A scalar
@@ -155,6 +157,21 @@ class BaselineSignalProcessing(SignalProcessingBase):
     max_range_m
         Search limit, INS-04's 1050 km by default.  ``None`` searches to the
         unambiguous range.
+    dispersion
+        WP4 Phase 3, the treatment of dispersion within a dwell
+        (Technical Volume section 5.3): ``"none"`` (one transform of the whole
+        dwell, the baseline), ``"blocks"`` (``dispersion_blocks`` sub-blocks
+        transformed and added in power, option 1) or ``"rate_search"`` (the
+        block de-chirped again against beat chirp rates of ``j / T^2`` for
+        ``j`` from -2 to ``rate_search_max_cells``, and the transform with the
+        highest peak kept for the column, option 2).  Option 3, narrower steps, is a sweep setting, not an L3 one.
+    transition
+        WP4 Phase 3, the treatment of the first ``tau`` of each step:
+        ``"accept"`` (the baseline, the decision of 2026-09-30), ``"gate"``
+        (drop the first ``2 R_max / c`` of every dwell) or ``"matched"`` (the
+        hybrid matched filter: in the steps whose rate differs from the step
+        before, re-evaluate the cells around each detection by a matched filter
+        on the exact de-chirped history of an echo at that delay).
     snr_floor
         What :meth:`snr_at` measures against: ``"noise"`` (the detector's
         negative-beat reference, decision G1) or ``"column"`` (the median of the
@@ -183,6 +200,10 @@ class BaselineSignalProcessing(SignalProcessingBase):
         sidelobe_margin_db: float | None = 6.0,
         max_range_m: float | None = 1.05e6,
         snr_floor: str | None = None,
+        dispersion: str = "none",
+        dispersion_blocks: int = 4,
+        rate_search_max_cells: int = 32,
+        transition: str = "accept",
     ) -> None:
         super().__init__(window=window)
         if int(n_frequencies) < 1:
@@ -211,6 +232,14 @@ class BaselineSignalProcessing(SignalProcessingBase):
         if floor not in ("noise", "column"):
             raise ValueError(f"unknown snr_floor {snr_floor!r}; expected 'noise' or 'column'")
         self.snr_floor = floor
+        if dispersion not in ("none", "blocks", "rate_search"):
+            raise ValueError(f"unknown dispersion {dispersion!r}; expected 'none', 'blocks' or 'rate_search'")
+        if transition not in ("accept", "gate", "matched"):
+            raise ValueError(f"unknown transition {transition!r}; expected 'accept', 'gate' or 'matched'")
+        self.dispersion = str(dispersion)
+        self.dispersion_blocks = max(int(dispersion_blocks), 1)
+        self.rate_search_max_cells = max(int(rate_search_max_cells), 0)
+        self.transition = str(transition)
 
     def detector_settings(self) -> dict[str, Any]:
         """Keyword arguments for :func:`tss.l3_signal.detect.cfar_detect`."""
@@ -241,6 +270,10 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "sidelobe_margin_db": self.sidelobe_margin_db if self.detector == "cfar" else None,
             "max_range_m": self.max_range_m,
             "snr_floor": self.snr_floor,
+            "dispersion": self.dispersion,
+            "dispersion_blocks": self.dispersion_blocks if self.dispersion == "blocks" else None,
+            "rate_search_max_cells": self.rate_search_max_cells if self.dispersion == "rate_search" else None,
+            "transition": self.transition,
             "mode_discrimination": False,
             "doppler_separation": False,
             "status": "partial",
@@ -328,19 +361,134 @@ class BaselineSignalProcessing(SignalProcessingBase):
             if int(signal.sweep.direction) < 0:
                 centres = centres[::-1]
 
+        gate = 0
+        if self.transition == "gate":
+            reach = self.max_range_m if self.max_range_m is not None else 1.05e6
+            gate = int(np.ceil(2.0 * reach / _C_LIGHT * float(signal.fs_hz)))
+            if n_block - gate < 16:
+                raise ValueError("gating the first 2 R_max / c leaves no dwell to transform")
+        transition_steps = self._transition_steps(signal) if self.transition == "matched" else None
         out: list[RangeSpectrum] = []
         for b, start in enumerate(starts):
-            block = dechirp(signal, start=start, stop=start + n_block, t0_s=0.0, orient=True)
+            s0, n = start + gate, n_block - gate
+            block = dechirp(signal, start=s0, stop=s0 + n, t0_s=0.0, orient=True)
             if stepped:
                 block = _replace(block, centre_frequency_hz=float(centres[b]))
-            out.append(
-                transform(
-                    block,
-                    window=self.window,
-                    n_fft=n_block * self.pad_factor,
-                )
-            )
+            sp = self._transform_block(block, n)
+            if transition_steps is not None and transition_steps[b]:
+                sp = self._matched_refine(sp, signal, s0, n)
+            out.append(sp)
         return out
+
+    # -- WP4 Phase 3: dispersion and step-transition treatments ----------------
+
+    def _transform_block(self, block: Any, n: int) -> RangeSpectrum:
+        """One block to a range spectrum under the configured dispersion treatment."""
+        n_fft = n * self.pad_factor
+        if self.dispersion == "none":
+            return transform(block, window=self.window, n_fft=n_fft)
+        if self.dispersion == "blocks":
+            m = min(self.dispersion_blocks, max(n // 16, 1))
+            sub = n // m
+            pos = neg = None
+            first = None
+            for j in range(m):
+                piece = _replace(block, samples=block.samples[:, j * sub:(j + 1) * sub],
+                                 t_s=block.t_s[j * sub:(j + 1) * sub])
+                s = transform(piece, window=self.window, n_fft=n_fft)
+                first = s if first is None else first
+                p = 10.0 ** (np.asarray(s.power_db) / 10.0)
+                q = 10.0 ** (np.asarray(s.negative_power_db) / 10.0)
+                pos = p if pos is None else pos + p
+                neg = q if neg is None else neg + q
+            with np.errstate(divide="ignore"):
+                return _replace(first, power_db=10.0 * np.log10(pos / m),
+                                negative_power_db=10.0 * np.log10(neg / m), n_incoherent=m)
+        # Rate search: de-chirp again against beat chirp rates j / T^2 about the
+        # block centre, so that an echo whose beat slides by j cells in the dwell
+        # is compressed back into one cell at the step-centre range.
+        fs = float(block.fs_hz)
+        t_rel = (np.arange(n, dtype=float) - 0.5 * (n - 1)) / fs
+        dur = n / fs
+        # One rate per column, the one whose transform has the highest peak in
+        # the search range.  A per-cell maximum over rates was tried first: the
+        # mismatched rates spread an echo ahead of itself and the maximum keeps
+        # that spread, so the leading edge read early (2026-10-30).
+        base = transform(block, window=self.window, n_fft=n_fft)
+        rng = np.asarray(base.range_m, dtype=float)
+        search = rng <= (self.max_range_m if self.max_range_m is not None else rng[-1])
+        best, best_peak, best_gamma = base, float(np.max(np.asarray(base.power_db)[0][search])), 0.0
+        js = [j for j in range(-2, self.rate_search_max_cells + 1) if j != 0]
+        for j in js:
+            gamma = j / dur**2
+            chirp = np.exp(-1j * np.pi * gamma * t_rel**2)
+            s = transform(_replace(block, samples=block.samples * chirp[None, :]),
+                          window=self.window, n_fft=n_fft)
+            peak = float(np.max(np.asarray(s.power_db)[0][search]))
+            if peak > best_peak:
+                best, best_peak, best_gamma = s, peak, gamma
+        # The noise reference stays the unchirped transform's (white noise is
+        # unchanged by the chirp); the selection over rates is a choice among
+        # looks, which the detector's per-look P_fa accounts for.
+        return _replace(best, negative_power_db=base.negative_power_db, n_looks=len(js) + 1,
+                        rate_hz_per_s2=np.full(rng.size, best_gamma))
+
+    def _transition_steps(self, signal: ReceivedSignal) -> np.ndarray:
+        """Per block, whether its step's rate differs from the step before it."""
+        if not sweep_law.is_stepped(signal.sweep):
+            return np.zeros(self.n_frequencies, dtype=bool)
+        starts, _ = self._block_starts(signal)
+        dwell = float(signal.sweep.step_dwell_s)
+        k = np.asarray(sweep_law.rate_hz_per_s(signal.sweep, (np.arange(len(starts)) + 0.5) * dwell), dtype=float)
+        prev = np.concatenate([[k[0]], k[:-1]])
+        return np.abs(k - prev) > 1e-6 * np.maximum(k, 1.0)
+
+    def _matched_refine(self, sp: RangeSpectrum, signal: ReceivedSignal, start: int, n: int) -> RangeSpectrum:
+        """The hybrid matched filter: re-evaluate the cells around each detection.
+
+        Each candidate delay ``tau`` gets ``|sum w x conj(s_tau)|^2 / (sum w)^2``
+        with ``s_tau(t) = exp(j [phi(t) - phi(t - tau)])`` from the transmitted
+        law, which carries the step transition exactly (zero before ``tau`` from
+        the start of the sweep).  The scaling is the transform's, so a unit echo
+        reads 0 dB and the noise per cell is unchanged.  Non-dispersive by
+        construction: near f_N and the cusp the delay moves in the dwell and the
+        filter is mismatched (recorded drawback, 2026-09-30).
+        """
+        from tss.l3_signal.detect import cfar_detect
+        from tss.l3_signal.trace_extract import _runs
+        from tss.l3_signal.transform import window_taper
+
+        res = cfar_detect(sp, **self.detector_settings())
+        runs = _runs(res.mask)
+        if not runs:
+            return sp
+        fs = float(signal.fs_hz)
+        x = np.atleast_2d(np.asarray(signal.samples))[0, start:start + n].astype(complex)
+        t = (start + np.arange(n, dtype=float)) / fs
+        w = window_taper(self.window, n)
+        norm = float(np.sum(w)) ** 2
+        phi_t = sweep_law.phase_rad(signal.sweep, t)
+        if int(signal.sweep.direction) < 0:
+            x = np.conj(x)
+            phi_t = -phi_t
+        margin = int(np.ceil(4 * self.pad_factor))
+        power = np.array(sp.power_db, dtype=float, copy=True)
+        rng = np.asarray(sp.range_m, dtype=float)
+        done = np.zeros(rng.size, dtype=bool)
+        for a, b in runs:
+            for i in range(max(a - margin, 0), min(b + margin, rng.size)):
+                if done[i]:
+                    continue
+                done[i] = True
+                tau = 2.0 * rng[i] / _C_LIGHT
+                live = t >= tau
+                ph = sweep_law.phase_rad(signal.sweep, np.clip(t - tau, 0.0, None))
+                if int(signal.sweep.direction) < 0:
+                    ph = -ph
+                s = np.where(live, np.exp(1j * (phi_t - ph)), 0.0)
+                val = abs(np.sum(w * x * np.conj(s))) ** 2 / norm
+                power[0, i] = 10.0 * np.log10(val) if val > 0.0 else -np.inf
+        return _replace(sp, power_db=power)
 
     # -- hook: detection and trace extraction -------------------------------
     #

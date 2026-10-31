@@ -176,13 +176,32 @@ def noise_reference(spectrum: Any, *, channel: int = 0, near_guard_cells: float 
     if use.size == 0:
         return {"source": source, "median_w": float("nan"), "mean_db": float("-inf"), "n_bins": 0, "n_eff": 0}
     med = float(np.median(10.0 ** (use / 10.0)))
+    m = int(getattr(spectrum, "n_incoherent", 1) or 1)
     return {
         "source": source,
         "median_w": med,
-        "mean_db": 10.0 * math.log10(med / LN2) if med > 0 else float("-inf"),
+        "mean_db": 10.0 * math.log10(med / _median_over_mean(m)) if med > 0 else float("-inf"),
         "n_bins": int(use.size),
         "n_eff": _independent(int(use.size), spectrum),
     }
+
+
+def _median_over_mean(m: int) -> float:
+    """Median over mean of the average of ``m`` exponential cells (ln 2 for one)."""
+    if m <= 1:
+        return LN2
+    from scipy.special import gammaincinv
+
+    return float(gammaincinv(m, 0.5)) / m
+
+
+def _quantile_over_mean(m: int, p: float) -> float:
+    """Upper ``p`` point over the mean of the average of ``m`` exponential cells."""
+    if m <= 1:
+        return -math.log(p)
+    from scipy.special import gammaincinv
+
+    return float(gammaincinv(m, 1.0 - p)) / m
 
 
 @dataclass(frozen=True)
@@ -285,8 +304,19 @@ def cfar_detect(spectrum: Any, *, channel: int = 0, pfa: float = DEFAULT_PFA,
         return CfarResult(np.zeros(p.size, dtype=bool), float("-inf"), float("inf"), None, pfa,
                           float("nan"), int(ref["n_bins"]), n_eff, str(ref["source"]),
                           {"no_reference": True})
-    k = max(int(round(0.5 * n_eff)), 1)
-    alpha = os_alpha(pfa, n_eff, k)
+    looks = max(int(getattr(spectrum, "n_looks", 1) or 1), 1)
+    m_inc = max(int(getattr(spectrum, "n_incoherent", 1) or 1), 1)
+    # The stated P_fa holds over all looks (WP4 Phase 3 rate search): each
+    # look is tested at 1 - (1 - P_fa)^(1/L), a bound since the looks are
+    # correlated.
+    pfa_look = -math.expm1(math.log1p(-pfa) / looks)
+    if m_inc == 1:
+        k = max(int(round(0.5 * n_eff)), 1)
+        alpha = os_alpha(pfa_look, n_eff, k)
+    else:
+        # Average of m_inc sub-blocks (option 1): a gamma variate; with ~700
+        # reference cells the known-noise quantile is used.
+        alpha = _quantile_over_mean(m_inc, pfa_look) / _median_over_mean(m_inc)
     thr = alpha * float(ref["median_w"])
     mask = np.isfinite(p) & (p > thr)
     local_db = None
@@ -316,5 +346,6 @@ def cfar_detect(spectrum: Any, *, channel: int = 0, pfa: float = DEFAULT_PFA,
         n_reference=int(ref["n_bins"]),
         n_eff=n_eff,
         source=str(ref["source"]),
-        flags={"threshold_over_mean_db": 10.0 * math.log10(alpha * LN2)},
+        flags={"threshold_over_mean_db": 10.0 * math.log10(alpha * _median_over_mean(m_inc)),
+               "n_looks": looks, "n_incoherent": m_inc, "pfa_per_look": pfa_look},
     )
