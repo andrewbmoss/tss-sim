@@ -431,3 +431,15 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   The ground echo takes the extractor (P4); the resonances and a carrier in an
   X column lower INS-10 (gate G1: score INS-10 against noise or against
   noise plus clutter).
+* Phase 2 (e841a41, d2f6d3e, dfe8d2c): the detector, `tss.l3_signal.detect`
+  (`docs/detector.md`), now the default L3 cell test (`detector: cfar`; the
+  smoke campaign is pinned to `fixed`).  G1: P_fa 1e-4 per cell against a
+  noise reference from the echo-free negative-beat half (ordered-statistic
+  median, Rohling's threshold); sidelobe blanking under a stronger peak's
+  window envelope plus 6 dB; the ordered-statistic veto optional and off (it
+  masked range-extended echoes); search to 1050 km, no near-range exclusion.
+  Measured P_fa 0.8e-4 to 1.25e-4; Pd within 0.2 dB of Marcum Q; about 12
+  false alarms per ionogram reach the extractor.  INS-10 against the noise
+  floor, signal to noise plus clutter beside it: with clutter on the INS-10
+  median is 18.1 dB (P1 measure: 5.9).  Neutral on the trace with clutter off;
+  the ground echo still takes the extractor (P4).

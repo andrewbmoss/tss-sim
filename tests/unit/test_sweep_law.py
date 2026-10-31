@@ -148,7 +148,14 @@ def test_stepped_echo_lands_at_its_range_across_the_band(range_m):
         mode=np.array(["O"] * freq.size),
     )
     signal = BaselineInstrument().receive(echoes, sweep, np.random.default_rng(3))
-    tier = BaselineSignalProcessing()
+    # The WP3-era fixed rule (WP4 Phase 2): at -60 dB the echo is about 80 dB
+    # over the noise at the top of this 6 MHz sweep, and in its short last
+    # step, swept at a much lower rate, the energy that arrives during the
+    # step transition smears from 400 to 1050 km.  The stated-P_fa detector
+    # rightly detects it, and the range jump then fails the chain rule.  This
+    # test is about the range scale, so it keeps the rule it was written for;
+    # the partial last step is a step-transition item for WP4 Phase 3.
+    tier = BaselineSignalProcessing(detector="fixed")
 
     # The range scale, checked on the spectrum peak of every column.  A block
     # converted at the peak rate would put the bottom-of-band echoes at a ninth

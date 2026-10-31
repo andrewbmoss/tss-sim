@@ -152,9 +152,11 @@ These are findings for the phases that follow, not defects of the generator:
 - **P4:** the extractor must reject the ground echo, for example by its
   consistency with the penetration frequency and its near-constant range.
 - **P2 and gate G1:** INS-10 is a sensitivity requirement, against noise.
-  Whether it is scored with clutter off, or against a floor that excludes
-  declared clutter columns, is a decision for G1.  As run, it measures
-  signal-to-(noise + clutter).
+  As run in P1, it measured signal-to-(noise + clutter).  **Resolved in P2
+  (G1, 2026-10-30):** INS-10 is measured against the detector's noise
+  reference, the echo-free negative-beat half (`docs/detector.md`).  Signal to
+  noise plus clutter is reported beside it.  With clutter on, the INS-10 median
+  is back to 18.1 dB.
 
 ## Cost
 

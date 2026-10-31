@@ -1,0 +1,130 @@
+{
+  "config": {
+    "clutter": {
+      "climatology": false,
+      "compression_image": {
+        "enabled": true
+      },
+      "enabled": true,
+      "ground_echo": {
+        "d_region_a_db_mhz2": 100.0,
+        "d_region_f_l_mhz": 1.2,
+        "enabled": true,
+        "surface_reflection_db": -3.0
+      },
+      "interference": {
+        "carriers_per_band": 3,
+        "enabled": true,
+        "only_above_fof2": true,
+        "power_dbm_iso": -70.0,
+        "raster_hz": 5000.0,
+        "sigma_db": 6.0
+      },
+      "plasma_resonances": {
+        "enabled": true,
+        "extent_km": 1000.0,
+        "fN": {
+          "decay_ms": 0.5,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "fUH": {
+          "decay_ms": 1.0,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "floor_db": 30.0,
+        "nfH": {
+          "decay_ms": 3.0,
+          "enabled": true,
+          "harmonics": 3,
+          "level_db": -70.0
+        },
+        "row_spacing_km": 3.0
+      },
+      "spread_f": {
+        "beyond_penetration_fraction": 0.05,
+        "enabled": true,
+        "extent_km": 100.0,
+        "level_db": -6.0,
+        "mean_km": 30.0,
+        "rows_per_echo": 12
+      }
+    },
+    "grid": {
+      "alt_max_m": 2000000.0,
+      "alt_min_m": 90000.0,
+      "alt_step_m": 5000.0
+    },
+    "instrument": "instrument/baseline_6u",
+    "name": "default",
+    "paths": {
+      "data_external": "data/external",
+      "data_reference": "data/reference",
+      "figures": "results/figures",
+      "results": "results"
+    },
+    "requirements": "requirements/requirements",
+    "run": {
+      "keep_intermediates": true,
+      "strict_provenance": false
+    },
+    "seed": 20260921,
+    "sweep": {
+      "direction": 1,
+      "f_start_hz": 330000.0,
+      "f_stop_hz": 20000000.0,
+      "nonlinearity_ppm": 0.0,
+      "step_cap_hz": 150000.0,
+      "step_dwell_s": 0.0268,
+      "step_fraction": 0.05,
+      "sweep_period_s": 0.0
+    },
+    "tiers": {
+      "l0": "chapman",
+      "l1": "analytic",
+      "l2": "baseline",
+      "l3": "baseline",
+      "l4": "lamination_magnetoionic",
+      "l5": "standard"
+    },
+    "wp4_campaign": {
+      "clutter": "off"
+    }
+  },
+  "config_sha256": "06b1a1396696f64d580e65c42c44b3fdba292292e2ebdd35f47baf2bf2c7d05e",
+  "configuration": "",
+  "created_utc": "2026-10-31T03:39:53+00:00",
+  "environment": {
+    "host": "HeartOfGold",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.16",
+    "user": "Andrew"
+  },
+  "git": {
+    "branch": "wp4-p2",
+    "commit": "dfe8d2c24953b1909fc0a4f5bbbf5a22369e4ef5",
+    "dirty": false,
+    "dirty_files": []
+  },
+  "inputs": [],
+  "notes": "WP4 evaluation harness: profiles x seeds end to end; SCI-05/07, INS-05/10 and O-trace completeness",
+  "outputs": [
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p2_clutter_off\\wp4_campaign_runs.csv",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p2_clutter_off\\wp4_campaign.json",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p2_clutter_off\\summary.md"
+  ],
+  "seed": 20260921,
+  "study": "wp4_campaign",
+  "tiers": {
+    "claims": [
+      "C1",
+      "C2",
+      "C4"
+    ],
+    "status": "implemented",
+    "work_packages": [
+      "WP4"
+    ]
+  }
+}
