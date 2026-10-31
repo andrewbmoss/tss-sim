@@ -524,6 +524,7 @@ def truth_echo_metrics(truth_echo_snr: Mapping[str, Any] | None) -> dict[str, An
         "snr_db_min_at_cutoff_steps": None,
         "snr_db_min_at_truth_echoes_incl_cutoff": None,
         "n_cutoff_step_echoes": None,
+        "snr_db_min_at_truth_echoes_vs_column": None,
     }
     if not truth_echo_snr:
         return out
@@ -550,6 +551,10 @@ def truth_echo_metrics(truth_echo_snr: Mapping[str, Any] | None) -> dict[str, An
         return out
     worst = int(np.flatnonzero(measured)[np.argmin(snr[measured])])
     out["snr_db_min_at_truth_echoes"] = float(snr[worst])
+    # Signal to noise plus clutter (WP4 Phase 2, G1): reported, not scored.
+    col = np.asarray(truth_echo_snr.get("snr_db_column", []), dtype=float)
+    if col.size == snr.size and np.any(measured & np.isfinite(col)):
+        out["snr_db_min_at_truth_echoes_vs_column"] = float(np.min(col[measured & np.isfinite(col)]))
     out["snr_db_median_at_truth_echoes"] = float(np.median(snr[measured]))
     if freq.size == snr.size:
         out["snr_db_min_at_truth_echoes_freq_hz"] = float(freq[worst])

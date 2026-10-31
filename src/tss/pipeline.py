@@ -179,6 +179,12 @@ class Pipeline:
                 **cells,
                 "snr_db": np.asarray(measure(signal, cells["freq_hz"], cells["range_m"])),
             }
+            # WP4 Phase 2 (G1): INS-10 is scored against the noise floor; the
+            # same cells measured against the column, which a clutter continuum
+            # raises, are reported beside it as signal to noise plus clutter.
+            if _accepts(measure, "floor"):
+                truth_echo_snr["snr_db_column"] = np.asarray(
+                    measure(signal, cells["freq_hz"], cells["range_m"], floor="column"))
             t["l3_truth_echo_snr"] = time.perf_counter() - t0
 
         t0 = time.perf_counter()

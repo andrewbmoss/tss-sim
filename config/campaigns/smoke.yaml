@@ -6,7 +6,10 @@ tiers:
   l0: chapman
   l1: analytic
   l2: baseline
-  l3: baseline
+  # Pinned to the WP3-era fixed 10 dB detector (WP4 Phase 2): the smoke
+  # numbers are cited by WP3 and its reference runs.  The default l3 detector
+  # is now the stated-P_fa one of tss.l3_signal.detect.
+  l3: {name: baseline, detector: fixed}
   l4: lamination_magnetoionic
   l5: standard
 configurations: [leo_500km_single]

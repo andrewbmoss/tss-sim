@@ -100,6 +100,7 @@ __all__ = [
     "detect_mask",
     "leading_edge",
     "extract_trace",
+    "leading_edge_cfar",
     "connect_trace",
     "robust_trace_extract",
 ]
@@ -292,6 +293,54 @@ def leading_edge(
     )
 
 
+def leading_edge_cfar(
+    spectrum: RangeSpectrum,
+    *,
+    channel: int = 0,
+    min_run: int = 2,
+    detector: Mapping[str, Any] | None = None,
+) -> TraceSample:
+    """Leading edge from the stated-P_fa detector of WP4 Phase 2.
+
+    As :func:`leading_edge`, with the cell decisions taken from
+    :func:`tss.l3_signal.detect.cfar_detect` instead of a fixed threshold over
+    a median floor.  ``detector`` holds its keyword arguments.  The SNR reported
+    is the peak over the detector's noise reference (noise and carriers, not
+    clutter).  The flags carry the detector's threshold, reference and
+    false-alarm probability.
+    """
+    from tss.l3_signal.detect import cfar_detect
+
+    res = cfar_detect(spectrum, channel=channel, **dict(detector or {}))
+    row = np.asarray(spectrum.power_db, dtype=float)[int(channel)]
+    rng = np.asarray(spectrum.range_m, dtype=float)
+    base = {"detector": "cfar", "pfa": res.pfa, "noise_reference": res.source,
+            "threshold_db": res.threshold_db, "n_reference": res.n_reference}
+    for start, stop in _runs(res.mask):
+        if stop - start < int(min_run):
+            continue
+        segment = row[start:stop]
+        peak_offset = int(np.argmax(segment))
+        return TraceSample(
+            freq_hz=float(spectrum.centre_frequency_hz),
+            range_m=float(rng[start]),
+            snr_db=float(segment[peak_offset] - res.noise_floor_db),
+            peak_range_m=float(rng[start + peak_offset]),
+            n_cells=int(stop - start),
+            noise_floor_db=float(res.noise_floor_db),
+            flags=dict(base),
+        )
+    return TraceSample(
+        freq_hz=float(spectrum.centre_frequency_hz),
+        range_m=float("nan"),
+        snr_db=float("nan"),
+        peak_range_m=float("nan"),
+        n_cells=0,
+        noise_floor_db=float(res.noise_floor_db),
+        flags={**base, "no_detection": True},
+    )
+
+
 def connect_trace(
     samples: list[TraceSample],
     *,
@@ -424,6 +473,8 @@ def extract_trace(
     max_jump_m: float | None = None,
     chain_max_gap: int | None = None,
     chain_max_jump_m: float = 1.5e5,
+    detector: str = "fixed",
+    detector_settings: Mapping[str, Any] | None = None,
 ) -> list[TraceSample]:
     """Leading-edge extraction across a stack of range spectra.
 
@@ -433,20 +484,34 @@ def extract_trace(
     :func:`longest_connected_trace`; ``None``, the default here, leaves every
     detection in place.
 
+    ``detector`` is ``"fixed"`` (``threshold_db`` over the median floor, the
+    WP3-era rule) or ``"cfar"`` (:func:`leading_edge_cfar`, WP4 Phase 2, with
+    ``detector_settings``).
+
     Valid for clean synthetic data.  See the module docstring for what it does
     not handle and :func:`robust_trace_extract` for where that work lives.
     """
-    samples = [
-        leading_edge(
-            s,
-            channel=channel,
-            threshold_db=threshold_db,
-            min_run=min_run,
-            exclude_below_m=exclude_below_m,
-            exclude_above_m=exclude_above_m,
-        )
-        for s in spectra
-    ]
+    if detector == "cfar":
+        settings = dict(detector_settings or {})
+        settings.setdefault("exclude_below_m", exclude_below_m)
+        if exclude_above_m is not None:
+            settings.setdefault("max_range_m", exclude_above_m)
+        samples = [leading_edge_cfar(s, channel=channel, min_run=min_run, detector=settings)
+                   for s in spectra]
+    elif detector == "fixed":
+        samples = [
+            leading_edge(
+                s,
+                channel=channel,
+                threshold_db=threshold_db,
+                min_run=min_run,
+                exclude_below_m=exclude_below_m,
+                exclude_above_m=exclude_above_m,
+            )
+            for s in spectra
+        ]
+    else:
+        raise ValueError(f"unknown detector {detector!r}; expected 'fixed' or 'cfar'")
     samples = connect_trace(samples, max_jump_m=max_jump_m)
     return longest_connected_trace(
         samples, max_gap=chain_max_gap, max_jump_m=chain_max_jump_m

@@ -68,7 +68,9 @@ them without touching the block loop:
     Turns the stack of range spectra into one trace sample per frequency.  The
     baseline delegates to :func:`tss.l3_signal.trace_extract.extract_trace`,
     which is the clean-data extractor.  The robust extractor of WP4 replaces
-    exactly this call.
+    exactly this call.  Since WP4 Phase 2 its cell decisions come from the
+    stated-P_fa detector of :mod:`tss.l3_signal.detect` (``detector="cfar"``,
+    the default; ``"fixed"`` is the WP3-era 10 dB rule).
 ``_estimate_doppler``
     Returns ``(doppler_mps, residual_range_bias_m)`` for the assembled trace.
     The baseline returns ``(None, None)``.  The up and down sweep pairing of
@@ -138,6 +140,24 @@ class BaselineSignalProcessing(SignalProcessingBase):
         below the start of the trace and above penetration.  On by default,
         with up to two empty columns bridged and 150 km of range change allowed
         per column.  ``chain_max_gap=None`` disables it.
+    detector
+        ``"cfar"`` (default since WP4 Phase 2, gate G1): the cell test of
+        :mod:`tss.l3_signal.detect`, with ``pfa`` per range cell against the
+        negative-beat noise reference and a local ordered-statistic veto at
+        ``local_pfa``.  ``"fixed"``: ``threshold_db`` over the median of the
+        column, the WP3-era rule.
+    pfa, local_pfa, local_ref_cells, guard_cells, local_order
+        The detector's settings (decision G1: 1e-4 per cell; the veto at 1e-2
+        over 16 cells a side beyond 2 guard cells, at the 0.75 ordered
+        statistic).
+    max_range_m
+        Search limit, INS-04's 1050 km by default.  ``None`` searches to the
+        unambiguous range.
+    snr_floor
+        What :meth:`snr_at` measures against: ``"noise"`` (the detector's
+        negative-beat reference, decision G1) or ``"column"`` (the median of the
+        column, which includes clutter: the WP3-era measure).  Defaults to
+        ``"noise"`` with the CFAR detector and ``"column"`` with the fixed one.
     """
 
     def __init__(
@@ -152,6 +172,14 @@ class BaselineSignalProcessing(SignalProcessingBase):
         max_jump_m: float | None = None,
         chain_max_gap: int | None = 2,
         chain_max_jump_m: float = 1.5e5,
+        detector: str = "cfar",
+        pfa: float = 1.0e-4,
+        local_pfa: float | None = 1.0e-2,
+        local_ref_cells: int = 16,
+        guard_cells: int = 2,
+        local_order: float = 0.75,
+        max_range_m: float | None = 1.05e6,
+        snr_floor: str | None = None,
     ) -> None:
         super().__init__(window=window)
         if int(n_frequencies) < 1:
@@ -166,6 +194,25 @@ class BaselineSignalProcessing(SignalProcessingBase):
         self.max_jump_m = None if max_jump_m is None else float(max_jump_m)
         self.chain_max_gap = None if chain_max_gap is None else int(chain_max_gap)
         self.chain_max_jump_m = float(chain_max_jump_m)
+        if detector not in ("cfar", "fixed"):
+            raise ValueError(f"unknown detector {detector!r}; expected 'cfar' or 'fixed'")
+        self.detector = str(detector)
+        self.pfa = float(pfa)
+        self.local_pfa = None if local_pfa is None else float(local_pfa)
+        self.local_ref_cells = int(local_ref_cells)
+        self.guard_cells = int(guard_cells)
+        self.local_order = float(local_order)
+        self.max_range_m = None if max_range_m is None else float(max_range_m)
+        floor = snr_floor or ("noise" if self.detector == "cfar" else "column")
+        if floor not in ("noise", "column"):
+            raise ValueError(f"unknown snr_floor {snr_floor!r}; expected 'noise' or 'column'")
+        self.snr_floor = floor
+
+    def detector_settings(self) -> dict[str, Any]:
+        """Keyword arguments for :func:`tss.l3_signal.detect.cfar_detect`."""
+        return {"pfa": self.pfa, "local_pfa": self.local_pfa, "local_ref_cells": self.local_ref_cells,
+                "guard_cells": self.guard_cells, "local_order": self.local_order,
+                "max_range_m": self.max_range_m, "exclude_below_m": self.exclude_below_m}
 
     # -- manifest -----------------------------------------------------------
 
@@ -180,6 +227,14 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "max_jump_m": self.max_jump_m,
             "chain_max_gap": self.chain_max_gap,
             "chain_max_jump_m": self.chain_max_jump_m,
+            "detector": self.detector,
+            "pfa": self.pfa if self.detector == "cfar" else None,
+            "local_pfa": self.local_pfa if self.detector == "cfar" else None,
+            "local_ref_cells": self.local_ref_cells,
+            "guard_cells": self.guard_cells,
+            "local_order": self.local_order,
+            "max_range_m": self.max_range_m,
+            "snr_floor": self.snr_floor,
             "mode_discrimination": False,
             "doppler_separation": False,
             "status": "partial",
@@ -295,9 +350,12 @@ class BaselineSignalProcessing(SignalProcessingBase):
             threshold_db=self.threshold_db,
             min_run=self.min_run,
             exclude_below_m=self.exclude_below_m,
+            exclude_above_m=None,
             max_jump_m=self.max_jump_m,
             chain_max_gap=self.chain_max_gap,
             chain_max_jump_m=self.chain_max_jump_m,
+            detector=self.detector,
+            detector_settings=self.detector_settings(),
         )
 
     # -- hook: Doppler separation -------------------------------------------
@@ -425,6 +483,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
         range_m: Sequence[float] | np.ndarray,
         *,
         half_width_cells: float = 2.0,
+        floor: str | None = None,
     ) -> np.ndarray:
         """Signal to noise ratio per range cell at given (frequency, range) cells.
 
@@ -439,7 +498,17 @@ class BaselineSignalProcessing(SignalProcessingBase):
         NaN where the frequency is outside every column or the range is beyond
         the column's unambiguous range, which is where the echo has folded and
         its range cell cannot be measured.  ``signal`` is not modified.
+
+        ``floor`` (default: the tier's ``snr_floor``) chooses the floor:
+        ``"noise"``, the detector's negative-beat reference, which is noise and
+        carriers and no clutter (decision G1, 2026-10-30), or ``"column"``, the
+        median of the column's positive half plus the median-to-mean factor,
+        which a clutter continuum in the column raises (the WP3-era measure,
+        reported beside INS-10 as signal to noise plus clutter).
         """
+        which = floor or self.snr_floor
+        if which not in ("noise", "column"):
+            raise ValueError(f"unknown floor {floor!r}; expected 'noise' or 'column'")
         f = np.atleast_1d(np.asarray(freq_hz, dtype=float))
         r = np.atleast_1d(np.asarray(range_m, dtype=float))
         if f.shape != r.shape:
@@ -471,7 +540,12 @@ class BaselineSignalProcessing(SignalProcessingBase):
             row = np.asarray(sp.power_db, dtype=float)[0]
             rng = np.asarray(sp.range_m, dtype=float)
             if j not in floors:
-                floors[j] = noise_floor_db(row, rng, exclude_below_m=self.exclude_below_m)
+                if which == "noise":
+                    from tss.l3_signal.detect import noise_reference
+
+                    floors[j] = float(noise_reference(sp)["mean_db"])
+                else:
+                    floors[j] = noise_floor_db(row, rng, exclude_below_m=self.exclude_below_m)
             near = np.abs(rng - ri) <= float(half_width_cells) * sp.range_resolution_m
             if not np.any(near):
                 continue

@@ -158,6 +158,11 @@ class RangeSpectrum:
         Name of the taper applied.
     enbw_bins
         Equivalent noise bandwidth of that taper, in bins.
+    negative_power_db
+        The negative-beat half, same scaling, ordered by increasing ``|beat|``
+        (index ``j`` is beat ``-(j + 1) fs / n_fft``).  No echo beats there, so
+        it is the detector's noise reference (WP4 Phase 2,
+        :mod:`tss.l3_signal.detect`).  ``None`` when not kept.
     """
 
     power_db: np.ndarray
@@ -170,6 +175,7 @@ class RangeSpectrum:
     unambiguous_range_m: float
     window: str
     enbw_bins: float
+    negative_power_db: np.ndarray | None = None
 
     def describe(self) -> Mapping[str, Any]:
         """Small JSON-serialisable record of the transform, for diagnostics."""
@@ -314,13 +320,13 @@ def transform(
 
     Notes
     -----
-    Only the non-negative beat frequencies are kept, indices ``0`` to
-    ``n_fft // 2`` inclusive.  After the orientation applied by
+    The non-negative beat frequencies, indices ``0`` to ``n_fft // 2``
+    inclusive, are the range spectrum.  After the orientation applied by
     :func:`tss.l3_signal.dechirp.dechirp` an echo always has positive beat
-    frequency, so the negative half carries only the image of the leakage and
-    the noise, and keeping it would double the array for nothing.  A study that
-    wants the negative half should call :func:`numpy.fft.fft` directly and say
-    why.
+    frequency, so the negative half carries only the image of the leakage, the
+    noise and any carrier.  Since WP4 Phase 2 it is kept, as
+    ``negative_power_db``, because that makes it the cleanest noise reference
+    the detector has (:mod:`tss.l3_signal.detect`).
     """
     samples = np.atleast_2d(np.asarray(block.samples))
     n = int(samples.shape[1])
@@ -345,9 +351,10 @@ def transform(
     taper = window_taper(window, n)
     coherent_gain, enbw = window_gains(taper)
 
-    spectrum = np.fft.fft(samples * taper[None, :], n=length, axis=-1)
+    full = np.fft.fft(samples * taper[None, :], n=length, axis=-1)
     keep = length // 2 + 1
-    spectrum = spectrum[:, :keep]
+    spectrum = full[:, :keep]
+    negative = full[:, keep:][:, ::-1]
 
     # Scale so a unit-amplitude tone filling the block reads 0 dB whatever the
     # window.  Dividing by n * coherent_gain is dividing by sum(w).
@@ -355,6 +362,10 @@ def transform(
     with np.errstate(divide="ignore"):
         power_db = 20.0 * np.log10(np.where(amplitude > 0.0, amplitude, np.nan))
     power_db = np.where(np.isnan(power_db), -np.inf, power_db)
+    neg_amp = np.abs(negative) / (n * coherent_gain)
+    with np.errstate(divide="ignore"):
+        neg_db = 20.0 * np.log10(np.where(neg_amp > 0.0, neg_amp, np.nan))
+    neg_db = np.where(np.isnan(neg_db), -np.inf, neg_db)
 
     beat_hz = np.arange(keep, dtype=float) * fs / float(length)
     range_m = range_from_beat_hz(beat_hz, k_f)
@@ -373,4 +384,5 @@ def transform(
         unambiguous_range_m=unambiguous_range_m(fs, k_f),
         window=str(window).lower(),
         enbw_bins=float(enbw),
+        negative_power_db=neg_db,
     )
