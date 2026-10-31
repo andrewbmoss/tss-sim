@@ -121,12 +121,14 @@ _LOOKS_PER_RATE = {"column": 0.2, "detection": 0.22}
 _ASSIGN_GUARD_CELLS = 2.0
 _ASSIGN_REACH_CELLS = 8.0
 _ASSIGN_FLOOR_DB = 9.6
+_ASSIGN_WEDGE = 0.5
 
 
 def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: np.ndarray,
                  bins_per_cell: float, *, base_index: int = 0, max_peaks: int = 64,
                  guard_cells: float = _ASSIGN_GUARD_CELLS, reach_cells: float = _ASSIGN_REACH_CELLS,
-                 floor_over_median_db: float = _ASSIGN_FLOOR_DB) -> tuple[np.ndarray, np.ndarray]:
+                 floor_over_median_db: float = _ASSIGN_FLOOR_DB,
+                 wedge: float | None = None) -> tuple[np.ndarray, np.ndarray]:
     """One column from the rate-search transforms, with a rate per detection.
 
     ``power_db`` holds one row per searched rate ``j`` (beat slide of ``j``
@@ -135,10 +137,9 @@ def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: n
     over rates are taken in decreasing order, and each is accepted as a further
     echo if it lies outside the smear wedge of every echo accepted before it: an
     echo compressed at rate ``j_a`` and range ``r_a`` spreads, at rate ``j``,
-    over ``r_a +- |j - j_a| / 2`` cells (taken as ``3|j - j_a|/4`` plus a guard,
-    for the ripple at the wedge's edges), so a peak inside that wedge is the
-    stronger echo's own smear, not a second echo; nor is a peak in its skirt
-    more than 30 dB under it.  An accepted echo's
+    over ``r_a +- |j - j_a| / 2`` cells, so a peak inside that wedge (plus a
+    guard of two cells) is the stronger echo's own smear, not a second echo.
+    A weaker echo inside it cannot be separated this way.  An accepted echo's
     neighbourhood (where its rate gives more than the column has, out to
     ``reach_cells``) takes its rate's values.  A weaker echo with a different
     slope in the same column is then compressed at its own rate instead of
@@ -149,6 +150,7 @@ def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: n
     Returns the column (dB) and, per cell, the index into ``js`` of the rate
     it was taken from.  Inputs are not modified.
     """
+    wedge = _ASSIGN_WEDGE if wedge is None else float(wedge)
     p = np.asarray(power_db, dtype=float)
     srch = np.asarray(search, dtype=bool)
     col = p[int(i_best)].copy()
@@ -172,12 +174,9 @@ def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: n
         if len(accepted) >= max_peaks:
             break
         jr = int(jmax[r])
-        # Inside a stronger echo's smear wedge (half-width |dj|/2, widened to
-        # 3|dj|/4 for the Fresnel ripple of a mismatched chirp), or in its skirt
-        # (|dj| + 8 cells) and more than 30 dB under it, the peak is that echo's.
-        if any(abs(int(r) - ra) <= bpc * (0.75 * abs(jj[jr] - jj[ja]) + guard_cells)
-               or (abs(int(r) - ra) <= bpc * (abs(jj[jr] - jj[ja]) + 8.0) and m[r] < m[ra] - 30.0)
-               for ra, ja in accepted):
+        # Inside a stronger echo's smear wedge (half-width |dj|/2 plus a guard)
+        # the peak is that echo's own smear.
+        if any(abs(int(r) - ra) <= bpc * (wedge * abs(jj[jr] - jj[ja]) + guard_cells) for ra, ja in accepted):
             continue
         accepted.append((int(r), jr))
         row = p[jr]
