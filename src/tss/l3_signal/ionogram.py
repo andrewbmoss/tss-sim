@@ -159,15 +159,18 @@ class BaselineSignalProcessing(SignalProcessingBase):
         unambiguous range.
     dispersion
         WP4 Phase 3, the treatment of dispersion within a dwell
-        (Technical Volume section 5.3): ``"none"`` (one transform of the whole
-        dwell, the baseline), ``"blocks"`` (``dispersion_blocks`` sub-blocks
+        (Technical Volume section 5.3): ``"rate_search"`` (the default since
+        gate G2, 2026-10-31), ``"none"`` (one transform of the whole dwell,
+        the WP3-era chain), ``"blocks"`` (``dispersion_blocks`` sub-blocks
         transformed and added in power, option 1) or ``"rate_search"`` (the
         block de-chirped again against beat chirp rates of ``j / T^2`` for
-        ``j`` from -2 to ``rate_search_max_cells``, and the transform with the
-        highest peak kept for the column, option 2).  Option 3, narrower steps, is a sweep setting, not an L3 one.
+        ``j`` from -2 to ``rate_search_max_cells`` (64 by default, widened from
+        32 on 2026-10-31), and the transform with the highest peak kept for the
+        column, option 2).  Option 3, narrower steps, is a sweep setting, not an L3 one.
     transition
         WP4 Phase 3, the treatment of the first ``tau`` of each step:
-        ``"accept"`` (the baseline, the decision of 2026-09-30), ``"gate"``
+        ``"accept"`` (the baseline: the decision of 2026-09-30, confirmed at
+        gate G3 on 2026-10-31), ``"gate"``
         (drop the first ``2 R_max / c`` of every dwell) or ``"matched"`` (the
         hybrid matched filter: in the steps whose rate differs from the step
         before, re-evaluate the cells around each detection by a matched filter
@@ -200,10 +203,10 @@ class BaselineSignalProcessing(SignalProcessingBase):
         sidelobe_margin_db: float | None = 6.0,
         max_range_m: float | None = 1.05e6,
         snr_floor: str | None = None,
-        dispersion: str = "none",
+        dispersion: str = "rate_search",
         dispersion_blocks: int = 4,
-        rate_search_max_cells: int = 32,
-        rate_search_effective_looks: float = 7.0,
+        rate_search_max_cells: int = 64,
+        rate_search_effective_looks: float | None = None,
         transition: str = "accept",
     ) -> None:
         super().__init__(window=window)
@@ -240,7 +243,12 @@ class BaselineSignalProcessing(SignalProcessingBase):
         self.dispersion = str(dispersion)
         self.dispersion_blocks = max(int(dispersion_blocks), 1)
         self.rate_search_max_cells = max(int(rate_search_max_cells), 0)
-        self.rate_search_effective_looks = max(float(rate_search_effective_looks), 1.0)
+        # Calibrated on noise-only A1 records (2026-10-30): the rates act as
+        # about a fifth as many independent looks (7 of 35 at a 32-cell span,
+        # 12 to 14 of 67 at 64).
+        n_rates = self.rate_search_max_cells + 3
+        self.rate_search_effective_looks = max(
+            float(rate_search_effective_looks) if rate_search_effective_looks is not None else 0.2 * n_rates, 1.0)
         self.transition = str(transition)
 
     def detector_settings(self) -> dict[str, Any]:
@@ -433,9 +441,9 @@ class BaselineSignalProcessing(SignalProcessingBase):
         # unchanged by the chirp).  The selection over rates is a choice among
         # looks, which the detector's per-look P_fa accounts for.  The 35
         # rates are strongly correlated: calibrated on six noise-only A1
-        # records (2026-10-30) they act as about 7 independent looks (measured
-        # P_fa 0.8 and 1.2 times nominal with leakage off and on); counting all
-        # 35 gave 2.9e-5 against the stated 1e-4.
+        # records (2026-10-30) they act as about a fifth as many independent
+        # looks (``rate_search_effective_looks``); counting every rate gave a
+        # measured P_fa of 2.9e-5 against the stated 1e-4 at a 32-cell span.
         return _replace(best, negative_power_db=base.negative_power_db,
                         n_looks=int(round(self.rate_search_effective_looks)),
                         rate_hz_per_s2=np.full(rng.size, best_gamma))

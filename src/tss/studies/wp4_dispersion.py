@@ -20,6 +20,8 @@ Dispersion, each with the transition accepted:
 * ``D1x2``, ``D1x4`` the dwell cut into 2 or 4 sub-blocks added in power;
 * ``D2`` the rate search, beat chirp rates of ``j / T^2``, ``j`` = -2..32, the
   rate with the highest peak kept for each column;
+* ``D2w`` the same over ``j`` = -2..64 (the span widened on 2026-10-31; the
+  baseline since gate G2);
 * ``D3`` narrower steps: a 50 kHz cap on the steps that start between 2 and
   8 MHz, sized so that the B2 reference (H = 150 km, f_N at the spacecraft
   2 MHz) crosses about two cells at 3 MHz; the 150 kHz cap elsewhere.
@@ -85,16 +87,18 @@ DEFAULT_SEEDS = (1, 2, 3)
 
 #: name: (L3 keyword arguments, sweep overrides)
 NARROW = {"narrow_lo_hz": 2.0e6, "narrow_hi_hz": 8.0e6, "narrow_cap_hz": 50.0e3}
+_NONE = {"dispersion": "none"}
 TREATMENTS: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
-    "D0": ({}, {}),
+    "D0": (dict(_NONE), {}),
     "D1x2": ({"dispersion": "blocks", "dispersion_blocks": 2}, {}),
     "D1x4": ({"dispersion": "blocks", "dispersion_blocks": 4}, {}),
-    "D2": ({"dispersion": "rate_search"}, {}),
-    "D3": ({}, NARROW),
-    "T1": ({"transition": "gate"}, {}),
-    "T2": ({"transition": "matched"}, {}),
+    "D2": ({"dispersion": "rate_search", "rate_search_max_cells": 32}, {}),
+    "D2w": ({"dispersion": "rate_search", "rate_search_max_cells": 64}, {}),
+    "D3": (dict(_NONE), NARROW),
+    "T1": ({**_NONE, "transition": "gate"}, {}),
+    "T2": ({**_NONE, "transition": "matched"}, {}),
 }
-GROUP = {"D0": "both", "D1x2": "G2", "D1x4": "G2", "D2": "G2", "D3": "G2", "T1": "G3", "T2": "G3"}
+GROUP = {"D0": "both", "D1x2": "G2", "D1x4": "G2", "D2": "G2", "D2w": "G2", "D3": "G2", "T1": "G3", "T2": "G3"}
 
 
 # -- ISIS-1 scenes -----------------------------------------------------------------
@@ -301,7 +305,7 @@ def run_scene(name: str, l0: Any, platform: Any, epoch: str, *, config: dict[str
             for seed in seeds:
                 rec_on = inst_on.receive(echoes, sweep, np.random.default_rng(seed))
                 rec_off = inst_off.receive(echoes, sweep, np.random.default_rng(seed))
-                l3_ref = BaselineSignalProcessing()
+                l3_ref = BaselineSignalProcessing(dispersion="none")
                 ref_rows = echo_measures(l3_ref.spectra(rec_off), echoes, l3_ref, None, None)
                 ref = {_key(r["f_mhz"] * 1e6): r["snr_db"] for r in ref_rows}
                 for tname in names:

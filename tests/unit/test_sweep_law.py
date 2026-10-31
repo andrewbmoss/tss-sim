@@ -155,7 +155,7 @@ def test_stepped_echo_lands_at_its_range_across_the_band(range_m):
     # rightly detects it, and the range jump then fails the chain rule.  This
     # test is about the range scale, so it keeps the rule it was written for;
     # the partial last step is a step-transition item for WP4 Phase 3.
-    tier = BaselineSignalProcessing(detector="fixed")
+    tier = BaselineSignalProcessing(detector="fixed", dispersion="none")
 
     # The range scale, checked on the spectrum peak of every column.  A block
     # converted at the peak rate would put the bottom-of-band echoes at a ninth

@@ -78,8 +78,8 @@ def test_narrow_band_step_law():
 
 @pytest.mark.parametrize("kw", [{"dispersion": "blocks", "dispersion_blocks": 2},
                                 {"dispersion": "blocks", "dispersion_blocks": 4},
-                                {"dispersion": "rate_search"}, {"transition": "gate"},
-                                {"transition": "matched"}])
+                                {"dispersion": "rate_search"}, {"dispersion": "none", "transition": "gate"},
+                                {"dispersion": "none", "transition": "matched"}])
 def test_measured_pfa_under_each_treatment(kw):
     sweep = _sweep()
     inst = _instrument(leakage=False)
@@ -113,7 +113,7 @@ def test_rate_search_compresses_a_sliding_beat_and_returns_its_rate():
     sw = _sweep()
     blk = Dechirped(samples=x[None, :], fs_hz=fs, t_s=t + 1.0, sweep=sw, oriented=True,
                     centre_frequency_hz=10e6, k_f_hz_per_s=5.6e6)
-    plain = BaselineSignalProcessing()._transform_block(blk, n)
+    plain = BaselineSignalProcessing(dispersion="none")._transform_block(blk, n)
     rs = BaselineSignalProcessing(dispersion="rate_search")._transform_block(blk, n)
     assert np.max(rs.power_db) > np.max(plain.power_db) + 3.0
     assert np.max(rs.power_db) == pytest.approx(0.0, abs=0.5)  # a unit tone reads 0 dB
@@ -134,15 +134,15 @@ def test_rate_search_and_narrow_steps_recover_the_dispersion_loss_on_a_dispersiv
     conf = load_yaml(resolve_path("leo_500km_single", subdir="configurations"))
     lat, lt, *_ = w.PROFILES["mid_day_min"]
     pl = replace(_platform_for(conf, w.EPOCH), lat_deg=lat, lon_deg=w._lon_for_local_time(lt))
-    tr = {k: d.TREATMENTS[k] for k in ("D0", "D2", "D3")}
+    tr = {k: d.TREATMENTS[k] for k in ("D0", "D2w", "D3")}
     rows = d.run_scene("mid_day_min", w._l0_for("mid_day_min"), pl, w.EPOCH, config=cfg, seeds=[1],
                        treatments=tr)
     agg = d.aggregate(rows)
     assert agg["D0"]["all"]["loss_db_median"] > 2.0  # the effect is there
-    assert agg["D2"]["all"]["loss_db_median"] < 0.5
+    assert agg["D2w"]["all"]["loss_db_median"] < 0.5
     assert agg["D3"]["all"]["loss_db_median"] < 0.5
-    assert agg["D2"]["all"]["width_km_median"] < agg["D0"]["all"]["width_km_median"]
-    assert agg["D2"]["all"]["dpdf_err_median_abs"] < 0.1
+    assert agg["D2w"]["all"]["width_km_median"] < agg["D0"]["all"]["width_km_median"]
+    assert agg["D2w"]["all"]["dpdf_err_median_abs"] < 0.1
 
 
 # -- option 1: sub-blocks --------------------------------------------------------------
@@ -151,7 +151,7 @@ def test_rate_search_and_narrow_steps_recover_the_dispersion_loss_on_a_dispersiv
 def test_sub_blocks_coarsen_the_cell_by_their_count():
     sweep = _sweep()
     rec = _instrument(leakage=False).receive(_empty(), sweep, np.random.default_rng(0))
-    a = BaselineSignalProcessing().spectra(rec)
+    a = BaselineSignalProcessing(dispersion="none").spectra(rec)
     b = BaselineSignalProcessing(dispersion="blocks", dispersion_blocks=4).spectra(rec)
     assert b[50].n_incoherent == 4
     assert b[50].range_resolution_m == pytest.approx(4 * a[50].range_resolution_m, rel=0.01)
@@ -163,8 +163,8 @@ def test_sub_blocks_coarsen_the_cell_by_their_count():
 def test_gate_drops_the_first_2_rmax_over_c():
     sweep = _sweep()
     rec = _instrument(leakage=False).receive(_empty(), sweep, np.random.default_rng(0))
-    a = BaselineSignalProcessing().spectra(rec)
-    g = BaselineSignalProcessing(transition="gate").spectra(rec)
+    a = BaselineSignalProcessing(dispersion="none").spectra(rec)
+    g = BaselineSignalProcessing(dispersion="none", transition="gate").spectra(rec)
     n_a = a[10].range_resolution_m
     n_g = g[10].range_resolution_m
     gate = 2 * 1.05e6 / C
@@ -184,13 +184,19 @@ def test_matched_filter_removes_the_transition_skirt_of_a_long_range_echo():
                 group_delay_s=np.array([2 * 900e3 / C]), amplitude_db=np.array([-50.0]),
                 absorption_db=np.zeros(1))
     rec = _instrument(leakage=False, dispersion=False).receive(e, sweep, np.random.default_rng(2))
-    acc = BaselineSignalProcessing().spectra(rec)[j]
-    mf = BaselineSignalProcessing(transition="matched").spectra(rec)[j]
+    acc = BaselineSignalProcessing(dispersion="none").spectra(rec)[j]
+    mf = BaselineSignalProcessing(dispersion="none", transition="matched").spectra(rec)[j]
     r = acc.range_m
     skirt = (r > 0.93 * 900e3) & (r < 0.97 * 900e3)
     main = np.abs(r - 900e3) < 2 * acc.range_resolution_m
     assert np.max(mf.power_db[0][skirt]) < np.max(acc.power_db[0][skirt]) - 3.0
     assert np.max(mf.power_db[0][main]) == pytest.approx(np.max(acc.power_db[0][main]), abs=1.0)
+
+
+def test_the_rate_search_is_the_default_after_gate_g2():
+    t = BaselineSignalProcessing()
+    assert t.dispersion == "rate_search" and t.rate_search_max_cells == 64 and t.transition == "accept"
+    assert t.rate_search_effective_looks == pytest.approx(0.2 * 67)
 
 
 def test_unknown_treatments_are_refused():

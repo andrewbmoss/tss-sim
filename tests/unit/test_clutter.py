@@ -314,9 +314,10 @@ def test_clutter_off_reproduces_the_phase0_baseline():
     ref = Path(__file__).resolve().parents[2] / "data" / "reference" / "wp4_baseline" / "wp4_campaign_runs.csv"
     rows = {(r["profile"], r["seed"]): r for r in csv.DictReader(ref.open(encoding="utf-8"))}
     cfg = _base_config(())
-    # The Phase 0 chain: the WP3-era fixed threshold (the detector became the
-    # stated-P_fa one in Phase 2).
-    cfg["tiers"]["l3"] = {"name": "baseline", "detector": "fixed"}
+    # The Phase 0 chain: the WP3-era fixed threshold and one transform per
+    # dwell (the detector became the stated-P_fa one in Phase 2, the rate
+    # search the default dispersion treatment in Phase 3).
+    cfg["tiers"]["l3"] = {"name": "baseline", "detector": "fixed", "dispersion": "none"}
     shared = build_tiers({k: v for k, v in cfg["tiers"].items() if k not in ("l0", "l2")})
     got = w.run_one("smoke", 1, config=cfg, configuration="leo_500km_single", clutter=None, shared=shared)
     want = rows[("smoke", "1")]

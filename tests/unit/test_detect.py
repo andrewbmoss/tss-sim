@@ -86,7 +86,7 @@ def test_measured_pfa_on_full_l2_noise_records_with_leakage():
     sweep = _sweep_from_config(cfg, io.StringIO())[0]
     inst = BaselineInstrument.from_config(instrument_config(cfg))  # leakage on, the default
     assert inst.leakage_enabled
-    l3 = BaselineSignalProcessing()
+    l3 = BaselineSignalProcessing(dispersion="none")  # the detector, on one transform per dwell
     empty = EchoSet(freq_hz=np.array([]), mode=np.array([], dtype=object), group_delay_s=np.array([]),
                     amplitude_db=np.array([]), absorption_db=np.array([]))
     hits = cells = near = 0
