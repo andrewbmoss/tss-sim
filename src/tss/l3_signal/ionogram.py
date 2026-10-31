@@ -135,8 +135,10 @@ def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: n
     over rates are taken in decreasing order, and each is accepted as a further
     echo if it lies outside the smear wedge of every echo accepted before it: an
     echo compressed at rate ``j_a`` and range ``r_a`` spreads, at rate ``j``,
-    over ``r_a +- |j - j_a| / 2`` cells, so a peak inside that wedge is the
-    stronger echo's own smear, not a second echo.  An accepted echo's
+    over ``r_a +- |j - j_a| / 2`` cells (taken as ``3|j - j_a|/4`` plus a guard,
+    for the ripple at the wedge's edges), so a peak inside that wedge is the
+    stronger echo's own smear, not a second echo; nor is a peak in its skirt
+    more than 30 dB under it.  An accepted echo's
     neighbourhood (where its rate gives more than the column has, out to
     ``reach_cells``) takes its rate's values.  A weaker echo with a different
     slope in the same column is then compressed at its own rate instead of
@@ -170,7 +172,12 @@ def assign_rates(power_db: np.ndarray, js: Sequence[int], i_best: int, search: n
         if len(accepted) >= max_peaks:
             break
         jr = int(jmax[r])
-        if any(abs(int(r) - ra) <= bpc * (0.5 * abs(jj[jr] - jj[ja]) + guard_cells) for ra, ja in accepted):
+        # Inside a stronger echo's smear wedge (half-width |dj|/2, widened to
+        # 3|dj|/4 for the Fresnel ripple of a mismatched chirp), or in its skirt
+        # (|dj| + 8 cells) and more than 30 dB under it, the peak is that echo's.
+        if any(abs(int(r) - ra) <= bpc * (0.75 * abs(jj[jr] - jj[ja]) + guard_cells)
+               or (abs(int(r) - ra) <= bpc * (abs(jj[jr] - jj[ja]) + 8.0) and m[r] < m[ra] - 30.0)
+               for ra, ja in accepted):
             continue
         accepted.append((int(r), jr))
         row = p[jr]
@@ -288,6 +295,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
         rate_search_effective_looks: float | None = None,
         rate_assign: str = "detection",
         transition: str = "accept",
+        extractor: str = "tracker",
+        tracker: Mapping[str, Any] | None = None,
     ) -> None:
         super().__init__(window=window)
         if int(n_frequencies) < 1:
@@ -329,6 +338,12 @@ class BaselineSignalProcessing(SignalProcessingBase):
         if rate_assign not in ("column", "detection"):
             raise ValueError(f"unknown rate_assign {rate_assign!r}; expected 'column' or 'detection'")
         self.rate_assign = str(rate_assign)
+        if extractor not in ("tracker", "legacy"):
+            raise ValueError(f"unknown extractor {extractor!r}; expected 'tracker' or 'legacy'")
+        self.extractor = str(extractor)
+        from tss.l3_signal.tracker import TrackerSettings
+
+        self.tracker_settings = TrackerSettings(**dict(tracker or {}))
         n_rates = self.rate_search_max_cells + 3
         self.rate_search_effective_looks = max(
             float(rate_search_effective_looks) if rate_search_effective_looks is not None
@@ -368,6 +383,9 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "dispersion_blocks": self.dispersion_blocks if self.dispersion == "blocks" else None,
             "rate_search_max_cells": self.rate_search_max_cells if self.dispersion == "rate_search" else None,
             "rate_assign": self.rate_assign if self.dispersion == "rate_search" else None,
+            "extractor": self.extractor,
+            "tracker": ({k: getattr(self.tracker_settings, k) for k in self.tracker_settings.__dataclass_fields__}
+                        if self.extractor == "tracker" else None),
             "transition": self.transition,
             "mode_discrimination": False,
             "doppler_separation": False,
@@ -654,14 +672,29 @@ class BaselineSignalProcessing(SignalProcessingBase):
         evanescent or penetrated is a result, not a failure.
         """
         spectra = self.spectra(signal)
-        samples = self._detect_and_extract(spectra)
+        track = None
+        if self.extractor == "tracker" and platform is not None:
+            track = self._track(spectra, platform)
+            samples = [
+                TraceSample(freq_hz=float(f), range_m=float(r), snr_db=float(q), peak_range_m=float("nan"),
+                            n_cells=0, noise_floor_db=float("nan"), flags={"mode": "O"})
+                for f, r, q in zip(track.freq_hz, track.range_m[:, 0], track.snr_db[:, 0], strict=True)
+            ]
+        else:
+            samples = self._detect_and_extract(spectra)
         doppler_mps, residual_bias_m = self._estimate_doppler(samples, signal, platform)
 
         freq_hz = np.array([s.freq_hz for s in samples], dtype=float)
-        virtual_range_m = np.array([s.range_m for s in samples], dtype=float)[:, None]
-        snr_db = np.array([s.snr_db for s in samples], dtype=float)[:, None]
+        if track is not None:
+            virtual_range_m = np.asarray(track.range_m, dtype=float)
+            snr_db = np.where(np.isfinite(virtual_range_m), np.asarray(track.snr_db, dtype=float), np.nan)
+            modes: tuple[str, ...] = ("O", "X")
+        else:
+            virtual_range_m = np.array([s.range_m for s in samples], dtype=float)[:, None]
+            snr_db = np.array([s.snr_db for s in samples], dtype=float)[:, None]
+            modes = (UNRESOLVED_MODE,)
 
-        detected = np.isfinite(virtual_range_m[:, 0])
+        detected = np.any(np.isfinite(virtual_range_m), axis=1)
         first = spectra[0]
         stepped = sweep_law.is_stepped(signal.sweep)
         if stepped:
@@ -722,18 +755,52 @@ class BaselineSignalProcessing(SignalProcessingBase):
         if np.any(detected):
             flags["min_detected_frequency_hz"] = float(np.min(freq_hz[detected]))
             flags["max_detected_frequency_hz"] = float(np.max(freq_hz[detected]))
+        flags["extractor"] = "tracker" if track is not None else "legacy"
+        if track is not None:
+            # WP4 Phase 4: O and X labelled by a model (self-consistency of the
+            # two traces under the IGRF field), not measured by polarisation:
+            # INS-08 still needs the vector receive of WP11.
+            flags["mode_labelling"] = "model_self_consistent"
+            flags["range_sigma_m"] = np.where(np.isfinite(track.sigma_m), track.sigma_m, -1.0).tolist()
+            flags["label_confidence"] = np.where(np.isfinite(track.confidence), track.confidence, -1.0).tolist()
+            flags["sample_quality"] = np.asarray(track.quality, dtype=int).tolist()
+            flags["tracker"] = _jsonable(track.info)
+        elif self.extractor == "tracker":
+            flags["extractor_note"] = "no platform state: the legacy extractor was used"
 
         return Ionogram(
             freq_hz=freq_hz,
             virtual_range_m=virtual_range_m,
             snr_db=snr_db,
-            modes=(UNRESOLVED_MODE,),
+            modes=modes,
             doppler_mps=doppler_mps,
             aoa_deg=None,
             residual_range_bias_m=residual_bias_m,
             flags=flags,
             source=f"tss.l3_signal.ionogram.{type(self).__name__}",
         )
+
+    def _track(self, spectra: Sequence[RangeSpectrum], platform: PlatformState) -> Any:
+        """The WP4 Phase 4 tracker on this record's spectra (:mod:`tss.l3_signal.tracker`)."""
+        from tss.l3_signal.detect import cfar_detect, spectrum_pad_factor
+        from tss.l3_signal.tracker import track_traces
+        from tss.l4_retrieval.lamination import geomagnetic_field_model
+
+        settings = self.detector_settings()
+        cfars = [cfar_detect(sp, **settings) for sp in spectra]
+        epoch = platform.epoch or "2026-01-01T00:00:00Z"
+        fld, _ = geomagnetic_field_model(float(platform.lat_deg), float(platform.lon_deg), epoch,
+                                         float(platform.alt_m) + 2.0e4)
+        span = None
+        if self.dispersion == "rate_search":
+            span = []
+            for sp in spectra:
+                beat = np.asarray(sp.beat_hz, dtype=float)
+                d_beat = float(np.median(np.abs(np.diff(beat)))) if beat.size > 1 else float("nan")
+                dur = 1.0 / (spectrum_pad_factor(sp) * d_beat) if d_beat > 0 else float("nan")
+                span.append(self.rate_search_max_cells / dur**2 if np.isfinite(dur) else None)
+        return track_traces(list(spectra), cfars, h_sat_m=float(platform.alt_m), fld=fld,
+                            settings=self.tracker_settings, span_rate_hz_per_s2=span)
 
     def snr_at(
         self,
@@ -813,3 +880,18 @@ class BaselineSignalProcessing(SignalProcessingBase):
 
     def describe(self) -> Mapping[str, Any]:
         return super().describe()
+
+
+def _jsonable(x: Any) -> Any:
+    """Numpy scalars and arrays to plain Python, recursively (manifest flags)."""
+    if isinstance(x, dict):
+        return {str(k): _jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_jsonable(v) for v in x]
+    if isinstance(x, np.ndarray):
+        return _jsonable(x.tolist())
+    if isinstance(x, np.generic):
+        return x.item()
+    if isinstance(x, float) and not np.isfinite(x):
+        return None
+    return x

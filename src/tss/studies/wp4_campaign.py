@@ -198,9 +198,34 @@ def trace_measures(ionogram: Any, echoes: Any) -> dict[str, Any]:
         else:
             counts["false"] += 1
             per_col.append("false")
+    # WP4 Phase 4: with the tracker the ionogram carries a labelled X column;
+    # its samples are matched the same way, and the labelling error is the
+    # share of labelled samples that sit on the other mode's truth.
+    xl = {"x_on_x": 0, "x_on_o": 0, "x_false": 0}
+    modes = tuple(getattr(ionogram, "modes", ()) or ())
+    r_all = np.asarray(ionogram.virtual_range_m, dtype=float)
+    if r_all.ndim == 2 and r_all.shape[1] > 1 and len(modes) > 1 and str(modes[1]).upper() == "X":
+        for j, f in enumerate(f_i):
+            r = r_all[j, 1]
+            if not np.isfinite(r):
+                continue
+            here = np.isclose(f_c, f, rtol=1e-6, atol=1.0) & ~cut
+            tol = 2.0 * res[j] + TOL_EXTRA_M if np.isfinite(res[j]) else 20.0e3 + TOL_EXTRA_M
+            ro, rx = r_c[here & (m_c == "O")], r_c[here & (m_c == "X")]
+            d_o = float(np.min(np.abs(ro - r))) if ro.size else np.inf
+            d_x = float(np.min(np.abs(rx - r))) if rx.size else np.inf
+            if min(d_o, d_x) > tol:
+                xl["x_false"] += 1
+            elif d_x <= d_o:
+                xl["x_on_x"] += 1
+            else:
+                xl["x_on_o"] += 1
+    labelled = counts["o"] + counts["x"] + xl["x_on_x"] + xl["x_on_o"]
     e = np.asarray(err_o, dtype=float)
     ex = np.asarray(err_x, dtype=float)
     return {
+        **{f"n_{k}": v for k, v in xl.items()},
+        "labelling_error": (counts["x"] + xl["x_on_o"]) / labelled if labelled else float("nan"),
         "n_truth_o_columns": n_truth_o,
         **{f"n_{k}": v for k, v in counts.items()},
         "completeness_o": counts["o"] / n_truth_o if n_truth_o else float("nan"),
@@ -292,6 +317,13 @@ def _nanmin(v: list[float]) -> float:
     return float(np.nanmin(a)) if np.any(np.isfinite(a)) else float("nan")
 
 
+def _pooled_labelling_error(rs: list[dict[str, Any]]) -> float:
+    wrong = sum(int(r.get("n_x", 0)) + int(r.get("n_x_on_o", 0)) for r in rs)
+    total = sum(int(r.get("n_o", 0)) + int(r.get("n_x", 0)) + int(r.get("n_x_on_x", 0)) + int(r.get("n_x_on_o", 0))
+                for r in rs)
+    return wrong / total if total else float("nan")
+
+
 def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Medians and worst cases per profile and overall."""
     def block(rs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -312,6 +344,10 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "range_error_o_rms_median_m": _nanmed([r["range_error_o_rms_m"] for r in rs]),
             "range_error_o_mean_median_m": _nanmed([r["range_error_o_mean_m"] for r in rs]),
             "range_error_x_mean_median_m": _nanmed([r["range_error_x_mean_m"] for r in rs]),
+            "labelling_error_median": _nanmed([r.get("labelling_error", float("nan")) for r in rs]),
+            "labelling_error_pooled": _pooled_labelling_error(rs),
+            "x_samples_median": _nanmed([r.get("n_x_on_x", 0) + r.get("n_x_on_o", 0) + r.get("n_x_false", 0)
+                                         for r in rs]),
         }
         for rid in ("sci05", "sci07", "ins10"):
             vs = [r[f"{rid}_verdict"] for r in rs]
@@ -363,8 +399,8 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         f" ({o['n_runs']} runs).  Tolerance for a trace match: {res['tolerance']}.",
         "",
         "| Profile | SCI-05 med (worst) | SCI-07 km med (worst) | INS-10 dB med (worst) | S/(N+C) dB med"
-        " | O complete med (worst) | on X | false | spurious | O bias km | X bias km |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        " | O complete med (worst) | on X | false | spurious | O bias km | X bias km | label err | X samples |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for p, b in list(agg["by_profile"].items()) + [("**all**", o)]:
         lines.append(
@@ -374,7 +410,8 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             f" | {_f(b['completeness_o_median'], 2)} ({_f(b['completeness_o_worst'], 2)})"
             f" | {_f(b['fraction_on_x_median'], 2)} | {_f(b['fraction_false_median'], 2)}"
             f" | {_f(b['spurious_median'], 0)} | {_f(b['range_error_o_mean_median_m'] / 1e3, 1)}"
-            f" | {_f(b['range_error_x_mean_median_m'] / 1e3, 1)} |")
+            f" | {_f(b['range_error_x_mean_median_m'] / 1e3, 1)} | {_f(b['labelling_error_pooled'], 3)}"
+            f" | {_f(b['x_samples_median'], 0)} |")
     lines += ["", "Verdicts over all runs: "
               + "; ".join(f"{k.upper()} {o[k + '_verdicts']}" for k in ("sci05", "sci07", "ins10")), ""]
     metrics = {
@@ -385,6 +422,7 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "ins10_median_db": o["ins10_median_db"], "ins10_worst_db": o["ins10_worst_db"],
         "completeness_o_median": o["completeness_o_median"], "completeness_o_worst": o["completeness_o_worst"],
         "fraction_on_x_median": o["fraction_on_x_median"],
+        "labelling_error_pooled": o["labelling_error_pooled"],
     }
     return "\n".join(lines), metrics
 

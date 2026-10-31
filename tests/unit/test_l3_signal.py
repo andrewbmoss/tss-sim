@@ -232,7 +232,12 @@ def test_leading_edge_is_at_or_before_the_peak():
 def test_baseline_tier_forms_an_ionogram_and_is_registered():
     """The baseline tier registers and produces an ionogram of the right shape."""
     assert "baseline" in available("l3")["l3"]
-    tier = BaselineSignalProcessing(n_frequencies=16, pad_factor=2)
+    # One transform per block and the threshold-and-connect extractor: the
+    # shape of the output is what is tested.  (With the rate search, a single
+    # false alarm in front of the target breaks the old extractor's
+    # connectivity rule; the per-cell P_fa is tested in
+    # test_dispersion_treatments.py.)
+    tier = BaselineSignalProcessing(n_frequencies=16, pad_factor=2, dispersion="none", extractor="legacy")
     ionogram = tier.form_ionogram(_point_target(4.0e5, n=32768, noise=0.02))
     assert isinstance(ionogram, Ionogram)
     assert ionogram.freq_hz.shape == (16,)

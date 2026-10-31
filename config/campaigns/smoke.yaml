@@ -11,7 +11,7 @@ tiers:
   # is now the stated-P_fa one of tss.l3_signal.detect.
   # and to the single transform of the whole dwell (dispersion: none), the
   # chain before gate G2 (2026-10-31) made the rate search the default.
-  l3: {name: baseline, detector: fixed, dispersion: none}
+  l3: {name: baseline, detector: fixed, dispersion: none, extractor: legacy}
   l4: lamination_magnetoionic
   l5: standard
 configurations: [leo_500km_single]

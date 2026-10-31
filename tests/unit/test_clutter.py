@@ -317,7 +317,7 @@ def test_clutter_off_reproduces_the_phase0_baseline():
     # The Phase 0 chain: the WP3-era fixed threshold and one transform per
     # dwell (the detector became the stated-P_fa one in Phase 2, the rate
     # search the default dispersion treatment in Phase 3).
-    cfg["tiers"]["l3"] = {"name": "baseline", "detector": "fixed", "dispersion": "none"}
+    cfg["tiers"]["l3"] = {"name": "baseline", "detector": "fixed", "dispersion": "none", "extractor": "legacy"}
     shared = build_tiers({k: v for k, v in cfg["tiers"].items() if k not in ("l0", "l2")})
     got = w.run_one("smoke", 1, config=cfg, configuration="leo_500km_single", clutter=None, shared=shared)
     want = rows[("smoke", "1")]
