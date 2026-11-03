@@ -254,7 +254,7 @@ would cut it if it ever matters.
 
 ## Items passed on
 
-- **P4:** the cusp model for N > 64; rate capture (rate per detection);
+- **P4 (done 2026-10-31, `docs/tracker.md`):** the cusp model for N > 64; rate capture (rate per detection);
   the rate as a tracker feature; ground-echo and resonance rejection.
 - **P6:** INS-32 into Rev G; TV section 5.3 (plan becomes result) and the Ch. 2
   step transition.

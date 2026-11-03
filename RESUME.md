@@ -464,3 +464,16 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   the resonances and ground echo take the rate: rate per detection is a P4
   item.  Clutter on (`wp4_p3_clutter`): the ground echo still takes the
   extractor.  L3 run time about 6 times D0's.
+* Phase 4 (0c8ec62, 1cbbcc3, fb9a671, 62076e6, and the docs commit): the trace
+  tracker, `tss.l3_signal.tracker` (`docs/tracker.md`), the default extractor
+  of the baseline L3 tier (`extractor: legacy` kept; smoke pinned to it).  The
+  rate search assigns a rate per detection (`rate_assign`, 15 effective looks).
+  Onboard priors (IGRF f_H; f_N from the resonances or the trace start),
+  streak and ground-echo masks (foF2 from the ground echo), track-before-detect
+  (Viterbi, evidence min(z,1000) - 6, background flattening, 12 dB shadow
+  test), O and X ordered and labelled by self-consistency (X predicted from the
+  inverted O trace, `predict_x_range_m`), leading edges refined, per-sample
+  sigma, confidence and quality bits, a cusp model.  G4: reject + flag.
+  `wp4_campaign` reports the labelling error and `coverage_gap_m`.  Reference
+  runs `wp4_p4_clutter` (SCI-05 0.063, SCI-07 7.9 km, all goal or threshold,
+  labelling error 5.7 %) and `wp4_p4_clutter_off` (0.031, 5.1 km, 0.4 %).
