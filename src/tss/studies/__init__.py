@@ -810,6 +810,7 @@ from tss.studies import (  # noqa: E402,F401
     doppler_separation,
     field_aligned_verify,
     field_inversion,
+    fmcw_acceptance,
     isis_validation,
     leakage_budget,
     leakage_receive_chain,
