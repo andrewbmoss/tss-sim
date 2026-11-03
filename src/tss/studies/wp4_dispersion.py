@@ -158,17 +158,27 @@ class MeasuredTopside:
                        extra={**dict(st.extra), "fof2_hz": float(np.sqrt(80.6 * np.max(ne))), "measured_topside": True})
 
 
-def isis_scenes(n: int, seed: int = 0) -> list[Any]:
+ISIS_QUALITIES = (4, 5, 6)
+"""The archive's scaling index runs from 0 (best) to 10 (worst), 4 to 10 in
+these files with 6 the most likely (``00readme.txt``).  Until WP4 Phase 5 this
+study kept index 6 and above, the worse-scaled records; the P3 reference
+``wp4_p3_dispersion`` was produced on that set (``isis_qualities: [6, 7, 8, 9,
+10]`` reproduces it)."""
+
+
+def isis_scenes(n: int, seed: int = 0, qualities: Any = ISIS_QUALITIES) -> list[Any]:
     """A stratified sample of ISIS-1 profiles: latitude band x day/night x solar activity."""
     from tss.data import spdf_isis
 
     path = spdf_isis.local_ne_path()
     if not path:
         return []
+    qs = {int(q) for q in qualities}
     cells: dict[tuple[int, int, int], list[Any]] = {}
     for p in spdf_isis.iter_profiles(path):
         alt = np.asarray(p.alt_km, dtype=float)
-        if getattr(p, "quality", 0) < 6 or alt.size < 6 or not 500.0 <= p.sat_alt_km <= 1100.0:
+        q = getattr(p, "quality", None)
+        if q is None or int(q) not in qs or alt.size < 6 or not 500.0 <= p.sat_alt_km <= 1100.0:
             continue
         ex = dict(getattr(p, "extra", {}) or {})
         lat = abs(float(p.lat_deg))
@@ -429,7 +439,8 @@ def compute(config: dict[str, Any]) -> dict[str, Any]:
         pl = replace(_platform_for(conf, w.EPOCH), lat_deg=float(lat), lon_deg=w._lon_for_local_time(lt))
         rows += run_scene(name, w._l0_for(name), pl, w.EPOCH, config=config, seeds=seeds, treatments=TREATMENTS)
         scenes.append({"scene": name, "source": "chapman"})
-    for i, prof in enumerate(isis_scenes(n_isis)):
+    quals = [int(q) for q in (opts.get("isis_qualities") or ISIS_QUALITIES)]
+    for i, prof in enumerate(isis_scenes(n_isis, qualities=quals)):
         l0 = MeasuredTopside(prof)
         ep = prof.epoch.strftime("%Y-%m-%dT%H:%M:%SZ")
         pl = replace(_platform_for(conf, ep), alt_m=float(prof.sat_alt_km) * 1e3, lat_deg=float(prof.lat_deg),

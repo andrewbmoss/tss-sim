@@ -579,8 +579,7 @@ def compute(config: dict[str, Any]) -> dict[str, Any]:
 
 def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     rows = res["rows"]
-    lines = ["# fmcw_acceptance", "",
-             f"Monte Carlo {res['options']['mc_trials']} trials per point, seed {res['options']['seed']}.  "
+    lines = [f"Monte Carlo {res['options']['mc_trials']} trials per point, seed {res['options']['seed']}.  "
              "Tolerances (G5): arithmetic 1 %, statistical inside the 95 % CI, Barry 10 %.", "",
              "| Item | Statement | Source | Published | Measured | Tolerance | Outcome |",
              "|---|---|---|---|---|---|---|"]

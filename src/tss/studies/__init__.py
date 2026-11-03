@@ -811,6 +811,7 @@ from tss.studies import (  # noqa: E402,F401
     field_aligned_verify,
     field_inversion,
     fmcw_acceptance,
+    isis1_retrieval,
     isis_validation,
     leakage_budget,
     leakage_receive_chain,
