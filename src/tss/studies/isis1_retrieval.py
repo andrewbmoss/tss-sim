@@ -52,7 +52,8 @@ import numpy as np
 from tss.studies import StudyResult, register_study
 
 DEFAULTS: dict[str, Any] = {"qualities": [4, 5, 6, 7, 8, 9], "clutter": ["on", "off"], "limit": None,
-                            "workers": None, "configuration": "leo_500km_single"}
+                            "workers": None, "configuration": "leo_500km_single",
+                            "checkpoint": None}
 _STATE: dict[str, Any] = {}
 
 
@@ -180,10 +181,6 @@ def run_record(index: int, clutter: str) -> dict[str, Any]:
     return row
 
 
-def _task(args: tuple[int, str]) -> dict[str, Any]:
-    return run_record(*args)
-
-
 def _nan(f: Any, v: list[float]) -> float:
     a = np.asarray([x for x in v if x is not None], dtype=float)
     a = a[np.isfinite(a)]
@@ -220,27 +217,66 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def _load_checkpoint(path: str | None) -> dict[tuple[int, str], dict[str, Any]]:
+    done: dict[tuple[int, str], dict[str, Any]] = {}
+    if path and os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:   # a line cut short when the run was stopped
+                    continue
+                done[(int(r["index"]), str(r["clutter"]))] = r
+    return done
+
+
 def compute(config: dict[str, Any]) -> dict[str, Any]:
+    """Run every record and clutter setting.
+
+    ``checkpoint`` (a JSON-lines path) makes the run resumable: each finished
+    row is appended as it arrives, and rows already there are not rerun.  The
+    full run takes hours, and a stopped run otherwise loses everything.
+    """
     import time
+    from concurrent.futures import as_completed
 
     opts = {**DEFAULTS, **dict(config.get("isis1_retrieval", {}) or {})}
     quals = [int(q) for q in opts["qualities"]]
     limit = opts.get("limit")
     limit = int(limit) if limit not in (None, "", "none") else None
     clutters = [str(c) for c in opts["clutter"]]
+    ckpt = opts.get("checkpoint") or None
     n = len(select_records(quals, limit))
-    jobs = [(i, c) for i in range(n) for c in clutters]
+    done = _load_checkpoint(ckpt)
+    jobs = [(i, c) for i in range(n) for c in clutters if (i, c) not in done]
     workers = int(opts["workers"] or max((os.cpu_count() or 2) - 2, 1))
     t0 = time.perf_counter()
-    if workers <= 1:
-        _init(config, quals, limit)
-        rows = [run_record(i, c) for i, c in jobs]
-    else:
-        with ProcessPoolExecutor(max_workers=workers, initializer=_init, initargs=(config, quals, limit)) as ex:
-            rows = list(ex.map(_task, jobs, chunksize=4))
+    fh = open(ckpt, "a", encoding="utf-8") if ckpt else None
+    new_rows: list[dict[str, Any]] = []
+    try:
+        def keep(row: dict[str, Any]) -> None:
+            new_rows.append(row)
+            if fh is not None:
+                fh.write(json.dumps(row) + "\n")
+                fh.flush()
+
+        if workers <= 1 or not jobs:
+            if jobs:
+                _init(config, quals, limit)
+            for i, c in jobs:
+                keep(run_record(i, c))
+        else:
+            with ProcessPoolExecutor(max_workers=workers, initializer=_init, initargs=(config, quals, limit)) as ex:
+                for fut in as_completed([ex.submit(run_record, i, c) for i, c in jobs]):
+                    keep(fut.result())
+    finally:
+        if fh is not None:
+            fh.close()
     wall = time.perf_counter() - t0
+    allrows = {(int(r["index"]), str(r["clutter"])): r for r in [*done.values(), *new_rows]}
+    rows = [allrows[k] for k in sorted(allrows) if k[0] < n and k[1] in clutters]
     return {"options": {**opts, "workers": workers}, "n_records": n, "rows": rows, "aggregate": aggregate(rows),
-            "wall_s": wall, "cpu_s": float(sum(r["run_s"] for r in rows))}
+            "wall_s": wall, "resumed_rows": len(done), "cpu_s": float(sum(r["run_s"] for r in rows))}
 
 
 def _g(x: float, nd: int = 3) -> str:
@@ -250,7 +286,7 @@ def _g(x: float, nd: int = 3) -> str:
 def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     agg = res["aggregate"]
     lines = [f"{res['n_records']} ISIS-1 records (iquality {res['options']['qualities']}), clutter "
-             f"{', '.join(agg)}; {res['wall_s'] / 3600:.2f} h wall, {res['cpu_s'] / 3600:.2f} CPU h on "
+             f"{', '.join(agg)}; {res['wall_s'] / 3600:.2f} h wall for this session ({res['resumed_rows']} rows resumed from the checkpoint), {res['cpu_s'] / 3600:.2f} CPU h in all, on "
              f"{res['options']['workers']} workers.", "",
              "| Clutter | N (failed) | SCI-05 median (p90, worst) | SCI-05 verdicts | SCI-07 km median (p90, worst) "
              "| SCI-07 verdicts | Span N_e error median (p90) | Span reached median (p10) | Coverage gap km median "
