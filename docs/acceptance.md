@@ -89,7 +89,66 @@ own time.
 
 ## `isis1_retrieval`: the measured ionosphere
 
-ISIS_SECTION
+`data/reference/wp4_p5_isis1` (commit 40b8171): 7,790 ISIS-1 records
+(iquality 4 to 9, spacecraft at 500-1100 km, at least 6 points), each with
+clutter on and off, so 15,580 runs.  No run failed.  662 CPU hours on 17
+workers.  The per-run rows are in `isis1_retrieval_records.csv`.
+
+| | Clutter off | Clutter on |
+|---|---|---|
+| SCI-05 median (p90) | 0.078 (0.57) | 0.092 (0.51) |
+| SCI-05 verdicts: goal / threshold / fail | 4680 / 954 / 2151 | 4278 / 1323 / 2118 |
+| SCI-07 km median (p90) | 13.0 (56) | 15.5 (51) |
+| SCI-07 verdicts: goal / threshold / fail | 2879 / 2591 / 2315 | 1977 / 3001 / 2716 |
+| N_e error over the measured span, median (p90) | 0.064 (0.30) | 0.082 (0.28) |
+| Runs within 10 % / 15 % over the measured span | 71 % / 82 % | 62 % / 79 % |
+| Coverage gap km median (p90) | 27 (88) | 18 (126) |
+| O completeness median | 0.43 | 0.39 |
+| Labelling error, median per run | 0.16 | 0.20 |
+
+**This does not reproduce the Chapman campaign.**  On the six Chapman profiles
+every P4 run is at goal or threshold on SCI-05 and SCI-07; on measured
+ionospheres 28 % fail SCI-05 and 30 to 35 % fail SCI-07.  The median is at goal,
+and over the heights ISIS-1 measured the median error is 6.4 %.
+
+What the failures follow (clutter off; clutter on is the same shape):
+
+| Plasma frequency at the spacecraft | Runs | SCI-05 fail | Within 15 % over the span | Labelling error, median |
+|---|---|---|---|---|
+| under 1.5 MHz | 2295 | 49 % | 71 % | 0.21 |
+| 1.5-2.5 MHz | 2570 | 28 % | 80 % | 0.22 |
+| 2.5-4 MHz | 1795 | 16 % | 88 % | 0.14 |
+| 4 MHz and above | 1130 | 2 % | 99 % | 0.07 |
+
+and, through it, night over day, low foF2 and high latitude (high-latitude
+night 45 % fail, low-latitude day 14 %).  Scaling quality matters too: 18 %
+fail at index 4, 58 % at index 9.
+
+**Diagnosis on a sample** (16 records rerun with the tracker's report: 8
+failing and 4 passing under 1.5 MHz, 4 failing above 3 MHz):
+
+* The f_N prior is not the discriminator.  Under 1.5 MHz the tracker found no
+  f_N (no resonance column, no trace start) in 7 of the 8 failing records and
+  in all 4 passing ones; above 3 MHz, where it was found from the trace start,
+  it was within 0.4 MHz.  The hypothesis carried from P4 is not confirmed.
+* The failing retrievals read N_e high, 10 to 60 % over most of the span and up
+  to a factor of 2 at its bottom.  An X sample inverted as O reads high by
+  `f / (f - f_H)`, 1.2 to 1.3 at a few MHz with f_H near 1 MHz, which matches
+  the bulk of the bias.  Failing runs carry about three times the samples on
+  neither trace (median 3 against 1).
+* The labelling error is 0.16 median per run on ISIS-1 against 0.004 pooled
+  on the Chapman campaign with clutter off, and falls as f_N rises (0.21 to
+  0.07).  At low f_N the two traces start close together (f_x - f_N is under
+  f_H), which is where self-consistency has least to work with.
+* 38 % of the SCI-05 failures (clutter off) are within 15 % over the measured
+  span: their error is below the lowest scaled height, where the truth is the
+  Chapman cap fitted to IRI's hmF2 (`MeasuredTopside`).  Part of the failure
+  rate is the truth construction, not the chain.
+
+**Open, for P6 and the dissertation**: the self-consistency labelling under
+measured topside gradients at low f_N (f_N near or below f_H, night and high
+latitude), and a truth below the scaled profile that does not depend on IRI's
+hmF2.  The chain was not changed to fit these numbers.
 
 ## The ISIS-1 quality filter
 

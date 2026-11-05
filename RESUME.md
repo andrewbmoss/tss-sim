@@ -477,3 +477,17 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   `wp4_campaign` reports the labelling error and `coverage_gap_m`.  Reference
   runs `wp4_p4_clutter` (SCI-05 0.063, SCI-07 7.9 km, all goal or threshold,
   labelling error 5.7 %) and `wp4_p4_clutter_off` (0.031, 5.1 km, 0.4 %).
+* Phase 5 (58f9013, cd82baa, 40b8171, and the docs commit): acceptance
+  (`docs/acceptance.md`).  `tss.l3_signal.poole_range`, Poole's three-cell
+  estimator (phase velocity at the window centroid; R' reads 2.5 V* T long, a
+  term Poole drops).  Study `fmcw_acceptance` (`data/reference/wp4_p5_acceptance`):
+  items A1-A17 from Poole (1985), Poole and Evans (1985) and Barry (1971) at
+  their parameters, scored on G5: 12 reproduced, 2 differences explained (A5a,
+  A6), A8 reported, 5 not simulated, none open.  Study `isis1_retrieval`
+  (`data/reference/wp4_p5_isis1`): 7,790 ISIS-1 records (quality 4-9) x clutter
+  on/off through the P4 chain, resumable from a JSON-lines checkpoint (662 CPU
+  h).  SCI-05 0.078 / 0.092 median, 28 % fail, concentrated at low f_N (49 %
+  under 1.5 MHz, 2 % over 4 MHz); error over the measured span 6.4 % median;
+  labelling error 0.16 median.  Open for P6.  `wp4_dispersion.isis_scenes` kept
+  the worse-scaled records (index >= 6; 0 is best): default now 4-6, reruns
+  `wp4_p5_dispersion_q4to6` and `_q6to10`; G2 and G3 stand.

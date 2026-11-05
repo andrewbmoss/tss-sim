@@ -1,0 +1,48 @@
+{
+  "study": "fmcw_acceptance",
+  "status": "implemented",
+  "run_directory": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p5_acceptance",
+  "manifest": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p5_acceptance\\manifest.json",
+  "outputs": [
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p5_acceptance\\fmcw_acceptance_items.csv",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p5_acceptance\\fmcw_acceptance.json",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_p5_acceptance\\summary.md"
+  ],
+  "metrics": {
+    "outcomes": {
+      "reproduced": 12,
+      "difference explained": 2,
+      "reported": 1,
+      "not simulated": 5
+    },
+    "items": {
+      "A1": "reproduced",
+      "A2": "reproduced",
+      "A3": "reproduced",
+      "A4a": "reproduced",
+      "A4b": "reproduced",
+      "A4c": "reproduced",
+      "A5a": "difference explained",
+      "A5b": "reproduced",
+      "A6": "difference explained",
+      "A7": "reproduced",
+      "A8": "reported",
+      "A9": "reproduced",
+      "A10": "reproduced",
+      "A11": "reproduced",
+      "A12": "reproduced",
+      "A13": "not simulated",
+      "A14": "not simulated",
+      "A15": "not simulated",
+      "A16": "not simulated",
+      "A17": "not simulated"
+    }
+  },
+  "work_packages": [
+    "WP4"
+  ],
+  "claims": [
+    "C1",
+    "C3"
+  ]
+}

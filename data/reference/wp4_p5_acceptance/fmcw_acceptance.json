@@ -1,0 +1,325 @@
+{
+  "options": {
+    "mc_trials": 2000,
+    "seed": 20261103,
+    "a9_snr_db": 30.0
+  },
+  "rows": [
+    {
+      "item": "A1",
+      "statement": "Chain driven at Table 1: k = 100 kHz/s, T = 0.5 s, 3 cells per sounding, df = 5 kHz in cell 3, 50 kHz/s overall, 75 kHz between soundings",
+      "source": "Paper 2, Table 1",
+      "published": "runs",
+      "measured": "echo detected in 3/3 cells; 21 soundings over 5.5-7.0 MHz take 31.5 s, so 50 kHz/s overall",
+      "tolerance": "runs",
+      "outcome": "reproduced",
+      "note": "1024 samples per cell (fs 2048 Hz), the chain's Hann window and stated-P_fa detector"
+    },
+    {
+      "item": "A2",
+      "statement": "Range cell c/(2kT) = 3.0 km",
+      "source": "Paper 1 eq. 27; Table 1",
+      "published": 2.9979,
+      "measured": 2.9979,
+      "tolerance": "1 %",
+      "outcome": "reproduced",
+      "note": "the chain's unpadded bin; its Hann cell (ENBW 1.5 bins, INS-05's measure) is 4.50 km"
+    },
+    {
+      "item": "A3",
+      "statement": "f_D = 2kR'/c holds to 1 % when V* < 1 % of kR'/f (3 km/s at k = 50 kHz/s, R' = 300 km, f = 5 MHz), so V* < 30 m/s",
+      "source": "Paper 1 eqs. 26-27",
+      "published": "1.00 % at 30 m/s",
+      "measured": "1.002 % at 30 m/s",
+      "tolerance": "1 %",
+      "outcome": "reproduced",
+      "note": "range read from the chain's spectrum peak; bias 3.007 km (fV*/k = 3.000 km)"
+    },
+    {
+      "item": "A4a",
+      "statement": "Ambiguity interval of the stationary-phase range c/(2 df) = 30 km",
+      "source": "Paper 1 eqs. 48, 70",
+      "published": 29.979,
+      "measured": 29.979,
+      "tolerance": "1 %",
+      "outcome": "reproduced",
+      "note": "measured as the period of phi_R against injected range"
+    },
+    {
+      "item": "A4b",
+      "statement": "f_R1 = k/df = 20 Hz",
+      "source": "Paper 1 eq. 51",
+      "published": 20.0,
+      "measured": 20.0,
+      "tolerance": "1 %",
+      "outcome": "reproduced",
+      "note": "the beat-frequency width of the measured interval, 2k x period / c"
+    },
+    {
+      "item": "A4c",
+      "statement": "R' = c(N + phi_R/2pi)/(2 df) as a reference estimator, against the chain's leading edge",
+      "source": "Paper 1 eqs. 47-52, 70-71",
+      "published": "method",
+      "measured": "Poole R' error +0.005 km mean, 0.165 km worst over 150-600 km (40 dB); chain leading edge -4.52 km mean",
+      "tolerance": "estimator recovers R'",
+      "outcome": "reproduced",
+      "note": "the leading edge reads short by about a cell by construction (the WP3-era definition); Poole's R' has no such offset"
+    },
+    {
+      "item": "A5a",
+      "statement": "Unambiguous Doppler about 300 m/s at 5 MHz for k = 100 kHz/s, df = 5 kHz",
+      "source": "Paper 1 eq. 59",
+      "published": 300.0,
+      "measured": 305.92,
+      "tolerance": "1 %",
+      "outcome": "difference explained",
+      "note": "injected V* until N is wrong, f_i refined between bins by a 32x padded transform (eq. 59: 299.8 m/s).  Eq. 59 drops the echo's range change during and between the cells, of order V* T (the same approximation behind the R' bias in A4); with those terms the bound is 305.9 m/s, which the measurement matches.  With f_i at the bin centre, as the hardware read it, the bound is 328.1 m/s: the half bin, f' in eq. 59"
+    },
+    {
+      "item": "A5b",
+      "statement": "df down to 1 kHz to measure 500 m/s",
+      "source": "Paper 1 eq. 59",
+      "published": ">= 500",
+      "measured": 1526.5,
+      "tolerance": "1 %",
+      "outcome": "reproduced",
+      "note": "the bound at df = 1 kHz (eq. 59: 1499 m/s; with the V* T terms 1529.6 m/s; bin centre 1521.4 m/s); the paper's statement is a sufficient condition"
+    },
+    {
+      "item": "A6",
+      "statement": "RMS phase error below 4 deg above 20 dB (Fig. 3)",
+      "source": "Paper 1 eqs. 76-82, Fig. 3",
+      "published": 4.0,
+      "measured": "4.136 [4.001, 4.266] at 20 dB",
+      "tolerance": "published value inside the 95 % CI",
+      "outcome": "difference explained",
+      "note": "Poole's closed form (eq. 82) gives 4.056 deg at 20 dB: '4 deg above 20 dB' is that value rounded, and the Monte Carlo agrees with eq. 82; 2000 trials per SNR through the chain's window, Gaussian noise"
+    },
+    {
+      "item": "A7",
+      "statement": "V* rms error 0.56 m/s for a 4 deg phase error, T = 0.5 s, f = 5.9 MHz",
+      "source": "Paper 2, from paper 1 eq. 72",
+      "published": 0.56,
+      "measured": "0.556 [0.538, 0.573] (phi_D rms 3.94 deg)",
+      "tolerance": "published value inside the 95 % CI",
+      "outcome": "reproduced",
+      "note": "cells at 23.1 dB each, so the phase difference has 4 deg rms; with 20 dB per cell, as paper 2's sentence reads, the difference has sqrt(2) x 4.05 deg and V* 0.798 m/s"
+    },
+    {
+      "item": "A8",
+      "statement": "Echo criterion: at most the 16 highest spectral values per cell over an amplitude criterion, from a 1024-sample FFT",
+      "source": "Paper 2",
+      "published": "comparison",
+      "measured": "same threshold (9.8 dB over mean): P_fa 7.5e-05 (known mean) vs 8.9e-05 (P2); Pd at 10 dB 0.58 vs 0.57; a 40-bin spread echo keeps 16 vs 39 bins",
+      "tolerance": "comparison",
+      "outcome": "reported",
+      "note": "the cap of 16 never binds on noise; it truncates spread and multiple echoes, which the P2 detector keeps for the tracker.  The P2 detector estimates the mean from the cell (ordered statistic), so it pays a small CFAR loss against the known-mean criterion"
+    },
+    {
+      "item": "A9",
+      "statement": "Group velocity V' = V* + f dV*/df from a swept ionogram; the indirect estimate within 20 % of the direct dR'/dt",
+      "source": "Paper 2 eqs. 1-6, Figs. 4-5",
+      "published": "within 20 % (-44.52 vs -55.12 m/s)",
+      "measured": "-51.38 vs -50.20 m/s (+2.4 %); truth -50.0 m/s; V* -9.24 m/s, dV*/df -6.58e-06 m/s/Hz",
+      "tolerance": "20 % (paper 2's own agreement)",
+      "outcome": "reproduced",
+      "note": "a parabolic layer whose shape changes so that V' at 6.4 MHz is constant (30 dB per cell); paper 2's V* -8.68 m/s and dV*/df -5.60e-6 m/s/Hz are of the same order; the 9 soundings nearest 6.4 MHz fitted with a parabola"
+    },
+    {
+      "item": "A10",
+      "statement": "Time-delay resolution 45 us with 30 kHz sweep coherence at 14 kHz/s",
+      "source": "Barry 1971, Table I",
+      "published": 45.0,
+      "measured": 47.87,
+      "tolerance": "10 %",
+      "outcome": "reproduced",
+      "note": "half-power width of a point echo through the chain (Hann, coherent cell 2.143 s); 1/(30 kHz) = 33.3 us before the window"
+    },
+    {
+      "item": "A11",
+      "statement": "Virtual height range 0 to 1000 km with a 100 Hz receiver bandwidth at 14 kHz/s",
+      "source": "Barry 1971, Table I",
+      "published": 1000.0,
+      "measured": 1070.7,
+      "tolerance": "10 %",
+      "outcome": "reproduced",
+      "note": "the chain's unambiguous range with the beat band limited to 100 Hz: c B/(2k)"
+    },
+    {
+      "item": "A12",
+      "statement": "Chain driven at Barry's parameters (linear 14 kHz/s, 30 kHz coherence, 100 Hz bandwidth)",
+      "source": "Barry 1971, Table I",
+      "published": "runs",
+      "measured": "echo detected: True",
+      "tolerance": "runs",
+      "outcome": "reproduced",
+      "note": "25 dB echo at 300 km"
+    },
+    {
+      "item": "A13",
+      "statement": "8 W peak, 3 W average",
+      "source": "Barry 1971, Table I",
+      "published": "8 W / 3 W",
+      "measured": "-",
+      "tolerance": "-",
+      "outcome": "not simulated",
+      "note": "transmitter hardware; a 50 % gate alone gives 4 W average, so the 3 W includes the shaping Barry describes (gain-weighted gating)"
+    },
+    {
+      "item": "A14",
+      "statement": "Logarithmic sweep 49 s/octave over 0.5-30 MHz",
+      "source": "Barry 1971, Table I",
+      "published": "49 s/octave",
+      "measured": "289 s per ionogram",
+      "tolerance": "-",
+      "outcome": "not simulated",
+      "note": "a sweep-schedule property; the chain's A1 sweep is stepped, not logarithmic, and the paper states no duration to check"
+    },
+    {
+      "item": "A15",
+      "statement": "Gating halves the average power and loses half the echoes",
+      "source": "Barry 1971, section IV",
+      "published": "3 dB + half",
+      "measured": "-",
+      "tolerance": "-",
+      "outcome": "not simulated",
+      "note": "excluded from P5 by decision (2026-11-03); tss-sim's design is CW with a canceller (WP3)"
+    },
+    {
+      "item": "A16",
+      "statement": "Pulse-repetition frequency randomly varied 350-800 pps",
+      "source": "Barry 1971, Table I",
+      "published": "350-800 pps",
+      "measured": "-",
+      "tolerance": "-",
+      "outcome": "not simulated",
+      "note": "the T/R gating pattern (paper 2 uses a 477.1 us M-sequence); see A15"
+    },
+    {
+      "item": "A17",
+      "statement": "No echoes below 1.6 MHz (antenna-limited); ionograms comparable with pulse sondes (Fig. 5)",
+      "source": "Barry 1971, section V, Fig. 5",
+      "published": "qualitative",
+      "measured": "-",
+      "tolerance": "-",
+      "outcome": "not simulated",
+      "note": "antenna and bottomside geometry; no ground vertical-incidence geometry is built (decision 2026-11-03)"
+    }
+  ],
+  "phase_error_curve": [
+    {
+      "snr_db": 10.0,
+      "mc_rms_deg": 13.350681184198304,
+      "ci_lo_deg": 12.904291664693314,
+      "ci_hi_deg": 13.78262067956381,
+      "closed_form_deg": 12.9780101204035
+    },
+    {
+      "snr_db": 15.0,
+      "mc_rms_deg": 7.038656589211022,
+      "ci_lo_deg": 6.81257328123519,
+      "ci_hi_deg": 7.257700631018605,
+      "closed_form_deg": 7.233210404592557
+    },
+    {
+      "snr_db": 20.0,
+      "mc_rms_deg": 4.135583826589461,
+      "ci_lo_deg": 4.000894840874806,
+      "ci_hi_deg": 4.266022461937822,
+      "closed_form_deg": 4.056405738911853
+    },
+    {
+      "snr_db": 25.0,
+      "mc_rms_deg": 2.211157354468088,
+      "ci_lo_deg": 2.1417314141341532,
+      "ci_hi_deg": 2.2784688372122943,
+      "closed_form_deg": 2.279127498860625
+    },
+    {
+      "snr_db": 30.0,
+      "mc_rms_deg": 1.293281132437315,
+      "ci_lo_deg": 1.2517514397980394,
+      "ci_hi_deg": 1.333518094365511,
+      "closed_form_deg": 1.2813007538042434
+    },
+    {
+      "snr_db": 40.0,
+      "mc_rms_deg": 0.4141142585682396,
+      "ci_lo_deg": 0.40112751400405383,
+      "ci_hi_deg": 0.4267059359886773,
+      "closed_form_deg": 0.405137278438055
+    }
+  ],
+  "a8": {
+    "pfa_poole_capped": 7.504873294346978e-05,
+    "pfa_cfar": 8.869395711500975e-05,
+    "threshold_over_mean_db": 9.77635184884586,
+    "pd_poole_cfar": {
+      "6": [
+        0.082,
+        0.082
+      ],
+      "8": [
+        0.25,
+        0.26
+      ],
+      "10": [
+        0.58,
+        0.57
+      ],
+      "12": [
+        0.934,
+        0.928
+      ],
+      "14": [
+        0.996,
+        1.0
+      ]
+    },
+    "spread_bins_over_threshold": 39,
+    "spread_bins_kept_poole": 16,
+    "spread_bins_kept_cfar": 39,
+    "trials": 2000
+  },
+  "a9": {
+    "V_star_at_fm": -9.23825916549868,
+    "V_star_true_at_fm": -9.276316363888327,
+    "dV_star_df": -6.584997895265976e-06,
+    "V_prime_indirect": -51.38224569520093,
+    "V_prime_direct": -50.19879035260058,
+    "V_prime_true": -50.0,
+    "soundings_fitted": 9,
+    "group_height_at_fm_km": 375.0999997243887,
+    "foF2_at_sweep_mhz": 7.211848591992025
+  },
+  "metrics": {
+    "outcomes": {
+      "reproduced": 12,
+      "difference explained": 2,
+      "reported": 1,
+      "not simulated": 5
+    },
+    "items": {
+      "A1": "reproduced",
+      "A2": "reproduced",
+      "A3": "reproduced",
+      "A4a": "reproduced",
+      "A4b": "reproduced",
+      "A4c": "reproduced",
+      "A5a": "difference explained",
+      "A5b": "reproduced",
+      "A6": "difference explained",
+      "A7": "reproduced",
+      "A8": "reported",
+      "A9": "reproduced",
+      "A10": "reproduced",
+      "A11": "reproduced",
+      "A12": "reproduced",
+      "A13": "not simulated",
+      "A14": "not simulated",
+      "A15": "not simulated",
+      "A16": "not simulated",
+      "A17": "not simulated"
+    }
+  }
+}
