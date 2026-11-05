@@ -106,6 +106,63 @@ def span_measures(retrieved: Any, prof: Any) -> tuple[float, float]:
     return float(np.median(np.abs(est / n_m[inside] - 1.0))), max(min(reached, 1.0), 0.0)
 
 
+# Rev G thresholds and goals (``config/requirements/requirements.yaml``; a unit
+# test holds these to it).
+SCI05 = (0.15, 0.10)
+SCI07_M = (20.0e3, 10.0e3)
+M2_FRACTION = 0.80
+FN_BANDS = ((0.0, 1.5), (1.5, 2.5), (2.5, 4.0), (4.0, 99.0))
+
+
+def verdict(value: float, limits: tuple[float, float]) -> str:
+    """goal / threshold / fail for a 'max' requirement; not_evaluated when there is no value."""
+    if value is None or not math.isfinite(value):
+        return "not_evaluated"
+    thr, goal = limits
+    return "goal" if value <= goal else ("threshold" if value <= thr else "fail")
+
+
+def span_scores(retrieved: Any, truth: Any, h_lo_m: float, h_hi_m: float) -> tuple[float, float]:
+    """SCI-05 and SCI-07 as the assessment tier scores them, against the truth over the measured span only.
+
+    The truth below the lowest scaled height is the Chapman cap of
+    :class:`~tss.studies.wp4_dispersion.MeasuredTopside`, fitted to IRI's
+    hmF2; restricting the truth to ``[h_lo, h_hi]`` scores the retrieval only
+    against what ISIS-1 measured (Andrew, 2026-11-05: report both).  The
+    retrieval is cut to the same heights.
+    """
+    from types import SimpleNamespace
+
+    from tss.l5_assessment.scoring import profile_metrics
+
+    if retrieved is None or truth is None:
+        return float("nan"), float("nan")
+    a = np.asarray(truth.alt_m, dtype=float)
+    n = np.asarray(truth.ne, dtype=float)
+    keep = (a >= h_lo_m) & (a <= h_hi_m) & np.isfinite(n)
+    if np.count_nonzero(keep) < 2:
+        return float("nan"), float("nan")
+    # The retrieved profile is cut to the same heights, so that a retrieved
+    # point below the span cannot be matched in density to a height inside it.
+    ra = np.asarray(retrieved.alt_m, dtype=float)
+    rn = np.asarray(retrieved.ne, dtype=float)
+    rk = np.isfinite(ra) & (ra >= h_lo_m) & (ra <= h_hi_m)
+    if np.count_nonzero(rk) < 1:
+        return float("nan"), float("nan")
+    ret = SimpleNamespace(alt_m=ra[rk], ne=rn[rk], flags=getattr(retrieved, "flags", None) or {})
+    m = profile_metrics(ret, SimpleNamespace(alt_m=a[keep], ne=n[keep]))
+    f = m.get("ne_rms_fractional")
+    h = m.get("height_error_rms_m")
+    return (float(f) if f is not None else float("nan")), (float(h) if h is not None else float("nan"))
+
+
+def fn_band(fn_mhz: float) -> str:
+    for lo, hi in FN_BANDS:
+        if lo <= fn_mhz < hi:
+            return f"{lo:g}-{hi:g} MHz" if hi < 99 else f">= {lo:g} MHz"
+    return "nan"
+
+
 def _init(config: dict[str, Any], qualities: list[int], limit: int | None) -> None:
     from tss.config import load_yaml, resolve_path
     from tss.pipeline import build_tiers
@@ -162,6 +219,7 @@ def run_record(index: int, clutter: str) -> dict[str, Any]:
 
         tm = w.trace_measures(res.ionogram, res.echoes)
         err, reach = span_measures(res.retrieved, prof)
+        s05, s07 = span_scores(res.retrieved, res.truth, row["h_low_km"] * 1e3, row["sat_alt_km"] * 1e3)
         fo = float(res.truth.extra.get("fof2_hz", float("nan"))) if res.truth is not None else float("nan")
         row.update({
             "fof2_mhz": fo / 1e6, "fn_sat_mhz": float(prof.plasma_freq_sat_mhz),
@@ -170,6 +228,9 @@ def run_record(index: int, clutter: str) -> dict[str, Any]:
             "ins10_db": ach("INS-10"), "ins10_verdict": ver("INS-10"),
             "coverage_gap_m": w._coverage_gap(res.retrieved, res.truth),
             "span_ne_err": err, "span_reached": reach,
+            "sci05_span": s05, "sci05_span_verdict": verdict(s05, SCI05),
+            "sci07_span_m": s07, "sci07_span_verdict": verdict(s07, SCI07_M),
+            "fn_band": fn_band(float(prof.plasma_freq_sat_mhz)),
             "completeness_o": tm.get("completeness_o", float("nan")),
             "labelling_error": tm.get("labelling_error", float("nan")),
             "n_o": tm.get("n_o", 0), "n_x": tm.get("n_x", 0), "n_false": tm.get("n_false", 0),
@@ -190,7 +251,8 @@ def _nan(f: Any, v: list[float]) -> float:
 def block(rs: list[dict[str, Any]]) -> dict[str, Any]:
     ok = [r for r in rs if not r.get("error")]
     out: dict[str, Any] = {"n": len(rs), "n_failed": len(rs) - len(ok)}
-    for key, worst in (("sci05", np.max), ("sci07_m", np.max), ("coverage_gap_m", np.max),
+    for key, worst in (("sci05", np.max), ("sci07_m", np.max), ("sci05_span", np.max), ("sci07_span_m", np.max),
+                       ("coverage_gap_m", np.max),
                        ("span_ne_err", np.max), ("span_reached", np.min), ("ins10_db", np.min),
                        ("completeness_o", np.min), ("labelling_error", np.max)):
         vals = [r.get(key, float("nan")) for r in ok]
@@ -198,10 +260,34 @@ def block(rs: list[dict[str, Any]]) -> dict[str, Any]:
         q = 10 if worst is np.min else 90
         out[f"{key}_p90"] = _nan(lambda a, q=q: np.percentile(a, q), vals)
         out[f"{key}_worst"] = _nan(worst, vals)
-    for rid in ("sci05", "sci07", "ins10"):
+    for rid in ("sci05", "sci07", "ins10", "sci05_span", "sci07_span"):
         vs = [str(r.get(f"{rid}_verdict")) for r in ok]
         out[f"{rid}_verdicts"] = {v: vs.count(v) for v in sorted(set(vs))}
     out["run_s_median"] = _nan(np.median, [r["run_s"] for r in rs])
+    return out
+
+
+def m2_rule(rs: list[dict[str, Any]]) -> dict[str, Any]:
+    """The M2 rule for the measured set (Andrew, 2026-11-05).
+
+    Per requirement and scope: the median at threshold or better, and at least
+    ``M2_FRACTION`` of the runs at threshold or better (a run with no score
+    counts against).  The measured span is the gate; the full profile, scored
+    against the Chapman cap below the scaled heights, is reported beside it.
+    """
+    out: dict[str, Any] = {}
+    for scope, keys in (("span", (("SCI-05", "sci05_span", SCI05), ("SCI-07", "sci07_span_m", SCI07_M))),
+                        ("full", (("SCI-05", "sci05", SCI05), ("SCI-07", "sci07_m", SCI07_M)))):
+        for rid, key, lim in keys:
+            v = np.asarray([r.get(key, float("nan")) for r in rs if not r.get("error")], dtype=float)
+            fin = v[np.isfinite(v)]
+            med = float(np.median(fin)) if fin.size else float("nan")
+            frac = float(np.count_nonzero(np.isfinite(v) & (v <= lim[0])) / v.size) if v.size else float("nan")
+            out[f"{scope}/{rid}"] = {"median": med, "fraction_at_threshold_or_better": frac,
+                                     "median_ok": bool(math.isfinite(med) and med <= lim[0]),
+                                     "fraction_ok": bool(math.isfinite(frac) and frac >= M2_FRACTION),
+                                     "pass": bool(math.isfinite(med) and med <= lim[0] and frac >= M2_FRACTION)}
+    out["pass"] = bool(out["span/SCI-05"]["pass"] and out["span/SCI-07"]["pass"])
     return out
 
 
@@ -209,7 +295,9 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for c in sorted({r["clutter"] for r in rows}):
         rc = [r for r in rows if r["clutter"] == c]
-        out[c] = {"overall": block(rc),
+        out[c] = {"overall": block(rc), "m2": m2_rule(rc),
+                  "by_fn_band": {b: block([r for r in rc if r.get("fn_band") == b])
+                                 for b in sorted({str(r.get("fn_band")) for r in rc})},
                   "by_stratum": {s: block([r for r in rc if r["stratum"] == s])
                                  for s in sorted({r["stratum"] for r in rc})},
                   "by_quality": {str(q): block([r for r in rc if r["quality"] == q])
@@ -305,15 +393,34 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         metrics[c] = {k: o[k] for k in ("n", "n_failed", "sci05_median", "sci05_p90", "sci07_m_median",
                                         "sci07_m_p90", "span_ne_err_median", "span_reached_median",
                                         "coverage_gap_m_median", "sci05_verdicts", "sci07_verdicts")}
-    for title, key in (("By stratum", "by_stratum"), ("By quality index", "by_quality")):
-        lines += ["", f"{title}:", "", "| Clutter | Group | N | SCI-05 median (p90) | SCI-07 km median (p90) | "
-                  "Span N_e error median | Coverage gap km median | SCI-05 fails |", "|---|---|---|---|---|---|---|---|"]
+    lines += ["", f"M2 rule for the measured set: median at threshold or better and at least "
+              f"{M2_FRACTION:.0%} of runs at threshold or better; the measured span is the gate, the full "
+              "profile (Chapman cap below the scaled heights) is shown beside it.", "",
+              "| Clutter | Scope | Requirement | Median | At threshold or better | Pass |", "|---|---|---|---|---|---|"]
+    for c, a in agg.items():
+        m2 = a["m2"]
+        for k, o in m2.items():
+            if k == "pass":
+                continue
+            scope, rid = k.split("/")
+            med = _g(o["median"]) if rid == "SCI-05" else f"{_g(o['median'] / 1e3, 1)} km"
+            lines.append(f"| {c} | {scope} | {rid} | {med} | {o['fraction_at_threshold_or_better']:.1%} | "
+                         f"{'yes' if o['pass'] else 'no'} |")
+        metrics[c]["m2_pass"] = m2["pass"]
+        lines.append(f"| {c} | **gate (span, both)** | | | | **{'pass' if m2['pass'] else 'fail'}** |")
+    for title, key in (("By plasma frequency at the spacecraft", "by_fn_band"), ("By stratum", "by_stratum"),
+                       ("By quality index", "by_quality")):
+        lines += ["", f"{title}:", "", "| Clutter | Group | N | SCI-05 median (p90) | SCI-05 span median (p90) | "
+                  "SCI-07 km median (p90) | SCI-07 span km median | Span N_e error median | Coverage gap km median "
+                  "| SCI-05 fails | SCI-05 span fails |", "|---|---|---|---|---|---|---|---|---|---|---|"]
         for c, a in agg.items():
             for g, o in a[key].items():
                 lines.append(f"| {c} | {g} | {o['n']} | {_g(o['sci05_median'])} ({_g(o['sci05_p90'])}) | "
+                             f"{_g(o['sci05_span_median'])} ({_g(o['sci05_span_p90'])}) | "
                              f"{_g(o['sci07_m_median'] / 1e3, 1)} ({_g(o['sci07_m_p90'] / 1e3, 1)}) | "
+                             f"{_g(o['sci07_span_m_median'] / 1e3, 1)} | "
                              f"{_g(o['span_ne_err_median'])} | {_g(o['coverage_gap_m_median'] / 1e3, 0)} | "
-                             f"{o['sci05_verdicts'].get('fail', 0)} |")
+                             f"{o['sci05_verdicts'].get('fail', 0)} | {o['sci05_span_verdicts'].get('fail', 0)} |")
     fails = [r for r in res["rows"] if r.get("error")]
     if fails:
         lines += ["", f"Failed runs: {len(fails)}; first: {fails[0]['error']}"]

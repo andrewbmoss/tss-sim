@@ -43,3 +43,44 @@ def test_block_counts_failures_and_verdicts():
     assert b["n"] == 2 and b["n_failed"] == 1
     assert b["sci05_verdicts"] == {"goal": 1}
     assert b["sci05_median"] == 0.05
+
+
+def test_thresholds_match_the_requirements_file():
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[2]
+    req = yaml.safe_load((root / "config" / "requirements" / "requirements.yaml").read_text(encoding="utf-8"))
+    flat = req.get("requirements", req)
+    assert (flat["SCI-05"]["threshold"], flat["SCI-05"]["goal"]) == ir.SCI05
+    assert (flat["SCI-07"]["threshold"], flat["SCI-07"]["goal"]) == ir.SCI07_M
+
+
+def test_verdict():
+    assert ir.verdict(0.05, ir.SCI05) == "goal"
+    assert ir.verdict(0.12, ir.SCI05) == "threshold"
+    assert ir.verdict(0.2, ir.SCI05) == "fail"
+    assert ir.verdict(float("nan"), ir.SCI05) == "not_evaluated"
+
+
+def test_span_scores_ignore_the_cap():
+    alt = np.arange(200e3, 1001e3, 5e3)
+    truth_ne = 1e12 * np.exp(-(alt - 300e3) / 150e3)
+    truth_ne[alt < 300e3] = 1e12 * np.exp(-(300e3 - alt[alt < 300e3]) / 50e3)
+    truth = SimpleNamespace(alt_m=alt, ne=truth_ne)
+    ret_ne = truth_ne.copy()
+    ret_ne[alt < 400e3] *= 1.5            # wrong only below the measured span
+    ret = SimpleNamespace(alt_m=alt, ne=ret_ne, flags={})
+    s05, s07 = ir.span_scores(ret, truth, 400e3, 1000e3)
+    assert s05 < 1e-6 and s07 < 1.0
+
+
+def test_m2_rule():
+    good = {"error": "", "sci05_span": 0.08, "sci07_span_m": 8e3, "sci05": 0.3, "sci07_m": 30e3}
+    bad = {"error": "", "sci05_span": 0.30, "sci07_span_m": 30e3, "sci05": 0.3, "sci07_m": 30e3}
+    out = ir.m2_rule([good] * 8 + [bad] * 2)
+    assert out["span/SCI-05"]["fraction_at_threshold_or_better"] == 0.8
+    assert out["pass"] is True
+    assert out["full/SCI-05"]["pass"] is False
+    assert ir.m2_rule([good] * 7 + [bad] * 3)["pass"] is False
