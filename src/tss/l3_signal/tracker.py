@@ -72,6 +72,7 @@ __all__ = [
     "TrackerSettings",
     "TrackResult",
     "Q_TRACK_ONLY", "Q_BLENDED", "Q_SPREAD", "Q_CUSP", "Q_OVER_SPAN", "Q_LOW_CONFIDENCE", "Q_REJECTED",
+    "Q_STOPPED", "stop_at_loss",
     "track_traces",
     "predict_x_range_m",
     "viterbi_path",
@@ -91,6 +92,7 @@ Q_CUSP = 8            # far off the cusp model
 Q_OVER_SPAN = 16      # compressed at the edge of the rate-search span (N > span)
 Q_LOW_CONFIDENCE = 32  # labelling confidence under 0.5
 Q_REJECTED = 64       # removed by the G4 policy
+Q_STOPPED = 128       # beyond the point where the O trace was lost (stop_at_loss)
 
 FieldModel = Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]]
 
@@ -137,12 +139,37 @@ class TrackerSettings:
     shadow_db: float = 12.0
     edge_window_m: float = 6.0e3
     edge_drop_db: float = 15.0
+    # WP4 Phase 6 (2026-11-05; defaults set from the development sample).
+    # ``fn_prior``: ``near_start`` is P4's rule (f_N
+    # from the resonances or the lowest near-range echo a trace follows);
+    # ``trace_floor`` also takes the lowest frequency at which any persistent
+    # trace starts, at any range, as an upper bound on f_N (no echo returns
+    # below the local plasma frequency).  Under a shallow topside gradient the
+    # O trace starts hundreds of kilometres out while the X trace starts near
+    # range, so P4's rule took f_x for f_N.  ``far_start_cost`` is the start
+    # cost of a far-range start in the first columns above the prior.
+    fn_prior: str = "trace_floor"
+    far_start_cost: float = 2.0
+    floor_persist: int = 2
+    # ``stop_at_loss`` (off: it raised SCI-05 on ISIS-1 by 1.5-3.5 points but
+    # cut O completeness on the Chapman campaign from 0.95 to 0.69 with clutter
+    # off): end the O trace where it is lost near the top of the band (see
+    # :func:`stop_at_loss`).  ``cusp_up_cap_m``: the largest rise per
+    # column allowed in the steep parts of the O trace, the top ``cusp_band``
+    # of the O search and the first columns above f_N (cusp tracking); equal
+    # to ``up_cap_m`` it is off (400 km changed nothing measurable).
+    stop_at_loss: bool = False
+    stop_run: int = 2
+    cusp_up_cap_m: float = 150.0e3
+    cusp_band: float = 0.25
 
     def __post_init__(self) -> None:
         if self.blend_policy not in ("reject", "inflate", "separate"):
             raise ValueError(f"unknown blend_policy {self.blend_policy!r}; expected reject, inflate or separate")
         if self.cusp_policy not in ("flag", "replace"):
             raise ValueError(f"unknown cusp_policy {self.cusp_policy!r}; expected flag or replace")
+        if self.fn_prior not in ("near_start", "trace_floor"):
+            raise ValueError(f"unknown fn_prior {self.fn_prior!r}; expected near_start or trace_floor")
 
 
 @dataclass(frozen=True)
@@ -272,8 +299,24 @@ def onboard_priors(freq_hz: np.ndarray, img_db: np.ndarray, streak: np.ndarray, 
             if hit_near[i] and np.any(hit_any[i + 1: i + 4]):
                 f_n, method = float(f[i] - half[i]), "trace_start"
                 break
+    floor = float("nan")
+    near_rule = f_n
+    if s.fn_prior == "trace_floor":
+        # The lowest column at which a persistent trace starts, at any range:
+        # a strong cell, and strong cells in at least ``floor_persist`` of the
+        # next three columns.  No echo returns below the local plasma
+        # frequency, so f_N lies within a step below it (the first sample is
+        # at most one step above the cut-off); its midpoint is the estimate.
+        strong = np.any(img_db > s.design_snr_db + 2.0, axis=1) & ~streak
+        for i in range(f.size - 1):
+            if strong[i] and np.count_nonzero(strong[i + 1: i + 4]) >= s.floor_persist:
+                floor = float(f[i] - half[i])
+                break
+        if np.isfinite(floor) and (not np.isfinite(f_n) or floor < f_n - half[min(np.searchsorted(f, f_n), f.size - 1)]):
+            f_n, method = floor, "trace_floor"
     f_x = float(0.5 * f_h_hz + math.sqrt(0.25 * f_h_hz**2 + f_n**2)) if np.isfinite(f_n) else float("nan")
     return {"f_n_hz": f_n, "f_h_hz": float(f_h_hz), "f_x_hz": f_x, "f_n_method": method,
+            "f_n_near_rule_hz": near_rule, "trace_floor_hz": floor,
             "gyro_columns": [float(v) for v in f[gyro & streak]],
             "streak_columns": [float(v) for v in f[streak]]}
 
@@ -296,7 +339,7 @@ def _llr(snr_db: np.ndarray, s: TrackerSettings) -> np.ndarray:
 
 
 def viterbi_path(score: np.ndarray, allowed: np.ndarray, start_cost: np.ndarray, grid_m: float,
-                 s: TrackerSettings) -> tuple[np.ndarray, float]:
+                 s: TrackerSettings, up_cap_cols: np.ndarray | None = None) -> tuple[np.ndarray, float]:
     """Best monotone path through ``score`` (columns in frequency order).
 
     The range of consecutive path points may fall by at most ``down_tol_m`` and
@@ -304,14 +347,17 @@ def viterbi_path(score: np.ndarray, allowed: np.ndarray, start_cost: np.ndarray,
     up to ``max_gap`` columns may be skipped at ``gap_cost`` each.  A path may
     start at a cell at ``start_cost`` (``inf`` where it may not).  Returns the
     range index per column (-1 where the path has no point) and the score.
+    ``up_cap_cols`` replaces ``up_cap_m`` column by column (cusp tracking).
     """
     n_c, n_r = score.shape
     sc = np.where(allowed, score, -np.inf)
     d = int(round(s.down_tol_m / grid_m))
     rr = np.arange(n_r)
-    up = np.minimum(np.maximum(s.up_max_m, s.up_frac * rr * grid_m), s.up_cap_m)
-    up_cells = np.round(up / grid_m).astype(int)
-    u_max = int(up_cells.max()) if n_r else 0
+    up_base = np.maximum(s.up_max_m, s.up_frac * rr * grid_m)
+    caps = (np.full(n_c, s.up_cap_m) if up_cap_cols is None
+            else np.asarray(up_cap_cols, dtype=float))
+    up_cells_c = np.round(np.minimum(up_base[None, :], caps[:, None]) / grid_m).astype(int)
+    u_max = int(up_cells_c.max()) if n_r and n_c else 0
     v = np.full((n_c, n_r), -np.inf)
     back_c = np.full((n_c, n_r), -1, dtype=np.int32)
     back_r = np.full((n_c, n_r), -1, dtype=np.int32)
@@ -319,6 +365,7 @@ def viterbi_path(score: np.ndarray, allowed: np.ndarray, start_cost: np.ndarray,
     carry_c = np.full(n_r, -1, dtype=np.int32)
     carry_gap = np.zeros(n_r, dtype=np.int32)
     for i in range(n_c):
+        up_cells = up_cells_c[i]
         best = -np.inf * np.ones(n_r)
         bc = np.full(n_r, -1, dtype=np.int32)
         br = np.full(n_r, -1, dtype=np.int32)
@@ -658,6 +705,39 @@ def _separate(sp: Any, r_near: float, r_far: float) -> tuple[float, float] | Non
 # -- the tracker -----------------------------------------------------------------------------
 
 
+def stop_at_loss(freq_hz: np.ndarray, range_m: np.ndarray, quality: np.ndarray, confidence: np.ndarray,
+                 s: TrackerSettings) -> float:
+    """The frequency from which the O trace is treated as lost; ``nan`` if it is not.
+
+    Two signs, each judged on the samples in frequency order after the first
+    three: a run of ``stop_run`` samples (or the rest of the trace, if shorter)
+    whose labelling confidence is under 0.5, meaning they sit on the X trace
+    the inverted O trace predicts, so the O path has moved onto X; and a tail
+    of track-only samples (no cell over the detector threshold).  Samples
+    from that frequency up are not inverted: the profile ends higher, which
+    shows as coverage, rather than continuing on the wrong echo.
+    """
+    ok = np.isfinite(range_m) & ((quality & Q_REJECTED) == 0)
+    idx = np.flatnonzero(ok)
+    idx = idx[np.argsort(freq_hz[idx])]
+    if idx.size < 4:
+        return float("nan")
+    low = np.asarray([np.isfinite(confidence[j]) and confidence[j] < 0.5 for j in idx])
+    stop = None
+    for k in range(3, idx.size):
+        run = low[k: k + s.stop_run]
+        if low[k] and np.all(run):
+            stop = k
+            break
+    track_only = (quality[idx] & Q_TRACK_ONLY) != 0
+    k = idx.size
+    while k > 3 and track_only[k - 1]:
+        k -= 1
+    if k < idx.size and (stop is None or k < stop):
+        stop = k
+    return float(freq_hz[idx[stop]]) if stop is not None else float("nan")
+
+
 def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float, fld: FieldModel,
                  settings: TrackerSettings | None = None, span_rate_hz_per_s2: Sequence[float] | None = None,
                  ) -> TrackResult:
@@ -733,11 +813,16 @@ def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float
         f_x = float(0.5 * f_h_sat + math.sqrt(0.25 * f_h_sat**2 + f_n**2)) if np.isfinite(f_n) else f_n
     near_start = r_grid <= s.start_max_m
 
-    def start_cost(f0: float) -> np.ndarray:
+    def start_cost(f0: float, far: bool = False, lo_hz: float | None = None) -> np.ndarray:
+        # ``far``: a far-range start in the first columns above the prior costs
+        # ``far_start_cost`` (the O trace under a shallow gradient; X starts
+        # near range).  ``lo_hz``: the lowest column a path may start in.
         out = np.full((n, n_r), np.inf)
-        ok_col = freq >= f0 - 1.5 * half
-        early = ok_col & (freq <= f0 * (1.0 + 0.05 * s.start_steps) + half)
+        ok_col = freq >= (f0 if lo_hz is None else lo_hz) - 1.5 * half
+        early = (freq >= f0 - 1.5 * half) & (freq <= f0 * (1.0 + 0.05 * s.start_steps) + half)
         out[ok_col] = s.late_start_cost
+        if far:
+            out[early] = min(s.far_start_cost, s.late_start_cost)
         out[np.ix_(early, near_start)] = 0.0
         return out
 
@@ -754,9 +839,13 @@ def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float
         cap_x = starts[0] + 0.75 * f_h_sat + 1.5 * float(np.max(half))
     else:
         cap_x = np.inf
-    region_o = ((freq >= f_n - 1.5 * half) & (freq <= cap_o))[:, None] & np.ones((1, n_r), dtype=bool)
+    # The trace floor is an upper bound on f_N (a weak start below it may have
+    # been missed), so with that prior the O search is not cut off below it.
+    o_lo = float(freq[0]) if pri["f_n_method"] == "trace_floor" and n else f_n
+    region_o = ((freq >= o_lo - 1.5 * half) & (freq <= cap_o))[:, None] & np.ones((1, n_r), dtype=bool)
     region_x = ((freq >= f_x - 1.5 * half) & (freq <= cap_x))[:, None] & np.ones((1, n_r), dtype=bool)
-    sc_o, sc_x = start_cost(f_n), start_cost(f_x)
+    sc_o = start_cost(f_n, far=pri["f_n_method"] == "trace_floor", lo_hz=o_lo)
+    sc_x = start_cost(f_x)
     sep = int(round(s.order_sep_m / s.grid_m))
 
     def order_mask(other: np.ndarray, nearer: bool) -> np.ndarray:
@@ -803,7 +892,20 @@ def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float
             # spread behind it, and the inversion moved the prediction further.
             no_x = np.where(p_x >= 0, np.nan, x_pred)
             am &= gate_mask(no_x, inside=False)
-        p_o, tot_o = viterbi_path(score, am, sc_o, s.grid_m, s)
+        caps = None
+        if s.cusp_up_cap_m > s.up_cap_m:
+            # The O trace rises steeply at both ends: into the cusp below foF2,
+            # and, under a shallow topside gradient, just above f_N, where the
+            # group retardation grows from zero within a step or two.
+            prev = np.flatnonzero(p_o >= 0)
+            f_top = cap_o if np.isfinite(cap_o) else (1.1 * float(freq[prev[-1]]) if prev.size else np.nan)
+            steep = np.zeros(n, dtype=bool)
+            if np.isfinite(f_top) and np.isfinite(f_n):
+                steep |= freq >= f_top - s.cusp_band * (f_top - f_n)
+            if np.isfinite(f_n):
+                steep |= (freq >= o_lo - 1.5 * half) & (freq <= f_n * (1.0 + 0.1 * s.start_steps) + half)
+            caps = np.where(steep, s.cusp_up_cap_m, s.up_cap_m)
+        p_o, tot_o = viterbi_path(score, am, sc_o, s.grid_m, s, up_cap_cols=caps)
         cols_o = np.flatnonzero(p_o >= 0)
         if cols_o.size >= 2:
             x_pred = predict_x_range_m(freq[cols_o], r_grid[p_o[cols_o]], min(f_n, float(freq[cols_o[0]]) * 0.999),
@@ -914,6 +1016,13 @@ def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float
                         rng_out[j, 0] = float(mv)
                         sig_out[j, 0] = float(max(sig_out[j, 0], cusp["rms_m"]))
 
+    f_stop = float("nan")
+    if s.stop_at_loss:
+        f_stop = stop_at_loss(freq, rng_out[:, 0], qual[:, 0], conf[:, 0], s)
+        if np.isfinite(f_stop):
+            beyond = np.isfinite(rng_out[:, 0]) & (freq >= f_stop)
+            qual[beyond, 0] |= Q_STOPPED | Q_REJECTED
+
     out_rng = rng_out.copy()
     rej = (qual & Q_REJECTED) != 0
     out_rng[rej] = np.nan
@@ -925,6 +1034,7 @@ def track_traces(spectra: Sequence[Any], cfars: Sequence[Any], *, h_sat_m: float
         "x_pred_km": [round(float(v) / 1e3, 1) if np.isfinite(v) else None for v in x_pred],
         "iterations": history,
         "cusp": cusp,
+        "stop_hz": f_stop,
         "n_o": int(np.count_nonzero(np.isfinite(out_rng[:, 0]))),
         "n_x": int(np.count_nonzero(np.isfinite(out_rng[:, 1]))),
         "settings": {k: getattr(s, k) for k in s.__dataclass_fields__},

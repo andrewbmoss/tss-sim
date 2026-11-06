@@ -38,8 +38,13 @@ different error budgets:
     proxy for the local plasma frequency.  This is the operational fallback and
     it is biased: the lowest detected frequency is above the local plasma
     frequency by however much the sensitivity and the frequency step missed,
-    so it understates the starting density and the whole profile inherits the
-    error.
+    so it overstates the starting density and the whole profile inherits the
+    error (corrected 2026-11-05; this said "understates").
+``onboard``
+    The tracker's estimate from the ionogram itself (WP4 Phase 6,
+    :func:`tss.l3_signal.tracker.onboard_priors`): the plasma resonances, or
+    the lowest frequency at which a persistent trace starts, less half a step.
+    Unbiased to within half a frequency step when the trace start is seen.
 
 Which one was used is recorded in ``DensityProfile.flags["starting_value"]``.
 ``docs/architecture.md`` requires that, and the reason is that the three give
@@ -67,7 +72,7 @@ __all__ = [
 
 #: How the plasma frequency at the spacecraft was obtained.  See the module
 #: docstring; the three are not interchangeable.
-STARTING_VALUE_SOURCES: tuple[str, ...] = ("truth", "in_situ", "lowest_trace")
+STARTING_VALUE_SOURCES: tuple[str, ...] = ("truth", "in_situ", "onboard", "lowest_trace")
 
 
 def trace_points(
@@ -117,6 +122,7 @@ def starting_plasma_frequency_hz(
     truth: IonosphereState | None = None,
     platform: PlatformState | None = None,
     mode_index: int = 0,
+    onboard_hz: float | None = None,
 ) -> tuple[float, str]:
     """Plasma frequency at the spacecraft, and where it came from.
 
@@ -126,8 +132,10 @@ def starting_plasma_frequency_hz(
     ``DensityProfile.flags``.
 
     The ``lowest_trace`` fallback is biased high, which biases the starting
-    density low.  It is the fallback and not the default choice for that
-    reason.
+    density high.  It is the fallback and not the default choice for that
+    reason.  ``onboard_hz`` (the tracker's estimate) is used after a given
+    value and the truth, and only when it lies below the lowest detected
+    frequency, as a plasma frequency at the spacecraft must.
     """
     if given_hz is not None:
         return float(given_hz), "in_situ"
@@ -139,6 +147,8 @@ def starting_plasma_frequency_hz(
         return float(plasma_frequency(ne_at_sc)), "truth"
 
     f, _, _ = trace_points(ionogram, mode_index=mode_index)
+    if onboard_hz is not None and np.isfinite(onboard_hz) and f.size and 0.0 < float(onboard_hz) < float(f[0]):
+        return float(onboard_hz), "onboard"
     if f.size == 0:
         raise ValueError(
             "no detected trace points and no starting value supplied, so the "

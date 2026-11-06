@@ -518,6 +518,12 @@ class LaminationRetrieval(RetrievalBase):
         A field model to use instead, as a callable from altitude to
         gyrofrequency and angle.  For tests and for a field known some other
         way.
+    start_policy
+        ``"onboard"`` (the default since WP4 Phase 6) or ``"lowest_trace"``
+        (the WP4 Phase 4 behaviour).  ``"onboard"``: when
+        no value is given, use the tracker's estimate of the plasma frequency
+        at the spacecraft (``ionogram.flags["tracker"]["priors"]["f_n_hz"]``)
+        where it lies below the lowest detected frequency (WP4 Phase 6).
     """
 
     def __init__(
@@ -529,8 +535,12 @@ class LaminationRetrieval(RetrievalBase):
         magnetoionic: bool = False,
         geomagnetic_model: str = "auto",
         field: FieldModel | None = None,
+        start_policy: str = "onboard",
     ) -> None:
         super().__init__(mode_index=mode_index, start_plasma_hz=start_plasma_hz)
+        if start_policy not in ("lowest_trace", "onboard"):
+            raise ValueError(f"unknown start_policy {start_policy!r}, expected lowest_trace or onboard")
+        self.start_policy = start_policy
         self.include_spacecraft_point = bool(include_spacecraft_point)
         self.magnetoionic = bool(magnetoionic)
         if geomagnetic_model not in ("auto", "igrf", "dipole"):
@@ -544,6 +554,7 @@ class LaminationRetrieval(RetrievalBase):
         return {
             "mode_index": self.mode_index,
             "start_plasma_hz": self.start_plasma_hz,
+            "start_policy": self.start_policy,
             "include_spacecraft_point": self.include_spacecraft_point,
             "magnetoionic": self.magnetoionic,
             "geomagnetic_model": self.geomagnetic_model if self.magnetoionic else None,
@@ -593,10 +604,16 @@ class LaminationRetrieval(RetrievalBase):
                 source=f"tss.l4_retrieval.lamination.{type(self).__name__}",
             )
 
+        onboard = None
+        if self.start_policy == "onboard":
+            pri = ((ionogram.flags or {}).get("tracker") or {}).get("priors") or {}
+            v = pri.get("f_n_hz")
+            onboard = float(v) if isinstance(v, (int, float)) else None
         f0, start_source = starting_plasma_frequency_hz(
             ionogram,
             given_hz=self.start_plasma_hz,
             mode_index=self.mode_index,
+            onboard_hz=onboard,
         )
 
         # A frequency at or below the starting plasma frequency cannot have

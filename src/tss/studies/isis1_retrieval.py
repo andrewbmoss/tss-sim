@@ -53,7 +53,7 @@ from tss.studies import StudyResult, register_study
 
 DEFAULTS: dict[str, Any] = {"qualities": [4, 5, 6, 7, 8, 9], "clutter": ["on", "off"], "limit": None,
                             "workers": None, "configuration": "leo_500km_single",
-                            "checkpoint": None}
+                            "checkpoint": None, "sample": None, "sample_seed": 20261105, "indices": None}
 _STATE: dict[str, Any] = {}
 
 
@@ -336,7 +336,16 @@ def compute(config: dict[str, Any]) -> dict[str, Any]:
     ckpt = opts.get("checkpoint") or None
     n = len(select_records(quals, limit))
     done = _load_checkpoint(ckpt)
-    jobs = [(i, c) for i in range(n) for c in clutters if (i, c) not in done]
+    # ``indices`` or a seeded random ``sample`` of the records (development
+    # runs); the indices stay those of the full selection.
+    if opts.get("indices"):
+        chosen = sorted({int(i) for i in opts["indices"] if 0 <= int(i) < n})
+    elif opts.get("sample"):
+        g = np.random.default_rng(int(opts["sample_seed"]))
+        chosen = sorted(int(i) for i in g.choice(n, min(int(opts["sample"]), n), replace=False))
+    else:
+        chosen = list(range(n))
+    jobs = [(i, c) for i in chosen for c in clutters if (i, c) not in done]
     workers = int(opts["workers"] or max((os.cpu_count() or 2) - 2, 1))
     t0 = time.perf_counter()
     fh = open(ckpt, "a", encoding="utf-8") if ckpt else None
@@ -362,8 +371,9 @@ def compute(config: dict[str, Any]) -> dict[str, Any]:
             fh.close()
     wall = time.perf_counter() - t0
     allrows = {(int(r["index"]), str(r["clutter"])): r for r in [*done.values(), *new_rows]}
-    rows = [allrows[k] for k in sorted(allrows) if k[0] < n and k[1] in clutters]
-    return {"options": {**opts, "workers": workers}, "n_records": n, "rows": rows, "aggregate": aggregate(rows),
+    keep = set(chosen)
+    rows = [allrows[k] for k in sorted(allrows) if k[0] in keep and k[1] in clutters]
+    return {"options": {**opts, "workers": workers}, "n_records": len(chosen), "rows": rows, "aggregate": aggregate(rows),
             "wall_s": wall, "resumed_rows": len(done), "cpu_s": float(sum(r["run_s"] for r in rows))}
 
 
