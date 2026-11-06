@@ -85,3 +85,17 @@ def test_phase6_defaults():
     assert (s.fn_prior, s.far_start_cost, s.stop_at_loss, s.cusp_up_cap_m) == ("trace_floor", 2.0, False, s.up_cap_m)
     from tss.l4_retrieval.lamination import MagnetoionicLaminationRetrieval
     assert MagnetoionicLaminationRetrieval().start_policy == "onboard"
+
+
+def test_resonance_below_the_floor_and_a_harmonic_ignored():
+    # O trace from column 20 (f about 2.65 MHz); f_N resonance at column 19;
+    # a harmonic of f_H rings one column off its nominal frequency at column 5
+    f = 1.0e6 * 1.05 ** np.arange(40)
+    img = _image(f, {i: 300e3 + 10e3 * i for i in range(20, 40)})
+    streak = np.zeros(f.size, dtype=bool)
+    streak[[5, 19]] = True
+    f_h = f[5] * 1.04            # 1 f_H, more than half a step from column 5
+    pri = tk.onboard_priors(f, img, streak, f_h, 2e3, tk.TrackerSettings())
+    assert pri["f_n_method"] == "resonance" and pri["f_n_hz"] == f[19]
+    old = tk.onboard_priors(f, img, streak, f_h, 2e3, tk.TrackerSettings(fn_prior="near_start"))
+    assert old["f_n_hz"] == f[5]      # P4's rule took the lowest streak

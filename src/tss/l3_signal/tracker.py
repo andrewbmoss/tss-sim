@@ -276,15 +276,47 @@ def onboard_priors(freq_hz: np.ndarray, img_db: np.ndarray, streak: np.ndarray, 
     f = np.asarray(freq_hz, dtype=float)
     half = _step_halfwidths(f)
     gyro = np.zeros(f.size, dtype=bool)
+    gyro_wide = np.zeros(f.size, dtype=bool)
     for n in (1, 2, 3, 4):
         gyro |= np.abs(f - n * f_h_hz) <= half + 1.0
+        # a harmonic can ring in the next column too: the field model's f_H
+        # and the column centres differ by up to a step
+        gyro_wide |= np.abs(f - n * f_h_hz) <= 2.0 * half + 1.0
+    floor = float("nan")
+    if s.fn_prior == "trace_floor":
+        # The lowest column at which a persistent trace starts, at any range:
+        # a strong cell, and strong cells in at least ``floor_persist`` of the
+        # next three columns.  No echo returns below the local plasma
+        # frequency, so f_N lies within a step below it (the first sample is
+        # at most one step above the cut-off); its midpoint is the estimate.
+        # Columns at or next to a gyroharmonic are left out: the resonance
+        # there can ring in two or three adjacent columns and look like a
+        # trace start.
+        strong = np.any(img_db > s.design_snr_db + 2.0, axis=1) & ~streak & ~gyro_wide
+        for i in range(f.size - 1):
+            if strong[i] and np.count_nonzero(strong[i + 1: i + 4]) >= s.floor_persist:
+                floor = float(f[i] - half[i])
+                break
     cand = np.flatnonzero(streak & ~gyro)
+    if np.isfinite(floor):
+        # f_N is at or below the trace floor, and the O trace starts within a
+        # step or two above it: the resonance is the highest candidate not
+        # above the floor (a lower one is a harmonic missed by the tolerance,
+        # or a carrier), stepped down to its partner when it is f_UH.
+        k = int(np.searchsorted(f, floor))
+        cand = cand[f[cand] <= floor + 2.0 * half[min(k, f.size - 1)]]
+        cand = cand[::-1]
     method = None
     f_n = float("nan")
     if cand.size:
         c1 = f[cand[0]]
         f_n, method = float(c1), "resonance"
-        if cand.size > 1:
+        if np.isfinite(floor):
+            for c in cand[1:]:
+                if abs(c1 - math.sqrt(f[c] ** 2 + f_h_hz**2)) <= 2.0 * half[cand[0]]:
+                    f_n, method = float(f[c]), "resonance_pair"
+                    break
+        elif cand.size > 1:
             c2 = f[cand[1]]
             if abs(c2 - math.sqrt(c1**2 + f_h_hz**2)) <= 2.0 * half[cand[1]]:
                 method = "resonance_pair"
@@ -299,21 +331,9 @@ def onboard_priors(freq_hz: np.ndarray, img_db: np.ndarray, streak: np.ndarray, 
             if hit_near[i] and np.any(hit_any[i + 1: i + 4]):
                 f_n, method = float(f[i] - half[i]), "trace_start"
                 break
-    floor = float("nan")
     near_rule = f_n
-    if s.fn_prior == "trace_floor":
-        # The lowest column at which a persistent trace starts, at any range:
-        # a strong cell, and strong cells in at least ``floor_persist`` of the
-        # next three columns.  No echo returns below the local plasma
-        # frequency, so f_N lies within a step below it (the first sample is
-        # at most one step above the cut-off); its midpoint is the estimate.
-        strong = np.any(img_db > s.design_snr_db + 2.0, axis=1) & ~streak
-        for i in range(f.size - 1):
-            if strong[i] and np.count_nonzero(strong[i + 1: i + 4]) >= s.floor_persist:
-                floor = float(f[i] - half[i])
-                break
-        if np.isfinite(floor) and (not np.isfinite(f_n) or floor < f_n - half[min(np.searchsorted(f, f_n), f.size - 1)]):
-            f_n, method = floor, "trace_floor"
+    if np.isfinite(floor) and (not np.isfinite(f_n) or floor < f_n - half[min(np.searchsorted(f, f_n), f.size - 1)]):
+        f_n, method = floor, "trace_floor"
     f_x = float(0.5 * f_h_hz + math.sqrt(0.25 * f_h_hz**2 + f_n**2)) if np.isfinite(f_n) else float("nan")
     return {"f_n_hz": f_n, "f_h_hz": float(f_h_hz), "f_x_hz": f_x, "f_n_method": method,
             "f_n_near_rule_hz": near_rule, "trace_floor_hz": floor,
