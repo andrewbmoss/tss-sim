@@ -491,3 +491,15 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   labelling error 0.16 median.  Open for P6.  `wp4_dispersion.isis_scenes` kept
   the worse-scaled records (index >= 6; 0 is best): default now 4-6, reruns
   `wp4_p5_dispersion_q4to6` and `_q6to10`; G2 and G3 stand.
+* Phase 6 (b6dfbcc, 6e4fc9b, 847f4c5, and the docs commit): the M2 campaign
+  (`docs/m2.md`).  `isis1_retrieval` scores SCI-05/07 over the measured span
+  beside the full profile, with the M2 rule (median at threshold, 80 % of runs
+  at threshold).  Baseline (P4 chain, `wp4_m2_base_*`): ISIS-1 fails, 73.1 /
+  65.3 % clutter on.  Tracker: `fn_prior: trace_floor` (f_N bounded by the
+  lowest persistent trace start; far O starts allowed; the f_N resonance
+  taken at or below the floor), `far_start_cost`, options `stop_at_loss` and
+  `cusp_up_cap_m` (off).  L4: `start_policy: onboard` (the tracker's f_N).
+  Final (`wp4_m2_isis1`, `wp4_m2_chapman_*`): ISIS-1 84.6 / 89.3 % on,
+  81.8 / 87.6 % off; Chapman all goal.  M2 met.  `scripts/isis_model_check.py`
+  (`wp4_m2_models`): IRI-2020 against ISIS-1 and the coverage of the data.
+  The `l4_retrieval.base` starting-value docstring had the bias sign wrong.

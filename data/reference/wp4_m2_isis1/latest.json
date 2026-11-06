@@ -1,0 +1,67 @@
+{
+  "study": "isis1_retrieval",
+  "status": "implemented",
+  "run_directory": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_m2_isis1",
+  "manifest": "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_m2_isis1\\manifest.json",
+  "outputs": [
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_m2_isis1\\isis1_retrieval_records.csv",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_m2_isis1\\isis1_retrieval.json",
+    "C:\\Users\\Andrew\\AppData\\Local\\Temp\\wp4_ref\\wp4_m2_isis1\\summary.md"
+  ],
+  "metrics": {
+    "off": {
+      "n": 7790,
+      "n_failed": 0,
+      "sci05_median": 0.05040418824321853,
+      "sci05_p90": 0.36419321149096356,
+      "sci07_m_median": 8310.332829329196,
+      "sci07_m_p90": 31025.46704754432,
+      "span_ne_err_median": 0.0380739557808869,
+      "span_reached_median": 1.0,
+      "coverage_gap_m_median": 23754.828950536263,
+      "sci05_verdicts": {
+        "fail": 1480,
+        "goal": 5718,
+        "threshold": 592
+      },
+      "sci07_verdicts": {
+        "fail": 1298,
+        "goal": 4566,
+        "threshold": 1926
+      },
+      "m2_pass": true
+    },
+    "on": {
+      "n": 7790,
+      "n_failed": 0,
+      "sci05_median": 0.03876637477022777,
+      "sci05_p90": 0.31539892013830895,
+      "sci07_m_median": 6652.28716112574,
+      "sci07_m_p90": 27333.96243670088,
+      "span_ne_err_median": 0.029607383018054545,
+      "span_reached_median": 1.0,
+      "coverage_gap_m_median": 14491.853380811168,
+      "sci05_verdicts": {
+        "fail": 1263,
+        "goal": 6155,
+        "not_evaluated": 9,
+        "threshold": 363
+      },
+      "sci07_verdicts": {
+        "fail": 1085,
+        "goal": 5318,
+        "not_evaluated": 9,
+        "threshold": 1378
+      },
+      "m2_pass": true
+    }
+  },
+  "work_packages": [
+    "WP4",
+    "WP8"
+  ],
+  "claims": [
+    "C1",
+    "C3"
+  ]
+}

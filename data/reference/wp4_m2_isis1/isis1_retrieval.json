@@ -1,0 +1,2698 @@
+{
+  "options": {
+    "qualities": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "clutter": [
+      "on",
+      "off"
+    ],
+    "limit": null,
+    "workers": 17,
+    "configuration": "leo_500km_single",
+    "checkpoint": "C:/Users/Andrew/AppData/Local/Temp/wp4_ref/wp4_m2_isis1_rows.jsonl",
+    "sample": null,
+    "sample_seed": 20261105,
+    "indices": null
+  },
+  "n_records": 7790,
+  "aggregate": {
+    "off": {
+      "overall": {
+        "n": 7790,
+        "n_failed": 0,
+        "sci05_median": 0.05040418824321853,
+        "sci05_p90": 0.36419321149096356,
+        "sci05_worst": 115.56237303423143,
+        "sci07_m_median": 8310.332829329196,
+        "sci07_m_p90": 31025.46704754432,
+        "sci07_m_worst": 690917.6323474796,
+        "sci05_span_median": 0.04836786218752783,
+        "sci05_span_p90": 0.32385525014296146,
+        "sci05_span_worst": 106.8453395440325,
+        "sci07_span_m_median": 7176.542878308453,
+        "sci07_span_m_p90": 22840.215271080033,
+        "sci07_span_m_worst": 658191.7834847799,
+        "coverage_gap_m_median": 23754.828950536263,
+        "coverage_gap_m_p90": 81057.43561533271,
+        "coverage_gap_m_worst": 451341.9403833491,
+        "span_ne_err_median": 0.0380739557808869,
+        "span_ne_err_p90": 0.1269003873935632,
+        "span_ne_err_worst": 179.58439011950324,
+        "span_reached_median": 1.0,
+        "span_reached_p90": 0.9155335156533043,
+        "span_reached_worst": 0.42257202080048173,
+        "ins10_db_median": 2.306306691868741,
+        "ins10_db_p90": -1.0084950734402836,
+        "ins10_db_worst": -21.623964754851727,
+        "completeness_o_median": 0.46551724137931033,
+        "completeness_o_p90": 0.239568661971831,
+        "completeness_o_worst": 0.0,
+        "labelling_error_median": 0.1388888888888889,
+        "labelling_error_p90": 0.39291569086651074,
+        "labelling_error_worst": 1.0,
+        "sci05_verdicts": {
+          "fail": 1480,
+          "goal": 5718,
+          "threshold": 592
+        },
+        "sci07_verdicts": {
+          "fail": 1298,
+          "goal": 4566,
+          "threshold": 1926
+        },
+        "ins10_verdicts": {
+          "fail": 7016,
+          "threshold": 774
+        },
+        "sci05_span_verdicts": {
+          "fail": 1416,
+          "goal": 5754,
+          "threshold": 620
+        },
+        "sci07_span_verdicts": {
+          "fail": 925,
+          "goal": 5087,
+          "not_evaluated": 41,
+          "threshold": 1737
+        },
+        "run_s_median": 10.734106999938376
+      },
+      "m2": {
+        "span/SCI-05": {
+          "median": 0.04836786218752783,
+          "fraction_at_threshold_or_better": 0.8182284980744544,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "span/SCI-07": {
+          "median": 7176.542878308453,
+          "fraction_at_threshold_or_better": 0.87599486521181,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "full/SCI-05": {
+          "median": 0.05040418824321853,
+          "fraction_at_threshold_or_better": 0.810012836970475,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "full/SCI-07": {
+          "median": 8310.332829329196,
+          "fraction_at_threshold_or_better": 0.8333761232349166,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "pass": true
+      },
+      "by_fn_band": {
+        "0-1.5 MHz": {
+          "n": 2295,
+          "n_failed": 0,
+          "sci05_median": 0.10691169966588143,
+          "sci05_p90": 1.2001113862220405,
+          "sci05_worst": 115.56237303423143,
+          "sci07_m_median": 14544.028215942148,
+          "sci07_m_p90": 107968.44156964745,
+          "sci07_m_worst": 587557.5386965508,
+          "sci05_span_median": 0.10217432935197127,
+          "sci05_span_p90": 1.1543655940658608,
+          "sci05_span_worst": 106.8453395440325,
+          "sci07_span_m_median": 11825.556609011855,
+          "sci07_span_m_p90": 75554.85253640673,
+          "sci07_span_m_worst": 658191.7834847799,
+          "coverage_gap_m_median": 29048.031430265633,
+          "coverage_gap_m_p90": 103690.47798822807,
+          "coverage_gap_m_worst": 451341.9403833491,
+          "span_ne_err_median": 0.059914568859608885,
+          "span_ne_err_p90": 0.705420260101413,
+          "span_ne_err_worst": 179.58439011950324,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8986456179611987,
+          "span_reached_worst": 0.4643863067788546,
+          "ins10_db_median": 1.6474921932405664,
+          "ins10_db_p90": -1.2417365923068757,
+          "ins10_db_worst": -8.547604545944324,
+          "completeness_o_median": 0.5,
+          "completeness_o_p90": 0.28,
+          "completeness_o_worst": 0.05128205128205128,
+          "labelling_error_median": 0.17721518987341772,
+          "labelling_error_p90": 0.42449149024491484,
+          "labelling_error_worst": 0.84,
+          "sci05_verdicts": {
+            "fail": 976,
+            "goal": 1118,
+            "threshold": 201
+          },
+          "sci07_verdicts": {
+            "fail": 890,
+            "goal": 759,
+            "threshold": 646
+          },
+          "ins10_verdicts": {
+            "fail": 2167,
+            "threshold": 128
+          },
+          "sci05_span_verdicts": {
+            "fail": 943,
+            "goal": 1132,
+            "threshold": 220
+          },
+          "sci07_span_verdicts": {
+            "fail": 638,
+            "goal": 931,
+            "not_evaluated": 37,
+            "threshold": 689
+          },
+          "run_s_median": 10.731554499827325
+        },
+        "1.5-2.5 MHz": {
+          "n": 2570,
+          "n_failed": 0,
+          "sci05_median": 0.05673938773700889,
+          "sci05_p90": 0.21542576113025272,
+          "sci05_worst": 11.5030184002787,
+          "sci07_m_median": 9324.434527994874,
+          "sci07_m_p90": 21793.249742766104,
+          "sci07_m_worst": 690917.6323474796,
+          "sci05_span_median": 0.0553423371196548,
+          "sci05_span_p90": 0.2015941456793733,
+          "sci05_span_worst": 11.396087157849973,
+          "sci07_span_m_median": 8314.597163287086,
+          "sci07_span_m_p90": 19082.264347850294,
+          "sci07_span_m_worst": 426782.37782993447,
+          "coverage_gap_m_median": 23237.67937809523,
+          "coverage_gap_m_p90": 77637.3265816017,
+          "coverage_gap_m_worst": 429380.0655781415,
+          "span_ne_err_median": 0.045193157452819016,
+          "span_ne_err_p90": 0.10230005898493072,
+          "span_ne_err_worst": 11.682652899125056,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9260848887507891,
+          "span_reached_worst": 0.42257202080048173,
+          "ins10_db_median": 2.2765722155313597,
+          "ins10_db_p90": -1.170378583354727,
+          "ins10_db_worst": -8.24959996466643,
+          "completeness_o_median": 0.43333333333333335,
+          "completeness_o_p90": 0.22580645161290322,
+          "completeness_o_worst": 0.06521739130434782,
+          "labelling_error_median": 0.18903903903903904,
+          "labelling_error_p90": 0.4375,
+          "labelling_error_worst": 0.8666666666666667,
+          "sci05_verdicts": {
+            "fail": 387,
+            "goal": 1921,
+            "threshold": 262
+          },
+          "sci07_verdicts": {
+            "fail": 312,
+            "goal": 1396,
+            "threshold": 862
+          },
+          "ins10_verdicts": {
+            "fail": 2253,
+            "threshold": 317
+          },
+          "sci05_span_verdicts": {
+            "fail": 376,
+            "goal": 1937,
+            "threshold": 257
+          },
+          "sci07_span_verdicts": {
+            "fail": 222,
+            "goal": 1603,
+            "not_evaluated": 4,
+            "threshold": 741
+          },
+          "run_s_median": 10.81941769993864
+        },
+        "2.5-4 MHz": {
+          "n": 1795,
+          "n_failed": 0,
+          "sci05_median": 0.03893395346759985,
+          "sci05_p90": 0.1135768585761077,
+          "sci05_worst": 1.6720886308467673,
+          "sci07_m_median": 6393.779807990932,
+          "sci07_m_p90": 15063.285218760879,
+          "sci07_m_worst": 159809.73055903046,
+          "sci05_span_median": 0.03634073795906304,
+          "sci05_span_p90": 0.10897964088944487,
+          "sci05_span_worst": 1.4267168888676547,
+          "sci07_span_m_median": 5416.18188714232,
+          "sci07_span_m_p90": 13130.07941851967,
+          "sci07_span_m_worst": 188957.99207551172,
+          "coverage_gap_m_median": 20659.17708766344,
+          "coverage_gap_m_p90": 68693.2569075697,
+          "coverage_gap_m_worst": 239616.46263825917,
+          "span_ne_err_median": 0.029755561456873636,
+          "span_ne_err_p90": 0.0728850200130391,
+          "span_ne_err_worst": 0.9440476560082296,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9265296516370102,
+          "span_reached_worst": 0.5576361204025384,
+          "ins10_db_median": 3.0739101364484043,
+          "ins10_db_p90": -0.45926815367717494,
+          "ins10_db_worst": -5.358370295793492,
+          "completeness_o_median": 0.42857142857142855,
+          "completeness_o_p90": 0.21739130434782608,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.12903225806451613,
+          "labelling_error_p90": 0.3333333333333333,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 100,
+            "goal": 1577,
+            "threshold": 118
+          },
+          "sci07_verdicts": {
+            "fail": 83,
+            "goal": 1349,
+            "threshold": 363
+          },
+          "ins10_verdicts": {
+            "fail": 1558,
+            "threshold": 237
+          },
+          "sci05_span_verdicts": {
+            "fail": 88,
+            "goal": 1580,
+            "threshold": 127
+          },
+          "sci07_span_verdicts": {
+            "fail": 59,
+            "goal": 1460,
+            "threshold": 276
+          },
+          "run_s_median": 10.761388999875635
+        },
+        ">= 4 MHz": {
+          "n": 1130,
+          "n_failed": 0,
+          "sci05_median": 0.015238248969509292,
+          "sci05_p90": 0.04111318426729895,
+          "sci05_worst": 0.2640351795603391,
+          "sci07_m_median": 3011.3945251684045,
+          "sci07_m_p90": 7714.057701444015,
+          "sci07_m_worst": 50923.79186066112,
+          "sci05_span_median": 0.012994184425615906,
+          "sci05_span_p90": 0.036456687338819696,
+          "sci05_span_worst": 0.2726407051799779,
+          "sci07_span_m_median": 2218.198929987413,
+          "sci07_span_m_p90": 5636.2921356800025,
+          "sci07_span_m_worst": 40829.84523843888,
+          "coverage_gap_m_median": 20716.06506540836,
+          "coverage_gap_m_p90": 72434.37897701078,
+          "coverage_gap_m_worst": 235147.867365286,
+          "span_ne_err_median": 0.011037057935303629,
+          "span_ne_err_p90": 0.024341832009665047,
+          "span_ne_err_worst": 0.21761915185084924,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9103385013868014,
+          "span_reached_worst": 0.5015796292586643,
+          "ins10_db_median": 2.7780816008575044,
+          "ins10_db_p90": -0.6428125873433996,
+          "ins10_db_worst": -21.623964754851727,
+          "completeness_o_median": 0.5,
+          "completeness_o_p90": 0.26783199195171026,
+          "completeness_o_worst": 0.1095890410958904,
+          "labelling_error_median": 0.06666666666666667,
+          "labelling_error_p90": 0.1864632768361582,
+          "labelling_error_worst": 0.581081081081081,
+          "sci05_verdicts": {
+            "fail": 17,
+            "goal": 1102,
+            "threshold": 11
+          },
+          "sci07_verdicts": {
+            "fail": 13,
+            "goal": 1062,
+            "threshold": 55
+          },
+          "ins10_verdicts": {
+            "fail": 1038,
+            "threshold": 92
+          },
+          "sci05_span_verdicts": {
+            "fail": 9,
+            "goal": 1105,
+            "threshold": 16
+          },
+          "sci07_span_verdicts": {
+            "fail": 6,
+            "goal": 1093,
+            "threshold": 31
+          },
+          "run_s_median": 10.539752000011504
+        }
+      },
+      "by_stratum": {
+        "high/day/high_sun": {
+          "n": 593,
+          "n_failed": 0,
+          "sci05_median": 0.05040343300620147,
+          "sci05_p90": 0.4282801570951266,
+          "sci05_worst": 49.118216899657334,
+          "sci07_m_median": 10779.975476006508,
+          "sci07_m_p90": 44091.91738315487,
+          "sci07_m_worst": 532747.7541274833,
+          "sci05_span_median": 0.048249627925749626,
+          "sci05_span_p90": 0.42293634353847814,
+          "sci05_span_worst": 45.51927326717692,
+          "sci07_span_m_median": 9578.122771591821,
+          "sci07_span_m_p90": 27634.590921015977,
+          "sci07_span_m_worst": 382209.0054297322,
+          "coverage_gap_m_median": 31475.748455605528,
+          "coverage_gap_m_p90": 118747.89570757853,
+          "coverage_gap_m_worst": 373784.4465650364,
+          "span_ne_err_median": 0.04332474022537958,
+          "span_ne_err_p90": 0.15742459294553038,
+          "span_ne_err_worst": 42.24562900147839,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8839128109101307,
+          "span_reached_worst": 0.5674426518208805,
+          "ins10_db_median": 0.9677644077134744,
+          "ins10_db_p90": -1.9943238324239814,
+          "ins10_db_worst": -8.547604545944324,
+          "completeness_o_median": 0.6486486486486487,
+          "completeness_o_p90": 0.37214285714285716,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.06976744186046512,
+          "labelling_error_p90": 0.2949843260188089,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 122,
+            "goal": 450,
+            "threshold": 21
+          },
+          "sci07_verdicts": {
+            "fail": 144,
+            "goal": 265,
+            "threshold": 184
+          },
+          "ins10_verdicts": {
+            "fail": 581,
+            "threshold": 12
+          },
+          "sci05_span_verdicts": {
+            "fail": 120,
+            "goal": 450,
+            "threshold": 23
+          },
+          "sci07_span_verdicts": {
+            "fail": 89,
+            "goal": 316,
+            "not_evaluated": 7,
+            "threshold": 181
+          },
+          "run_s_median": 10.535282999975607
+        },
+        "high/day/low_sun": {
+          "n": 41,
+          "n_failed": 0,
+          "sci05_median": 0.125215621221004,
+          "sci05_p90": 40.818742369620125,
+          "sci05_worst": 108.0966753006444,
+          "sci07_m_median": 24209.87586666515,
+          "sci07_m_p90": 435311.4416073327,
+          "sci07_m_worst": 587548.2118514485,
+          "sci05_span_median": 0.12733860970603886,
+          "sci05_span_p90": 40.818742369620125,
+          "sci05_span_worst": 106.8453395440325,
+          "sci07_span_m_median": 21163.125657004068,
+          "sci07_span_m_p90": 142584.48075122628,
+          "sci07_span_m_worst": 394233.0936989036,
+          "coverage_gap_m_median": 84447.96560889168,
+          "coverage_gap_m_p90": 185867.6769834623,
+          "coverage_gap_m_worst": 389640.3286073087,
+          "span_ne_err_median": 0.10181376464730874,
+          "span_ne_err_p90": 44.999720995710135,
+          "span_ne_err_worst": 120.77655668967739,
+          "span_reached_median": 0.9154201366456041,
+          "span_reached_p90": 0.7923202896091116,
+          "span_reached_worst": 0.5340491648851279,
+          "ins10_db_median": -0.23254104392410113,
+          "ins10_db_p90": -2.630647358339729,
+          "ins10_db_worst": -6.5000845856921785,
+          "completeness_o_median": 0.5555555555555556,
+          "completeness_o_p90": 0.2619047619047619,
+          "completeness_o_worst": 0.07407407407407407,
+          "labelling_error_median": 0.12121212121212122,
+          "labelling_error_p90": 0.26666666666666666,
+          "labelling_error_worst": 0.8666666666666667,
+          "sci05_verdicts": {
+            "fail": 19,
+            "goal": 19,
+            "threshold": 3
+          },
+          "sci07_verdicts": {
+            "fail": 27,
+            "goal": 7,
+            "threshold": 7
+          },
+          "ins10_verdicts": {
+            "fail": 41
+          },
+          "sci05_span_verdicts": {
+            "fail": 19,
+            "goal": 20,
+            "threshold": 2
+          },
+          "sci07_span_verdicts": {
+            "fail": 20,
+            "goal": 7,
+            "not_evaluated": 6,
+            "threshold": 8
+          },
+          "run_s_median": 10.375310899922624
+        },
+        "high/night/high_sun": {
+          "n": 855,
+          "n_failed": 0,
+          "sci05_median": 0.06647652280130532,
+          "sci05_p90": 0.9409738969223802,
+          "sci05_worst": 20.681695085890112,
+          "sci07_m_median": 11346.865694616796,
+          "sci07_m_p90": 63702.0659096332,
+          "sci07_m_worst": 526839.0850553621,
+          "sci05_span_median": 0.06014290937182039,
+          "sci05_span_p90": 0.8933006647565286,
+          "sci05_span_worst": 19.582645412104736,
+          "sci07_span_m_median": 8922.275294008392,
+          "sci07_span_m_p90": 37549.59268397753,
+          "sci07_span_m_worst": 520988.57242698106,
+          "coverage_gap_m_median": 30617.441239988548,
+          "coverage_gap_m_p90": 113804.60571042172,
+          "coverage_gap_m_worst": 404627.98677936965,
+          "span_ne_err_median": 0.045091223860480145,
+          "span_ne_err_p90": 0.269301986307376,
+          "span_ne_err_worst": 21.928101238610118,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8622124039797563,
+          "span_reached_worst": 0.43756195959968136,
+          "ins10_db_median": 1.4770168909562926,
+          "ins10_db_p90": -1.3473732126906666,
+          "ins10_db_worst": -8.24959996466643,
+          "completeness_o_median": 0.7222222222222222,
+          "completeness_o_p90": 0.4587837837837838,
+          "completeness_o_worst": 0.045454545454545456,
+          "labelling_error_median": 0.02702702702702703,
+          "labelling_error_p90": 0.22775119617224882,
+          "labelling_error_worst": 0.9411764705882353,
+          "sci05_verdicts": {
+            "fail": 263,
+            "goal": 535,
+            "threshold": 57
+          },
+          "sci07_verdicts": {
+            "fail": 286,
+            "goal": 374,
+            "threshold": 195
+          },
+          "ins10_verdicts": {
+            "fail": 844,
+            "threshold": 11
+          },
+          "sci05_span_verdicts": {
+            "fail": 256,
+            "goal": 549,
+            "threshold": 50
+          },
+          "sci07_span_verdicts": {
+            "fail": 174,
+            "goal": 461,
+            "not_evaluated": 13,
+            "threshold": 207
+          },
+          "run_s_median": 10.48461340018548
+        },
+        "high/night/low_sun": {
+          "n": 34,
+          "n_failed": 0,
+          "sci05_median": 0.07477829618190203,
+          "sci05_p90": 5.611337582077644,
+          "sci05_worst": 115.56237303423143,
+          "sci07_m_median": 16897.132131313832,
+          "sci07_m_p90": 241514.84865299292,
+          "sci07_m_worst": 479038.6631374955,
+          "sci05_span_median": 0.0755630287457267,
+          "sci05_span_p90": 5.257486544761017,
+          "sci05_span_worst": 86.54463348274001,
+          "sci07_span_m_median": 13769.176320615401,
+          "sci07_span_m_p90": 228727.39306110638,
+          "sci07_span_m_worst": 364896.1540743106,
+          "coverage_gap_m_median": 54231.413723683945,
+          "coverage_gap_m_p90": 150270.0732207777,
+          "coverage_gap_m_worst": 339237.90647809976,
+          "span_ne_err_median": 0.06798042260986142,
+          "span_ne_err_p90": 4.336083087424098,
+          "span_ne_err_worst": 179.58439011950324,
+          "span_reached_median": 0.9648111018667076,
+          "span_reached_p90": 0.774778174362068,
+          "span_reached_worst": 0.5327459743610573,
+          "ins10_db_median": 1.0671180857907814,
+          "ins10_db_p90": -1.3247839351287638,
+          "ins10_db_worst": -2.8197440575251846,
+          "completeness_o_median": 0.6923076923076923,
+          "completeness_o_p90": 0.40650813516896117,
+          "completeness_o_worst": 0.18604651162790697,
+          "labelling_error_median": 0.047619047619047616,
+          "labelling_error_p90": 0.21834625322997414,
+          "labelling_error_worst": 0.41935483870967744,
+          "sci05_verdicts": {
+            "fail": 14,
+            "goal": 19,
+            "threshold": 1
+          },
+          "sci07_verdicts": {
+            "fail": 14,
+            "goal": 14,
+            "threshold": 6
+          },
+          "ins10_verdicts": {
+            "fail": 33,
+            "threshold": 1
+          },
+          "sci05_span_verdicts": {
+            "fail": 14,
+            "goal": 19,
+            "threshold": 1
+          },
+          "sci07_span_verdicts": {
+            "fail": 11,
+            "goal": 15,
+            "not_evaluated": 2,
+            "threshold": 6
+          },
+          "run_s_median": 10.2533218000317
+        },
+        "low/day/high_sun": {
+          "n": 2136,
+          "n_failed": 0,
+          "sci05_median": 0.03729371116860901,
+          "sci05_p90": 0.14355004233493573,
+          "sci05_worst": 8.657718586369342,
+          "sci07_m_median": 6372.469459243046,
+          "sci07_m_p90": 17739.794038818647,
+          "sci07_m_worst": 275793.27197907947,
+          "sci05_span_median": 0.03653701954680551,
+          "sci05_span_p90": 0.13734965931811197,
+          "sci05_span_worst": 8.879488681558088,
+          "sci07_span_m_median": 5468.120736171499,
+          "sci07_span_m_p90": 16892.130610808865,
+          "sci07_span_m_worst": 439224.95694147993,
+          "coverage_gap_m_median": 22169.696659737907,
+          "coverage_gap_m_p90": 69932.47129103413,
+          "coverage_gap_m_worst": 278492.4569621907,
+          "span_ne_err_median": 0.026666029244027473,
+          "span_ne_err_p90": 0.08989534794058113,
+          "span_ne_err_worst": 5.803726798052302,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9301611196632859,
+          "span_reached_worst": 0.42257202080048173,
+          "ins10_db_median": 2.111903610446248,
+          "ins10_db_p90": -1.0880700538908172,
+          "ins10_db_worst": -21.623964754851727,
+          "completeness_o_median": 0.36619718309859156,
+          "completeness_o_p90": 0.19006568144499178,
+          "completeness_o_worst": 0.06451612903225806,
+          "labelling_error_median": 0.17179608585858586,
+          "labelling_error_p90": 0.4492753623188406,
+          "labelling_error_worst": 0.7619047619047619,
+          "sci05_verdicts": {
+            "fail": 190,
+            "goal": 1771,
+            "threshold": 175
+          },
+          "sci07_verdicts": {
+            "fail": 160,
+            "goal": 1477,
+            "threshold": 499
+          },
+          "ins10_verdicts": {
+            "fail": 1971,
+            "threshold": 165
+          },
+          "sci05_span_verdicts": {
+            "fail": 182,
+            "goal": 1766,
+            "threshold": 188
+          },
+          "sci07_span_verdicts": {
+            "fail": 153,
+            "goal": 1550,
+            "not_evaluated": 3,
+            "threshold": 430
+          },
+          "run_s_median": 10.868857850087807
+        },
+        "low/night/high_sun": {
+          "n": 1626,
+          "n_failed": 0,
+          "sci05_median": 0.051185632649873275,
+          "sci05_p90": 0.4008326923265605,
+          "sci05_worst": 13.407025364126818,
+          "sci07_m_median": 7690.763499081729,
+          "sci07_m_p90": 22727.974546384714,
+          "sci07_m_worst": 470339.3386203778,
+          "sci05_span_median": 0.04957934471571211,
+          "sci05_span_p90": 0.34227003119155985,
+          "sci05_span_worst": 14.57436252103103,
+          "sci07_span_m_median": 6697.161521125916,
+          "sci07_span_m_p90": 18319.920066534047,
+          "sci07_span_m_worst": 658191.7834847799,
+          "coverage_gap_m_median": 24261.07209726819,
+          "coverage_gap_m_p90": 71265.1935700315,
+          "coverage_gap_m_worst": 451341.9403833491,
+          "span_ne_err_median": 0.03716391873953445,
+          "span_ne_err_p90": 0.10554725502881429,
+          "span_ne_err_worst": 12.804397495863252,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9471332777230415,
+          "span_reached_worst": 0.4643863067788546,
+          "ins10_db_median": 3.6208576391889835,
+          "ins10_db_p90": -0.39462867314692573,
+          "ins10_db_worst": -5.771522458928388,
+          "completeness_o_median": 0.41804613297150606,
+          "completeness_o_p90": 0.2553579571363429,
+          "completeness_o_worst": 0.08196721311475409,
+          "labelling_error_median": 0.20806277056277056,
+          "labelling_error_p90": 0.411437908496732,
+          "labelling_error_worst": 0.7068965517241379,
+          "sci05_verdicts": {
+            "fail": 325,
+            "goal": 1181,
+            "threshold": 120
+          },
+          "sci07_verdicts": {
+            "fail": 212,
+            "goal": 999,
+            "threshold": 415
+          },
+          "ins10_verdicts": {
+            "fail": 1321,
+            "threshold": 305
+          },
+          "sci05_span_verdicts": {
+            "fail": 307,
+            "goal": 1188,
+            "threshold": 131
+          },
+          "sci07_span_verdicts": {
+            "fail": 137,
+            "goal": 1125,
+            "not_evaluated": 4,
+            "threshold": 360
+          },
+          "run_s_median": 10.792051750118844
+        },
+        "mid/day/high_sun": {
+          "n": 1351,
+          "n_failed": 0,
+          "sci05_median": 0.0454164163537114,
+          "sci05_p90": 0.17888934460883213,
+          "sci05_worst": 11.5030184002787,
+          "sci07_m_median": 7706.155338301733,
+          "sci07_m_p90": 20589.505749830954,
+          "sci07_m_worst": 690917.6323474796,
+          "sci05_span_median": 0.043414858872309316,
+          "sci05_span_p90": 0.1705673123785566,
+          "sci05_span_worst": 11.396087157849973,
+          "sci07_span_m_median": 6796.910600251333,
+          "sci07_span_m_p90": 18992.12665659295,
+          "sci07_span_m_worst": 236729.4550215497,
+          "coverage_gap_m_median": 20291.262008530204,
+          "coverage_gap_m_p90": 67174.46795026772,
+          "coverage_gap_m_worst": 429380.0655781415,
+          "span_ne_err_median": 0.03823064244925378,
+          "span_ne_err_p90": 0.11227648259301881,
+          "span_ne_err_worst": 11.682652899125056,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9368299080676824,
+          "span_reached_worst": 0.5785047021305006,
+          "ins10_db_median": 2.3675983971684786,
+          "ins10_db_p90": -0.7982052141534837,
+          "ins10_db_worst": -7.90115487312471,
+          "completeness_o_median": 0.4307692307692308,
+          "completeness_o_p90": 0.2328767123287671,
+          "completeness_o_worst": 0.056179775280898875,
+          "labelling_error_median": 0.16071428571428573,
+          "labelling_error_p90": 0.40860215053763443,
+          "labelling_error_worst": 0.7647058823529411,
+          "sci05_verdicts": {
+            "fail": 160,
+            "goal": 1068,
+            "threshold": 123
+          },
+          "sci07_verdicts": {
+            "fail": 146,
+            "goal": 860,
+            "threshold": 345
+          },
+          "ins10_verdicts": {
+            "fail": 1240,
+            "threshold": 111
+          },
+          "sci05_span_verdicts": {
+            "fail": 154,
+            "goal": 1074,
+            "threshold": 123
+          },
+          "sci07_span_verdicts": {
+            "fail": 122,
+            "goal": 921,
+            "not_evaluated": 1,
+            "threshold": 307
+          },
+          "run_s_median": 10.881196900038049
+        },
+        "mid/day/low_sun": {
+          "n": 20,
+          "n_failed": 0,
+          "sci05_median": 0.07080715157391809,
+          "sci05_p90": 0.32329684772658207,
+          "sci05_worst": 0.471977801725575,
+          "sci07_m_median": 10616.986417334801,
+          "sci07_m_p90": 33779.28186912898,
+          "sci07_m_worst": 39356.683449353164,
+          "sci05_span_median": 0.061318067207847035,
+          "sci05_span_p90": 0.2928134393450445,
+          "sci05_span_worst": 0.4834057236399097,
+          "sci07_span_m_median": 8704.143130605426,
+          "sci07_span_m_p90": 26338.860890061696,
+          "sci07_span_m_worst": 32482.837032995325,
+          "coverage_gap_m_median": 6735.319317669258,
+          "coverage_gap_m_p90": 44603.56784568391,
+          "coverage_gap_m_worst": 124278.00419119676,
+          "span_ne_err_median": 0.05967484518955335,
+          "span_ne_err_p90": 0.1274567838537014,
+          "span_ne_err_worst": 0.15010615514129277,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9740848484906581,
+          "span_reached_worst": 0.8767990488296915,
+          "ins10_db_median": 0.723819759304746,
+          "ins10_db_p90": -0.5069177001540651,
+          "ins10_db_worst": -0.8536069832052533,
+          "completeness_o_median": 0.5519713261648745,
+          "completeness_o_p90": 0.3714929214929215,
+          "completeness_o_worst": 0.3055555555555556,
+          "labelling_error_median": 0.1962719298245614,
+          "labelling_error_p90": 0.3717948717948718,
+          "labelling_error_worst": 0.4444444444444444,
+          "sci05_verdicts": {
+            "fail": 3,
+            "goal": 13,
+            "threshold": 4
+          },
+          "sci07_verdicts": {
+            "fail": 5,
+            "goal": 9,
+            "threshold": 6
+          },
+          "ins10_verdicts": {
+            "fail": 20
+          },
+          "sci05_span_verdicts": {
+            "fail": 3,
+            "goal": 14,
+            "threshold": 3
+          },
+          "sci07_span_verdicts": {
+            "fail": 4,
+            "goal": 12,
+            "threshold": 4
+          },
+          "run_s_median": 10.539923649979755
+        },
+        "mid/night/high_sun": {
+          "n": 1083,
+          "n_failed": 0,
+          "sci05_median": 0.06744117170776297,
+          "sci05_p90": 0.6821520030145698,
+          "sci05_worst": 17.620207314148704,
+          "sci07_m_median": 9976.955113348979,
+          "sci07_m_p90": 49747.687388444785,
+          "sci07_m_worst": 587557.5386965508,
+          "sci05_span_median": 0.0643805626171301,
+          "sci05_span_p90": 0.6285548771734102,
+          "sci05_span_worst": 16.949584880211454,
+          "sci07_span_m_median": 7967.9978737082565,
+          "sci07_span_m_p90": 40331.71083481502,
+          "sci07_span_m_worst": 332983.35524260614,
+          "coverage_gap_m_median": 24618.99632287468,
+          "coverage_gap_m_p90": 76455.30160709623,
+          "coverage_gap_m_worst": 435210.5710164993,
+          "span_ne_err_median": 0.04519769485391556,
+          "span_ne_err_p90": 0.2158746134421725,
+          "span_ne_err_worst": 18.102210561255582,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9024835918221094,
+          "span_reached_worst": 0.5149939363667353,
+          "ins10_db_median": 3.001068965284759,
+          "ins10_db_p90": -0.628757070094548,
+          "ins10_db_worst": -6.000798542257087,
+          "completeness_o_median": 0.6,
+          "completeness_o_p90": 0.3177980412022965,
+          "completeness_o_worst": 0.10638297872340426,
+          "labelling_error_median": 0.0851063829787234,
+          "labelling_error_p90": 0.32142857142857145,
+          "labelling_error_worst": 0.71875,
+          "sci05_verdicts": {
+            "fail": 359,
+            "goal": 642,
+            "threshold": 82
+          },
+          "sci07_verdicts": {
+            "fail": 286,
+            "goal": 542,
+            "threshold": 255
+          },
+          "ins10_verdicts": {
+            "fail": 919,
+            "threshold": 164
+          },
+          "sci05_span_verdicts": {
+            "fail": 340,
+            "goal": 652,
+            "threshold": 91
+          },
+          "sci07_span_verdicts": {
+            "fail": 200,
+            "goal": 657,
+            "not_evaluated": 4,
+            "threshold": 222
+          },
+          "run_s_median": 10.526968099875376
+        },
+        "mid/night/low_sun": {
+          "n": 51,
+          "n_failed": 0,
+          "sci05_median": 0.13460310954586582,
+          "sci05_p90": 0.6897415842578781,
+          "sci05_worst": 3.385635447246253,
+          "sci07_m_median": 13277.449075046972,
+          "sci07_m_p90": 55598.84524987122,
+          "sci07_m_worst": 225515.9004883973,
+          "sci05_span_median": 0.11038955120777255,
+          "sci05_span_p90": 0.8005600913433392,
+          "sci05_span_worst": 3.438135297125028,
+          "sci07_span_m_median": 11796.713944984102,
+          "sci07_span_m_p90": 57755.73891144114,
+          "sci07_span_m_worst": 110475.75735238055,
+          "coverage_gap_m_median": 20574.281970110605,
+          "coverage_gap_m_p90": 83344.54712369887,
+          "coverage_gap_m_worst": 204932.13067296305,
+          "span_ne_err_median": 0.06919966791366772,
+          "span_ne_err_p90": 0.4887822244050114,
+          "span_ne_err_worst": 3.0329146091214954,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8902479519788261,
+          "span_reached_worst": 0.691771350977671,
+          "ins10_db_median": 2.851758731044555,
+          "ins10_db_p90": 0.49869588187644354,
+          "ins10_db_worst": -1.6431108358831352,
+          "completeness_o_median": 0.6296296296296297,
+          "completeness_o_p90": 0.3076923076923077,
+          "completeness_o_worst": 0.19230769230769232,
+          "labelling_error_median": 0.08695652173913043,
+          "labelling_error_p90": 0.30434782608695654,
+          "labelling_error_worst": 0.5294117647058824,
+          "sci05_verdicts": {
+            "fail": 25,
+            "goal": 20,
+            "threshold": 6
+          },
+          "sci07_verdicts": {
+            "fail": 18,
+            "goal": 19,
+            "threshold": 14
+          },
+          "ins10_verdicts": {
+            "fail": 46,
+            "threshold": 5
+          },
+          "sci05_span_verdicts": {
+            "fail": 21,
+            "goal": 22,
+            "threshold": 8
+          },
+          "sci07_span_verdicts": {
+            "fail": 15,
+            "goal": 23,
+            "not_evaluated": 1,
+            "threshold": 12
+          },
+          "run_s_median": 10.180008900118992
+        }
+      },
+      "by_quality": {
+        "4": {
+          "n": 2989,
+          "n_failed": 0,
+          "sci05_median": 0.040240649528701565,
+          "sci05_p90": 0.16739162933028082,
+          "sci05_worst": 13.407025364126818,
+          "sci07_m_median": 6709.4649242971955,
+          "sci07_m_p90": 18825.1392584371,
+          "sci07_m_worst": 470339.3386203778,
+          "sci05_span_median": 0.038912970482477556,
+          "sci05_span_p90": 0.15408492553741032,
+          "sci05_span_worst": 14.57436252103103,
+          "sci07_span_m_median": 5645.8422596888495,
+          "sci07_span_m_p90": 16743.007892764836,
+          "sci07_span_m_worst": 658191.7834847799,
+          "coverage_gap_m_median": 22322.119889421854,
+          "coverage_gap_m_p90": 68596.83741543547,
+          "coverage_gap_m_worst": 451341.9403833491,
+          "span_ne_err_median": 0.030394364764358972,
+          "span_ne_err_p90": 0.09295901435525836,
+          "span_ne_err_worst": 12.804397495863252,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9216629772604163,
+          "span_reached_worst": 0.4643863067788546,
+          "ins10_db_median": 2.579256238931748,
+          "ins10_db_p90": -0.7177094668412451,
+          "ins10_db_worst": -21.623964754851727,
+          "completeness_o_median": 0.4,
+          "completeness_o_p90": 0.20202531645569624,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.13846153846153847,
+          "labelling_error_p90": 0.41545375972342274,
+          "labelling_error_worst": 0.8823529411764706,
+          "sci05_verdicts": {
+            "fail": 339,
+            "goal": 2417,
+            "threshold": 233
+          },
+          "sci07_verdicts": {
+            "fail": 258,
+            "goal": 2030,
+            "threshold": 701
+          },
+          "ins10_verdicts": {
+            "fail": 2758,
+            "threshold": 231
+          },
+          "sci05_span_verdicts": {
+            "fail": 318,
+            "goal": 2413,
+            "threshold": 258
+          },
+          "sci07_span_verdicts": {
+            "fail": 204,
+            "goal": 2172,
+            "not_evaluated": 4,
+            "threshold": 609
+          },
+          "run_s_median": 10.764513600151986
+        },
+        "5": {
+          "n": 1937,
+          "n_failed": 0,
+          "sci05_median": 0.05301973254877305,
+          "sci05_p90": 0.2782942761966288,
+          "sci05_worst": 5.2235556600366975,
+          "sci07_m_median": 8298.885305220054,
+          "sci07_m_p90": 25192.118141607145,
+          "sci07_m_worst": 249811.4711407446,
+          "sci05_span_median": 0.05132102363617122,
+          "sci05_span_p90": 0.2575139391060147,
+          "sci05_span_worst": 5.359110862218698,
+          "sci07_span_m_median": 7166.4709852298765,
+          "sci07_span_m_p90": 21720.224622394537,
+          "sci07_span_m_worst": 331721.32786012185,
+          "coverage_gap_m_median": 21662.624440907035,
+          "coverage_gap_m_p90": 72829.88596161202,
+          "coverage_gap_m_worst": 308881.7962621207,
+          "span_ne_err_median": 0.038969519828930155,
+          "span_ne_err_p90": 0.11350225511127361,
+          "span_ne_err_worst": 4.762059049437877,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9346640812964787,
+          "span_reached_worst": 0.5015796292586643,
+          "ins10_db_median": 2.7235340137646347,
+          "ins10_db_p90": -0.8318757363095868,
+          "ins10_db_worst": -6.000798542257087,
+          "completeness_o_median": 0.43478260869565216,
+          "completeness_o_p90": 0.2538734896943852,
+          "completeness_o_worst": 0.06521739130434782,
+          "labelling_error_median": 0.18181818181818182,
+          "labelling_error_p90": 0.4196129032258065,
+          "labelling_error_worst": 0.8666666666666667,
+          "sci05_verdicts": {
+            "fail": 351,
+            "goal": 1409,
+            "threshold": 177
+          },
+          "sci07_verdicts": {
+            "fail": 283,
+            "goal": 1147,
+            "threshold": 507
+          },
+          "ins10_verdicts": {
+            "fail": 1648,
+            "threshold": 289
+          },
+          "sci05_span_verdicts": {
+            "fail": 335,
+            "goal": 1422,
+            "threshold": 180
+          },
+          "sci07_span_verdicts": {
+            "fail": 222,
+            "goal": 1303,
+            "threshold": 412
+          },
+          "run_s_median": 10.799694599816576
+        },
+        "6": {
+          "n": 1491,
+          "n_failed": 0,
+          "sci05_median": 0.060061572683422,
+          "sci05_p90": 0.6422057259020079,
+          "sci05_worst": 17.620207314148704,
+          "sci07_m_median": 9990.644087140372,
+          "sci07_m_p90": 51118.37219522523,
+          "sci07_m_worst": 587557.5386965508,
+          "sci05_span_median": 0.05881131993134609,
+          "sci05_span_p90": 0.6336704754242602,
+          "sci05_span_worst": 16.949584880211454,
+          "sci07_span_m_median": 8669.584028549572,
+          "sci07_span_m_p90": 36874.671697993304,
+          "sci07_span_m_worst": 520988.57242698106,
+          "coverage_gap_m_median": 27668.244705715566,
+          "coverage_gap_m_p90": 95541.83047737036,
+          "coverage_gap_m_worst": 435210.5710164993,
+          "span_ne_err_median": 0.045374030919386854,
+          "span_ne_err_p90": 0.21874149865729464,
+          "span_ne_err_worst": 18.102210561255582,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9139253307270453,
+          "span_reached_worst": 0.42257202080048173,
+          "ins10_db_median": 2.063682445019225,
+          "ins10_db_p90": -1.1426256930136844,
+          "ins10_db_worst": -7.157045276968972,
+          "completeness_o_median": 0.5,
+          "completeness_o_p90": 0.27419354838709675,
+          "completeness_o_worst": 0.045454545454545456,
+          "labelling_error_median": 0.1619047619047619,
+          "labelling_error_p90": 0.38181818181818183,
+          "labelling_error_worst": 0.9166666666666666,
+          "sci05_verdicts": {
+            "fail": 411,
+            "goal": 980,
+            "threshold": 100
+          },
+          "sci07_verdicts": {
+            "fail": 366,
+            "goal": 748,
+            "threshold": 377
+          },
+          "ins10_verdicts": {
+            "fail": 1306,
+            "threshold": 185
+          },
+          "sci05_span_verdicts": {
+            "fail": 390,
+            "goal": 988,
+            "threshold": 113
+          },
+          "sci07_span_verdicts": {
+            "fail": 266,
+            "goal": 836,
+            "not_evaluated": 7,
+            "threshold": 382
+          },
+          "run_s_median": 10.720682699931785
+        },
+        "7": {
+          "n": 826,
+          "n_failed": 0,
+          "sci05_median": 0.056992062508582166,
+          "sci05_p90": 0.6545178394266216,
+          "sci05_worst": 42.30256554765205,
+          "sci07_m_median": 10304.640052721279,
+          "sci07_m_p90": 44170.794496991904,
+          "sci07_m_worst": 532747.7541274833,
+          "sci05_span_median": 0.05348124794360817,
+          "sci05_span_p90": 0.6135947865950588,
+          "sci05_span_worst": 41.209609672192165,
+          "sci07_span_m_median": 8769.38892242666,
+          "sci07_span_m_p90": 27436.062151069425,
+          "sci07_span_m_worst": 426782.37782993447,
+          "coverage_gap_m_median": 28889.553175963403,
+          "coverage_gap_m_p90": 115176.27810940001,
+          "coverage_gap_m_worst": 365597.10910713195,
+          "span_ne_err_median": 0.041843502133913635,
+          "span_ne_err_p90": 0.16836862189471125,
+          "span_ne_err_worst": 50.53784812387674,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8765308612670815,
+          "span_reached_worst": 0.5674426518208805,
+          "ins10_db_median": 1.3671866386912654,
+          "ins10_db_p90": -1.5536788412910738,
+          "ins10_db_worst": -8.547604545944324,
+          "completeness_o_median": 0.6557112068965517,
+          "completeness_o_p90": 0.34146341463414637,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.06666666666666667,
+          "labelling_error_p90": 0.27518593644354294,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 203,
+            "goal": 573,
+            "threshold": 50
+          },
+          "sci07_verdicts": {
+            "fail": 213,
+            "goal": 395,
+            "threshold": 218
+          },
+          "ins10_verdicts": {
+            "fail": 771,
+            "threshold": 55
+          },
+          "sci05_span_verdicts": {
+            "fail": 197,
+            "goal": 582,
+            "threshold": 47
+          },
+          "sci07_span_verdicts": {
+            "fail": 128,
+            "goal": 477,
+            "not_evaluated": 15,
+            "threshold": 206
+          },
+          "run_s_median": 10.577876050025225
+        },
+        "8": {
+          "n": 447,
+          "n_failed": 0,
+          "sci05_median": 0.06572072358945091,
+          "sci05_p90": 1.1273655920279781,
+          "sci05_worst": 115.56237303423143,
+          "sci07_m_median": 11069.13379238412,
+          "sci07_m_p90": 71722.88937488639,
+          "sci07_m_worst": 690917.6323474796,
+          "sci05_span_median": 0.060384075504992134,
+          "sci05_span_p90": 1.0506052366829717,
+          "sci05_span_worst": 106.8453395440325,
+          "sci07_span_m_median": 8926.081426868757,
+          "sci07_span_m_p90": 35816.24165882339,
+          "sci07_span_m_worst": 458691.75792236096,
+          "coverage_gap_m_median": 26503.510776943294,
+          "coverage_gap_m_p90": 105873.49927572564,
+          "coverage_gap_m_worst": 429380.0655781415,
+          "span_ne_err_median": 0.04399428701932995,
+          "span_ne_err_p90": 0.317923370596533,
+          "span_ne_err_worst": 179.58439011950324,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8937552229775019,
+          "span_reached_worst": 0.5327459743610573,
+          "ins10_db_median": 1.4367246358171712,
+          "ins10_db_p90": -1.6528465690886718,
+          "ins10_db_worst": -5.771522458928388,
+          "completeness_o_median": 0.65625,
+          "completeness_o_p90": 0.3412416851441242,
+          "completeness_o_worst": 0.045454545454545456,
+          "labelling_error_median": 0.07547169811320754,
+          "labelling_error_p90": 0.2972727272727274,
+          "labelling_error_worst": 0.9411764705882353,
+          "sci05_verdicts": {
+            "fail": 140,
+            "goal": 282,
+            "threshold": 25
+          },
+          "sci07_verdicts": {
+            "fail": 141,
+            "goal": 202,
+            "threshold": 104
+          },
+          "ins10_verdicts": {
+            "fail": 435,
+            "threshold": 12
+          },
+          "sci05_span_verdicts": {
+            "fail": 141,
+            "goal": 289,
+            "threshold": 17
+          },
+          "sci07_span_verdicts": {
+            "fail": 83,
+            "goal": 242,
+            "not_evaluated": 14,
+            "threshold": 108
+          },
+          "run_s_median": 10.601260699797422
+        },
+        "9": {
+          "n": 100,
+          "n_failed": 0,
+          "sci05_median": 0.06918996244503725,
+          "sci05_p90": 1.2593982615377528,
+          "sci05_worst": 3.390222269267978,
+          "sci07_m_median": 11631.561335242928,
+          "sci07_m_p90": 70402.48980697533,
+          "sci07_m_worst": 211048.94573920796,
+          "sci05_span_median": 0.059015318179190056,
+          "sci05_span_p90": 1.1653287756207307,
+          "sci05_span_worst": 3.4627925352284605,
+          "sci07_span_m_median": 8485.278461614553,
+          "sci07_span_m_p90": 60965.62545333904,
+          "sci07_span_m_worst": 332983.35524260614,
+          "coverage_gap_m_median": 22965.30853081867,
+          "coverage_gap_m_p90": 82456.95340296971,
+          "coverage_gap_m_worst": 204632.57603803254,
+          "span_ne_err_median": 0.04577998610468603,
+          "span_ne_err_p90": 0.1804113286980128,
+          "span_ne_err_worst": 2.6835704106195157,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.904800854439704,
+          "span_reached_worst": 0.704830359022715,
+          "ins10_db_median": 2.312736059734533,
+          "ins10_db_p90": -1.1053125497261533,
+          "ins10_db_worst": -6.5076660449828125,
+          "completeness_o_median": 0.725975975975976,
+          "completeness_o_p90": 0.4261904761904762,
+          "completeness_o_worst": 0.20512820512820512,
+          "labelling_error_median": 0.035098522167487683,
+          "labelling_error_p90": 0.20340425531914924,
+          "labelling_error_worst": 0.5217391304347826,
+          "sci05_verdicts": {
+            "fail": 36,
+            "goal": 57,
+            "threshold": 7
+          },
+          "sci07_verdicts": {
+            "fail": 37,
+            "goal": 44,
+            "threshold": 19
+          },
+          "ins10_verdicts": {
+            "fail": 98,
+            "threshold": 2
+          },
+          "sci05_span_verdicts": {
+            "fail": 35,
+            "goal": 60,
+            "threshold": 5
+          },
+          "sci07_span_verdicts": {
+            "fail": 22,
+            "goal": 57,
+            "not_evaluated": 1,
+            "threshold": 20
+          },
+          "run_s_median": 10.449106100015342
+        }
+      }
+    },
+    "on": {
+      "overall": {
+        "n": 7790,
+        "n_failed": 0,
+        "sci05_median": 0.03876637477022777,
+        "sci05_p90": 0.31539892013830895,
+        "sci05_worst": 101.66087392652237,
+        "sci07_m_median": 6652.28716112574,
+        "sci07_m_p90": 27333.96243670088,
+        "sci07_m_worst": 592347.4159951652,
+        "sci05_span_median": 0.03713086249750639,
+        "sci05_span_p90": 0.2801033894305899,
+        "sci05_span_worst": 100.33614561218667,
+        "sci07_span_m_median": 5658.121754804231,
+        "sci07_span_m_p90": 20255.23154662143,
+        "sci07_span_m_worst": 678716.9444190538,
+        "coverage_gap_m_median": 14491.853380811168,
+        "coverage_gap_m_p90": 106326.77558826632,
+        "coverage_gap_m_worst": 637609.9958775422,
+        "span_ne_err_median": 0.029607383018054545,
+        "span_ne_err_p90": 0.10143219559490135,
+        "span_ne_err_worst": 114.0658360945686,
+        "span_reached_median": 1.0,
+        "span_reached_p90": 0.8613658245556831,
+        "span_reached_worst": 0.0,
+        "ins10_db_median": 5.053353533287591,
+        "ins10_db_p90": -0.6584085178766882,
+        "ins10_db_worst": -32.03055209407579,
+        "completeness_o_median": 0.4,
+        "completeness_o_p90": 0.21621621621621623,
+        "completeness_o_worst": 0.0,
+        "labelling_error_median": 0.19117647058823528,
+        "labelling_error_p90": 0.4264901960784314,
+        "labelling_error_worst": 1.0,
+        "sci05_verdicts": {
+          "fail": 1263,
+          "goal": 6155,
+          "not_evaluated": 9,
+          "threshold": 363
+        },
+        "sci07_verdicts": {
+          "fail": 1085,
+          "goal": 5318,
+          "not_evaluated": 9,
+          "threshold": 1378
+        },
+        "ins10_verdicts": {
+          "fail": 6427,
+          "threshold": 1363
+        },
+        "sci05_span_verdicts": {
+          "fail": 1193,
+          "goal": 6220,
+          "not_evaluated": 9,
+          "threshold": 368
+        },
+        "sci07_span_verdicts": {
+          "fail": 783,
+          "goal": 5816,
+          "not_evaluated": 50,
+          "threshold": 1141
+        },
+        "run_s_median": 21.946275250054896
+      },
+      "m2": {
+        "span/SCI-05": {
+          "median": 0.03713086249750639,
+          "fraction_at_threshold_or_better": 0.8456996148908857,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "span/SCI-07": {
+          "median": 5658.121754804231,
+          "fraction_at_threshold_or_better": 0.8930680359435174,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "full/SCI-05": {
+          "median": 0.03876637477022777,
+          "fraction_at_threshold_or_better": 0.8367137355584082,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "full/SCI-07": {
+          "median": 6652.28716112574,
+          "fraction_at_threshold_or_better": 0.8595635430038511,
+          "median_ok": true,
+          "fraction_ok": true,
+          "pass": true
+        },
+        "pass": true
+      },
+      "by_fn_band": {
+        "0-1.5 MHz": {
+          "n": 2295,
+          "n_failed": 0,
+          "sci05_median": 0.08288888648547438,
+          "sci05_p90": 1.23956019622123,
+          "sci05_worst": 101.66087392652237,
+          "sci07_m_median": 12563.087154734534,
+          "sci07_m_p90": 103257.67643759966,
+          "sci07_m_worst": 592347.4159951652,
+          "sci05_span_median": 0.0791280500615685,
+          "sci05_span_p90": 1.2182890961018504,
+          "sci05_span_worst": 100.33614561218667,
+          "sci07_span_m_median": 10018.720079741794,
+          "sci07_span_m_p90": 80372.69269610304,
+          "sci07_span_m_worst": 678716.9444190538,
+          "coverage_gap_m_median": 27882.018826457002,
+          "coverage_gap_m_p90": 132143.04664348424,
+          "coverage_gap_m_worst": 637609.9958775422,
+          "span_ne_err_median": 0.044123162062558674,
+          "span_ne_err_p90": 0.667599301518016,
+          "span_ne_err_worst": 114.0658360945686,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8429248193316092,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 3.6992012310795985,
+          "ins10_db_p90": -1.2748143173259734,
+          "ins10_db_worst": -24.42041843575322,
+          "completeness_o_median": 0.43478260869565216,
+          "completeness_o_p90": 0.22448979591836735,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.21428571428571427,
+          "labelling_error_p90": 0.4594043022614452,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 859,
+            "goal": 1247,
+            "not_evaluated": 5,
+            "threshold": 184
+          },
+          "sci07_verdicts": {
+            "fail": 779,
+            "goal": 944,
+            "not_evaluated": 5,
+            "threshold": 567
+          },
+          "ins10_verdicts": {
+            "fail": 2064,
+            "threshold": 231
+          },
+          "sci05_span_verdicts": {
+            "fail": 839,
+            "goal": 1278,
+            "not_evaluated": 5,
+            "threshold": 173
+          },
+          "sci07_span_verdicts": {
+            "fail": 567,
+            "goal": 1125,
+            "not_evaluated": 39,
+            "threshold": 564
+          },
+          "run_s_median": 21.390494300052524
+        },
+        "1.5-2.5 MHz": {
+          "n": 2570,
+          "n_failed": 0,
+          "sci05_median": 0.04405347017269956,
+          "sci05_p90": 0.19415829918253485,
+          "sci05_worst": 7.586422085331147,
+          "sci07_m_median": 7379.38983744297,
+          "sci07_m_p90": 19727.23217747769,
+          "sci07_m_worst": 312994.59116089245,
+          "sci05_span_median": 0.04244968218771451,
+          "sci05_span_p90": 0.1668685550800556,
+          "sci05_span_worst": 7.87280022630024,
+          "sci07_span_m_median": 6583.0214776516,
+          "sci07_span_m_p90": 16902.52171707562,
+          "sci07_span_m_worst": 312951.5740075483,
+          "coverage_gap_m_median": 17190.088092838094,
+          "coverage_gap_m_p90": 128768.02039313628,
+          "coverage_gap_m_worst": 584200.139585043,
+          "span_ne_err_median": 0.03460278265987227,
+          "span_ne_err_p90": 0.08524272217466144,
+          "span_ne_err_worst": 2.852801659854318,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8178632467600676,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 5.651862447014878,
+          "ins10_db_p90": -0.19153045895962115,
+          "ins10_db_worst": -20.167933141540374,
+          "completeness_o_median": 0.3742469879518072,
+          "completeness_o_p90": 0.2,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.22727272727272727,
+          "labelling_error_p90": 0.46153846153846156,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 322,
+            "goal": 2113,
+            "not_evaluated": 4,
+            "threshold": 131
+          },
+          "sci07_verdicts": {
+            "fail": 249,
+            "goal": 1737,
+            "not_evaluated": 4,
+            "threshold": 580
+          },
+          "ins10_verdicts": {
+            "fail": 2060,
+            "threshold": 510
+          },
+          "sci05_span_verdicts": {
+            "fail": 288,
+            "goal": 2122,
+            "not_evaluated": 4,
+            "threshold": 156
+          },
+          "sci07_span_verdicts": {
+            "fail": 190,
+            "goal": 1915,
+            "not_evaluated": 11,
+            "threshold": 454
+          },
+          "run_s_median": 22.187551600043662
+        },
+        "2.5-4 MHz": {
+          "n": 1795,
+          "n_failed": 0,
+          "sci05_median": 0.02916094165159526,
+          "sci05_p90": 0.06908490509595636,
+          "sci05_worst": 1.570379458069784,
+          "sci07_m_median": 4929.931316570169,
+          "sci07_m_p90": 11165.154657606852,
+          "sci07_m_worst": 212963.70932940667,
+          "sci05_span_median": 0.027511643061456485,
+          "sci05_span_p90": 0.0651513505701515,
+          "sci05_span_worst": 1.6073346107286637,
+          "sci07_span_m_median": 4234.8386038885055,
+          "sci07_span_m_p90": 9044.08541635146,
+          "sci07_span_m_worst": 175567.2725538928,
+          "coverage_gap_m_median": 7080.117040916171,
+          "coverage_gap_m_p90": 87847.83726917526,
+          "coverage_gap_m_worst": 333129.9180924653,
+          "span_ne_err_median": 0.02305289619255846,
+          "span_ne_err_p90": 0.049929265425756764,
+          "span_ne_err_worst": 0.8940479979287426,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8773982115970443,
+          "span_reached_worst": 0.23413206450932125,
+          "ins10_db_median": 6.668025710795348,
+          "ins10_db_p90": -0.04385701482493686,
+          "ins10_db_worst": -21.50633282594646,
+          "completeness_o_median": 0.39285714285714285,
+          "completeness_o_p90": 0.2222222222222222,
+          "completeness_o_worst": 0.020833333333333332,
+          "labelling_error_median": 0.17777777777777778,
+          "labelling_error_p90": 0.36363636363636365,
+          "labelling_error_worst": 0.8888888888888888,
+          "sci05_verdicts": {
+            "fail": 71,
+            "goal": 1685,
+            "threshold": 39
+          },
+          "sci07_verdicts": {
+            "fail": 47,
+            "goal": 1567,
+            "threshold": 181
+          },
+          "ins10_verdicts": {
+            "fail": 1325,
+            "threshold": 470
+          },
+          "sci05_span_verdicts": {
+            "fail": 58,
+            "goal": 1704,
+            "threshold": 33
+          },
+          "sci07_span_verdicts": {
+            "fail": 26,
+            "goal": 1654,
+            "threshold": 115
+          },
+          "run_s_median": 22.508042700123042
+        },
+        ">= 4 MHz": {
+          "n": 1130,
+          "n_failed": 0,
+          "sci05_median": 0.01792418577629669,
+          "sci05_p90": 0.03314496924578998,
+          "sci05_worst": 0.25501327708148985,
+          "sci07_m_median": 3669.1786163339966,
+          "sci07_m_p90": 7662.763287965912,
+          "sci07_m_worst": 48731.47085842141,
+          "sci05_span_median": 0.015224388012281327,
+          "sci05_span_p90": 0.030163855074119932,
+          "sci05_span_worst": 0.2361164503114071,
+          "sci07_span_m_median": 2594.778555022004,
+          "sci07_span_m_p90": 4488.942604744534,
+          "sci07_span_m_worst": 13159.699374410946,
+          "coverage_gap_m_median": 0.0,
+          "coverage_gap_m_p90": 50819.66109385397,
+          "coverage_gap_m_worst": 158539.5005254767,
+          "span_ne_err_median": 0.012444277274115012,
+          "span_ne_err_p90": 0.024379339221020292,
+          "span_ne_err_worst": 0.07671425300725188,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 1.0,
+          "span_reached_worst": 0.6238923069749744,
+          "ins10_db_median": 4.700348212014006,
+          "ins10_db_p90": -0.6602777792347752,
+          "ins10_db_worst": -32.03055209407579,
+          "completeness_o_median": 0.4080290010741139,
+          "completeness_o_p90": 0.23419331395348839,
+          "completeness_o_worst": 0.08,
+          "labelling_error_median": 0.15492957746478872,
+          "labelling_error_p90": 0.2647977941176471,
+          "labelling_error_worst": 0.5584415584415584,
+          "sci05_verdicts": {
+            "fail": 11,
+            "goal": 1110,
+            "threshold": 9
+          },
+          "sci07_verdicts": {
+            "fail": 10,
+            "goal": 1070,
+            "threshold": 50
+          },
+          "ins10_verdicts": {
+            "fail": 978,
+            "threshold": 152
+          },
+          "sci05_span_verdicts": {
+            "fail": 8,
+            "goal": 1116,
+            "threshold": 6
+          },
+          "sci07_span_verdicts": {
+            "goal": 1122,
+            "threshold": 8
+          },
+          "run_s_median": 22.282828550087288
+        }
+      },
+      "by_stratum": {
+        "high/day/high_sun": {
+          "n": 593,
+          "n_failed": 0,
+          "sci05_median": 0.047683342457174156,
+          "sci05_p90": 0.3890628200605129,
+          "sci05_worst": 49.80785648704957,
+          "sci07_m_median": 9902.463017059317,
+          "sci07_m_p90": 42362.03805922652,
+          "sci07_m_worst": 532547.7689403425,
+          "sci05_span_median": 0.04489346757492476,
+          "sci05_span_p90": 0.39358936723235904,
+          "sci05_span_worst": 45.96047709503725,
+          "sci07_span_m_median": 8522.66623564854,
+          "sci07_span_m_p90": 26589.706485102986,
+          "sci07_span_m_worst": 546756.657454989,
+          "coverage_gap_m_median": 52396.379054959165,
+          "coverage_gap_m_p90": 133355.77667592384,
+          "coverage_gap_m_worst": 468052.2016722064,
+          "span_ne_err_median": 0.03719840887388104,
+          "span_ne_err_p90": 0.13213541053665662,
+          "span_ne_err_worst": 42.72002966320543,
+          "span_reached_median": 0.978676527151346,
+          "span_reached_p90": 0.8083981509544524,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 3.0940671855831,
+          "ins10_db_p90": -2.444180178949648,
+          "ins10_db_worst": -20.167933141540374,
+          "completeness_o_median": 0.5555555555555556,
+          "completeness_o_p90": 0.3,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.09685741088180114,
+          "labelling_error_p90": 0.3326530612244896,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 106,
+            "goal": 468,
+            "not_evaluated": 4,
+            "threshold": 15
+          },
+          "sci07_verdicts": {
+            "fail": 125,
+            "goal": 297,
+            "not_evaluated": 4,
+            "threshold": 167
+          },
+          "ins10_verdicts": {
+            "fail": 566,
+            "threshold": 27
+          },
+          "sci05_span_verdicts": {
+            "fail": 101,
+            "goal": 469,
+            "not_evaluated": 4,
+            "threshold": 19
+          },
+          "sci07_span_verdicts": {
+            "fail": 84,
+            "goal": 344,
+            "not_evaluated": 8,
+            "threshold": 157
+          },
+          "run_s_median": 20.778138799825683
+        },
+        "high/day/low_sun": {
+          "n": 41,
+          "n_failed": 0,
+          "sci05_median": 0.0928841157397715,
+          "sci05_p90": 41.55824464391978,
+          "sci05_worst": 101.66087392652237,
+          "sci07_m_median": 21011.893671008038,
+          "sci07_m_p90": 435377.7379790136,
+          "sci07_m_worst": 592347.4159951652,
+          "sci05_span_median": 0.09390995254876024,
+          "sci05_span_p90": 40.381753634229305,
+          "sci05_span_worst": 100.33614561218667,
+          "sci07_span_m_median": 15234.038463086494,
+          "sci07_span_m_p90": 247382.6608962771,
+          "sci07_span_m_worst": 678716.9444190538,
+          "coverage_gap_m_median": 78748.87071549555,
+          "coverage_gap_m_p90": 220756.2641835978,
+          "coverage_gap_m_worst": 493489.46603096405,
+          "span_ne_err_median": 0.06994624871312194,
+          "span_ne_err_p90": 45.068186924662484,
+          "span_ne_err_worst": 114.0658360945686,
+          "span_reached_median": 0.9235073840051771,
+          "span_reached_p90": 0.747344510168189,
+          "span_reached_worst": 0.43527116591980053,
+          "ins10_db_median": -0.2791206003828677,
+          "ins10_db_p90": -6.466774576160162,
+          "ins10_db_worst": -10.047146248456045,
+          "completeness_o_median": 0.4594594594594595,
+          "completeness_o_p90": 0.25,
+          "completeness_o_worst": 0.1206896551724138,
+          "labelling_error_median": 0.10344827586206896,
+          "labelling_error_p90": 0.3055555555555556,
+          "labelling_error_worst": 0.6333333333333333,
+          "sci05_verdicts": {
+            "fail": 16,
+            "goal": 22,
+            "threshold": 3
+          },
+          "sci07_verdicts": {
+            "fail": 21,
+            "goal": 8,
+            "threshold": 12
+          },
+          "ins10_verdicts": {
+            "fail": 41
+          },
+          "sci05_span_verdicts": {
+            "fail": 17,
+            "goal": 23,
+            "threshold": 1
+          },
+          "sci07_span_verdicts": {
+            "fail": 13,
+            "goal": 11,
+            "not_evaluated": 5,
+            "threshold": 12
+          },
+          "run_s_median": 19.741937999846414
+        },
+        "high/night/high_sun": {
+          "n": 855,
+          "n_failed": 0,
+          "sci05_median": 0.05563159769702012,
+          "sci05_p90": 1.891533132180158,
+          "sci05_worst": 20.70503520404344,
+          "sci07_m_median": 10150.156737319345,
+          "sci07_m_p90": 165594.7229060461,
+          "sci07_m_worst": 357190.47619066766,
+          "sci05_span_median": 0.053065494592497264,
+          "sci05_span_p90": 1.8412826211087852,
+          "sci05_span_worst": 15.061120147751057,
+          "sci07_span_m_median": 8385.157759948072,
+          "sci07_span_m_p90": 162072.9432785061,
+          "sci07_span_m_worst": 563990.7233489829,
+          "coverage_gap_m_median": 50580.523908925825,
+          "coverage_gap_m_p90": 133951.47272733346,
+          "coverage_gap_m_worst": 584200.139585043,
+          "span_ne_err_median": 0.03970570618581348,
+          "span_ne_err_p90": 1.2985516208908527,
+          "span_ne_err_worst": 11.31098497284206,
+          "span_reached_median": 0.9764335613019629,
+          "span_reached_p90": 0.8098848944847269,
+          "span_reached_worst": 0.15092302825416914,
+          "ins10_db_median": 2.946795032169007,
+          "ins10_db_p90": -3.5201699276383405,
+          "ins10_db_worst": -24.42041843575322,
+          "completeness_o_median": 0.6129032258064516,
+          "completeness_o_p90": 0.3229601518026565,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.05357142857142857,
+          "labelling_error_p90": 0.29545454545454547,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 235,
+            "goal": 567,
+            "threshold": 53
+          },
+          "sci07_verdicts": {
+            "fail": 253,
+            "goal": 422,
+            "threshold": 180
+          },
+          "ins10_verdicts": {
+            "fail": 815,
+            "threshold": 40
+          },
+          "sci05_span_verdicts": {
+            "fail": 231,
+            "goal": 576,
+            "threshold": 48
+          },
+          "sci07_span_verdicts": {
+            "fail": 176,
+            "goal": 501,
+            "not_evaluated": 2,
+            "threshold": 176
+          },
+          "run_s_median": 20.380065000150353
+        },
+        "high/night/low_sun": {
+          "n": 34,
+          "n_failed": 0,
+          "sci05_median": 0.12274597909799446,
+          "sci05_p90": 7.562762494635998,
+          "sci05_worst": 44.81322189388275,
+          "sci07_m_median": 18169.95246201151,
+          "sci07_m_p90": 314718.59107007115,
+          "sci07_m_worst": 423164.5433120252,
+          "sci05_span_median": 0.09573237545892738,
+          "sci05_span_p90": 6.864227126618765,
+          "sci05_span_worst": 43.58869321505116,
+          "sci07_span_m_median": 16160.095463415093,
+          "sci07_span_m_p90": 307589.8180657016,
+          "sci07_span_m_worst": 330530.5505532101,
+          "coverage_gap_m_median": 65822.4346281017,
+          "coverage_gap_m_p90": 185941.92304017083,
+          "coverage_gap_m_worst": 278673.23297626805,
+          "span_ne_err_median": 0.06820708480186494,
+          "span_ne_err_p90": 6.712679432453116,
+          "span_ne_err_worst": 50.540580081860604,
+          "span_reached_median": 0.9511370683522895,
+          "span_reached_p90": 0.7059478029221988,
+          "span_reached_worst": 0.6606034857516074,
+          "ins10_db_median": 3.2606263741375017,
+          "ins10_db_p90": -0.26689927422935394,
+          "ins10_db_worst": -1.9046332904662222,
+          "completeness_o_median": 0.5883699633699634,
+          "completeness_o_p90": 0.2304027226318775,
+          "completeness_o_worst": 0.09375,
+          "labelling_error_median": 0.067816091954023,
+          "labelling_error_p90": 0.3417956656346749,
+          "labelling_error_worst": 0.4838709677419355,
+          "sci05_verdicts": {
+            "fail": 14,
+            "goal": 14,
+            "threshold": 6
+          },
+          "sci07_verdicts": {
+            "fail": 16,
+            "goal": 14,
+            "threshold": 4
+          },
+          "ins10_verdicts": {
+            "fail": 33,
+            "threshold": 1
+          },
+          "sci05_span_verdicts": {
+            "fail": 14,
+            "goal": 17,
+            "threshold": 3
+          },
+          "sci07_span_verdicts": {
+            "fail": 14,
+            "goal": 16,
+            "not_evaluated": 1,
+            "threshold": 3
+          },
+          "run_s_median": 19.356178249930963
+        },
+        "low/day/high_sun": {
+          "n": 2136,
+          "n_failed": 0,
+          "sci05_median": 0.02442914984813133,
+          "sci05_p90": 0.10432382077988256,
+          "sci05_worst": 7.907204563743981,
+          "sci07_m_median": 4675.780459370559,
+          "sci07_m_p90": 13832.208484138027,
+          "sci07_m_worst": 252869.97674717245,
+          "sci05_span_median": 0.02288790230184093,
+          "sci05_span_p90": 0.1033040219745032,
+          "sci05_span_worst": 8.112618998128752,
+          "sci07_span_m_median": 3751.782734385384,
+          "sci07_span_m_p90": 12050.46647363047,
+          "sci07_span_m_worst": 297197.6828605726,
+          "coverage_gap_m_median": 0.0,
+          "coverage_gap_m_p90": 81277.90678627844,
+          "coverage_gap_m_worst": 509422.621720067,
+          "span_ne_err_median": 0.01908042933354004,
+          "span_ne_err_p90": 0.062077967679927945,
+          "span_ne_err_worst": 4.094539120755013,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9261106039936573,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 4.456357405216792,
+          "ins10_db_p90": -0.3723615726987788,
+          "ins10_db_worst": -32.03055209407579,
+          "completeness_o_median": 0.3269230769230769,
+          "completeness_o_p90": 0.17832681017612523,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.22727272727272727,
+          "labelling_error_p90": 0.4666666666666667,
+          "labelling_error_worst": 0.875,
+          "sci05_verdicts": {
+            "fail": 129,
+            "goal": 1907,
+            "not_evaluated": 3,
+            "threshold": 97
+          },
+          "sci07_verdicts": {
+            "fail": 113,
+            "goal": 1756,
+            "not_evaluated": 3,
+            "threshold": 264
+          },
+          "ins10_verdicts": {
+            "fail": 1850,
+            "threshold": 286
+          },
+          "sci05_span_verdicts": {
+            "fail": 116,
+            "goal": 1910,
+            "not_evaluated": 3,
+            "threshold": 107
+          },
+          "sci07_span_verdicts": {
+            "fail": 84,
+            "goal": 1823,
+            "not_evaluated": 18,
+            "threshold": 211
+          },
+          "run_s_median": 23.620034050079994
+        },
+        "low/night/high_sun": {
+          "n": 1626,
+          "n_failed": 0,
+          "sci05_median": 0.03764128253480381,
+          "sci05_p90": 0.3791129135640595,
+          "sci05_worst": 6.288112343243936,
+          "sci07_m_median": 5867.280698994653,
+          "sci07_m_p90": 21474.723501379525,
+          "sci07_m_worst": 244590.11177819883,
+          "sci05_span_median": 0.03674163821876976,
+          "sci05_span_p90": 0.29967821773359304,
+          "sci05_span_worst": 6.791936202258581,
+          "sci07_span_m_median": 5123.126552525786,
+          "sci07_span_m_p90": 17682.950385564414,
+          "sci07_span_m_worst": 232947.72898340752,
+          "coverage_gap_m_median": 13928.128879242286,
+          "coverage_gap_m_p90": 64621.16981392463,
+          "coverage_gap_m_worst": 345518.4159375157,
+          "span_ne_err_median": 0.02763557811183559,
+          "span_ne_err_p90": 0.091215744994328,
+          "span_ne_err_worst": 6.219375446288731,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.960209867137616,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 7.416091273280571,
+          "ins10_db_p90": 0.8788746512588261,
+          "ins10_db_worst": -18.1240820970597,
+          "completeness_o_median": 0.375,
+          "completeness_o_p90": 0.23076923076923078,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.24757190004714758,
+          "labelling_error_p90": 0.45454545454545453,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 310,
+            "goal": 1234,
+            "not_evaluated": 1,
+            "threshold": 81
+          },
+          "sci07_verdicts": {
+            "fail": 185,
+            "goal": 1172,
+            "not_evaluated": 1,
+            "threshold": 268
+          },
+          "ins10_verdicts": {
+            "fail": 1121,
+            "threshold": 505
+          },
+          "sci05_span_verdicts": {
+            "fail": 284,
+            "goal": 1268,
+            "not_evaluated": 1,
+            "threshold": 73
+          },
+          "sci07_span_verdicts": {
+            "fail": 130,
+            "goal": 1291,
+            "not_evaluated": 7,
+            "threshold": 198
+          },
+          "run_s_median": 21.953367600101046
+        },
+        "mid/day/high_sun": {
+          "n": 1351,
+          "n_failed": 0,
+          "sci05_median": 0.03705234973246107,
+          "sci05_p90": 0.11355004152519312,
+          "sci05_worst": 7.586422085331147,
+          "sci07_m_median": 6599.114507335861,
+          "sci07_m_p90": 17437.28826024953,
+          "sci07_m_worst": 312994.59116089245,
+          "sci05_span_median": 0.03556228635099409,
+          "sci05_span_p90": 0.11050510555312867,
+          "sci05_span_worst": 7.87280022630024,
+          "sci07_span_m_median": 5616.855089224654,
+          "sci07_span_m_p90": 15275.105161589005,
+          "sci07_span_m_worst": 312951.5740075483,
+          "coverage_gap_m_median": 2876.991068972973,
+          "coverage_gap_m_p90": 196616.42755806877,
+          "coverage_gap_m_worst": 573298.4752032118,
+          "span_ne_err_median": 0.030660218276057805,
+          "span_ne_err_p90": 0.08120244017530387,
+          "span_ne_err_worst": 2.865099856126183,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.6881454245906362,
+          "span_reached_worst": 0.22258421480900256,
+          "ins10_db_median": 5.613654623566703,
+          "ins10_db_p90": 0.08630926031375452,
+          "ins10_db_worst": -19.41801655284658,
+          "completeness_o_median": 0.36507936507936506,
+          "completeness_o_p90": 0.1836734693877551,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.19752141982864135,
+          "labelling_error_p90": 0.4266544117647058,
+          "labelling_error_worst": 0.8888888888888888,
+          "sci05_verdicts": {
+            "fail": 109,
+            "goal": 1197,
+            "threshold": 45
+          },
+          "sci07_verdicts": {
+            "fail": 100,
+            "goal": 991,
+            "threshold": 260
+          },
+          "ins10_verdicts": {
+            "fail": 1110,
+            "threshold": 241
+          },
+          "sci05_span_verdicts": {
+            "fail": 105,
+            "goal": 1204,
+            "threshold": 42
+          },
+          "sci07_span_verdicts": {
+            "fail": 87,
+            "goal": 1049,
+            "not_evaluated": 2,
+            "threshold": 213
+          },
+          "run_s_median": 23.139594200067222
+        },
+        "mid/day/low_sun": {
+          "n": 20,
+          "n_failed": 0,
+          "sci05_median": 0.048653890315101686,
+          "sci05_p90": 0.46972948549948723,
+          "sci05_worst": 1.4462023053462467,
+          "sci07_m_median": 10203.675550889744,
+          "sci07_m_p90": 48783.78613297158,
+          "sci07_m_worst": 211151.01116035745,
+          "sci05_span_median": 0.04973099020853286,
+          "sci05_span_p90": 0.46543924735192277,
+          "sci05_span_worst": 1.4455911405509114,
+          "sci07_span_m_median": 9499.381575491778,
+          "sci07_span_m_p90": 36952.06799352797,
+          "sci07_span_m_worst": 240596.56877170186,
+          "coverage_gap_m_median": 35515.22116401914,
+          "coverage_gap_m_p90": 154995.26506277162,
+          "coverage_gap_m_worst": 179148.92462036025,
+          "span_ne_err_median": 0.04922924161022568,
+          "span_ne_err_p90": 0.2924830206057232,
+          "span_ne_err_worst": 1.4503958022743155,
+          "span_reached_median": 0.9930659962374756,
+          "span_reached_p90": 0.8012002089487912,
+          "span_reached_worst": 0.7886966919817633,
+          "ins10_db_median": 3.2881635598297976,
+          "ins10_db_p90": -1.0449922817734598,
+          "ins10_db_worst": -4.336832925244892,
+          "completeness_o_median": 0.39141414141414144,
+          "completeness_o_p90": 0.2670527670527671,
+          "completeness_o_worst": 0.20512820512820512,
+          "labelling_error_median": 0.2947368421052632,
+          "labelling_error_p90": 0.38554778554778557,
+          "labelling_error_worst": 0.5,
+          "sci05_verdicts": {
+            "fail": 4,
+            "goal": 14,
+            "threshold": 2
+          },
+          "sci07_verdicts": {
+            "fail": 4,
+            "goal": 10,
+            "threshold": 6
+          },
+          "ins10_verdicts": {
+            "fail": 20
+          },
+          "sci05_span_verdicts": {
+            "fail": 4,
+            "goal": 14,
+            "threshold": 2
+          },
+          "sci07_span_verdicts": {
+            "fail": 3,
+            "goal": 11,
+            "threshold": 6
+          },
+          "run_s_median": 19.796062449924648
+        },
+        "mid/night/high_sun": {
+          "n": 1083,
+          "n_failed": 0,
+          "sci05_median": 0.054914778286915523,
+          "sci05_p90": 0.5790679232560986,
+          "sci05_worst": 12.116151638411784,
+          "sci07_m_median": 8406.549838567822,
+          "sci07_m_p90": 44704.07051268963,
+          "sci07_m_worst": 295569.8898165164,
+          "sci05_span_median": 0.05177673831752303,
+          "sci05_span_p90": 0.5532349962708651,
+          "sci05_span_worst": 12.324570222510156,
+          "sci07_span_m_median": 6675.286121398227,
+          "sci07_span_m_p90": 33392.62704763925,
+          "sci07_span_m_worst": 479573.9203333142,
+          "coverage_gap_m_median": 23216.437713026273,
+          "coverage_gap_m_p90": 81461.18965195814,
+          "coverage_gap_m_worst": 637609.9958775422,
+          "span_ne_err_median": 0.037248406177360305,
+          "span_ne_err_p90": 0.17922475901527912,
+          "span_ne_err_worst": 5.647300940869349,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.8908128360487476,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 6.033795967246959,
+          "ins10_db_p90": -0.217341012483331,
+          "ins10_db_worst": -20.112743907152634,
+          "completeness_o_median": 0.5,
+          "completeness_o_p90": 0.28205128205128205,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.1346153846153846,
+          "labelling_error_p90": 0.3546026750590087,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 321,
+            "goal": 708,
+            "not_evaluated": 1,
+            "threshold": 53
+          },
+          "sci07_verdicts": {
+            "fail": 250,
+            "goal": 626,
+            "not_evaluated": 1,
+            "threshold": 206
+          },
+          "ins10_verdicts": {
+            "fail": 833,
+            "threshold": 250
+          },
+          "sci05_span_verdicts": {
+            "fail": 302,
+            "goal": 715,
+            "not_evaluated": 1,
+            "threshold": 65
+          },
+          "sci07_span_verdicts": {
+            "fail": 179,
+            "goal": 746,
+            "not_evaluated": 5,
+            "threshold": 153
+          },
+          "run_s_median": 20.398002800066024
+        },
+        "mid/night/low_sun": {
+          "n": 51,
+          "n_failed": 0,
+          "sci05_median": 0.10225669665800054,
+          "sci05_p90": 1.0914246563480818,
+          "sci05_worst": 4.785539894285704,
+          "sci07_m_median": 10483.035701664745,
+          "sci07_m_p90": 70991.42732343457,
+          "sci07_m_worst": 250835.94551961002,
+          "sci05_span_median": 0.10470863238980793,
+          "sci05_span_p90": 1.1399466493392432,
+          "sci05_span_worst": 4.216031531609545,
+          "sci07_span_m_median": 10268.210733984044,
+          "sci07_span_m_p90": 71557.1883949531,
+          "sci07_span_m_worst": 250835.94551961002,
+          "coverage_gap_m_median": 42446.69773020095,
+          "coverage_gap_m_p90": 95356.22353252425,
+          "coverage_gap_m_worst": 215434.7193789939,
+          "span_ne_err_median": 0.05622211251111553,
+          "span_ne_err_p90": 0.8990609205708107,
+          "span_ne_err_worst": 5.116408756820062,
+          "span_reached_median": 0.9713935153187163,
+          "span_reached_p90": 0.8475375200355989,
+          "span_reached_worst": 0.6215386069131472,
+          "ins10_db_median": 6.205315300532419,
+          "ins10_db_p90": 0.8404491641803986,
+          "ins10_db_worst": -4.787758600718632,
+          "completeness_o_median": 0.5555555555555556,
+          "completeness_o_p90": 0.2857142857142857,
+          "completeness_o_worst": 0.11764705882352941,
+          "labelling_error_median": 0.10714285714285714,
+          "labelling_error_p90": 0.29411764705882354,
+          "labelling_error_worst": 0.5,
+          "sci05_verdicts": {
+            "fail": 19,
+            "goal": 24,
+            "threshold": 8
+          },
+          "sci07_verdicts": {
+            "fail": 18,
+            "goal": 22,
+            "threshold": 11
+          },
+          "ins10_verdicts": {
+            "fail": 38,
+            "threshold": 13
+          },
+          "sci05_span_verdicts": {
+            "fail": 19,
+            "goal": 24,
+            "threshold": 8
+          },
+          "sci07_span_verdicts": {
+            "fail": 13,
+            "goal": 24,
+            "not_evaluated": 2,
+            "threshold": 12
+          },
+          "run_s_median": 18.85447570006363
+        }
+      },
+      "by_quality": {
+        "4": {
+          "n": 2989,
+          "n_failed": 0,
+          "sci05_median": 0.030566150947144495,
+          "sci05_p90": 0.14145004786357976,
+          "sci05_worst": 7.907204563743981,
+          "sci07_m_median": 5236.711517211423,
+          "sci07_m_p90": 15335.176441940695,
+          "sci07_m_worst": 248007.07658027572,
+          "sci05_span_median": 0.02912961165033445,
+          "sci05_span_p90": 0.12666668610399617,
+          "sci05_span_worst": 8.112618998128752,
+          "sci07_span_m_median": 4358.653854367377,
+          "sci07_span_m_p90": 12415.441470342572,
+          "sci07_span_m_worst": 232947.72898340752,
+          "coverage_gap_m_median": 252.39349551830674,
+          "coverage_gap_m_p90": 69116.22735196938,
+          "coverage_gap_m_worst": 509422.621720067,
+          "span_ne_err_median": 0.02375395034933614,
+          "span_ne_err_p90": 0.06801955110599367,
+          "span_ne_err_worst": 6.219375446288731,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.9255921015931687,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 5.681084829434781,
+          "ins10_db_p90": 0.11606818930294498,
+          "ins10_db_worst": -32.03055209407579,
+          "completeness_o_median": 0.36,
+          "completeness_o_p90": 0.20496277915632755,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.19298245614035087,
+          "labelling_error_p90": 0.43922954182812857,
+          "labelling_error_worst": 0.875,
+          "sci05_verdicts": {
+            "fail": 284,
+            "goal": 2618,
+            "not_evaluated": 1,
+            "threshold": 86
+          },
+          "sci07_verdicts": {
+            "fail": 186,
+            "goal": 2405,
+            "not_evaluated": 1,
+            "threshold": 397
+          },
+          "ins10_verdicts": {
+            "fail": 2423,
+            "threshold": 566
+          },
+          "sci05_span_verdicts": {
+            "fail": 250,
+            "goal": 2629,
+            "not_evaluated": 1,
+            "threshold": 109
+          },
+          "sci07_span_verdicts": {
+            "fail": 126,
+            "goal": 2559,
+            "not_evaluated": 13,
+            "threshold": 291
+          },
+          "run_s_median": 22.730163199827075
+        },
+        "5": {
+          "n": 1937,
+          "n_failed": 0,
+          "sci05_median": 0.03969329602160339,
+          "sci05_p90": 0.24189985984842166,
+          "sci05_worst": 5.545275527402064,
+          "sci07_m_median": 6609.838028022763,
+          "sci07_m_p90": 23204.22758402193,
+          "sci07_m_worst": 252869.97674717245,
+          "sci05_span_median": 0.038589076902559416,
+          "sci05_span_p90": 0.21443346943910613,
+          "sci05_span_worst": 5.715932399414799,
+          "sci07_span_m_median": 5679.708410645907,
+          "sci07_span_m_p90": 20661.398420205333,
+          "sci07_span_m_worst": 297197.6828605726,
+          "coverage_gap_m_median": 13781.25949613622,
+          "coverage_gap_m_p90": 97053.07673397078,
+          "coverage_gap_m_worst": 573298.4752032118,
+          "span_ne_err_median": 0.03009904576224509,
+          "span_ne_err_p90": 0.09671974185793097,
+          "span_ne_err_worst": 3.823455074303431,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.874370395394427,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 5.668464002095249,
+          "ins10_db_p90": 0.06705745495443127,
+          "ins10_db_worst": -20.964928256761056,
+          "completeness_o_median": 0.3787878787878788,
+          "completeness_o_p90": 0.20689655172413793,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.23333333333333334,
+          "labelling_error_p90": 0.4444444444444444,
+          "labelling_error_worst": 0.85,
+          "sci05_verdicts": {
+            "fail": 302,
+            "goal": 1506,
+            "not_evaluated": 1,
+            "threshold": 128
+          },
+          "sci07_verdicts": {
+            "fail": 243,
+            "goal": 1332,
+            "not_evaluated": 1,
+            "threshold": 361
+          },
+          "ins10_verdicts": {
+            "fail": 1524,
+            "threshold": 413
+          },
+          "sci05_span_verdicts": {
+            "fail": 288,
+            "goal": 1532,
+            "not_evaluated": 1,
+            "threshold": 116
+          },
+          "sci07_span_verdicts": {
+            "fail": 199,
+            "goal": 1456,
+            "not_evaluated": 8,
+            "threshold": 274
+          },
+          "run_s_median": 22.354999699862674
+        },
+        "6": {
+          "n": 1491,
+          "n_failed": 0,
+          "sci05_median": 0.04682026978639106,
+          "sci05_p90": 0.6149805257009316,
+          "sci05_worst": 12.707719483751047,
+          "sci07_m_median": 8175.586722131975,
+          "sci07_m_p90": 49882.74373076999,
+          "sci07_m_worst": 344847.21767674916,
+          "sci05_span_median": 0.04485066183979757,
+          "sci05_span_p90": 0.6229750415866084,
+          "sci05_span_worst": 11.282120971482554,
+          "sci07_span_m_median": 6946.248522975629,
+          "sci07_span_m_p90": 34457.47191101042,
+          "sci07_span_m_worst": 456098.3057460889,
+          "coverage_gap_m_median": 26141.969667667086,
+          "coverage_gap_m_p90": 121563.76811741658,
+          "coverage_gap_m_worst": 588792.1904225594,
+          "span_ne_err_median": 0.034226104754932596,
+          "span_ne_err_p90": 0.20764013416131416,
+          "span_ne_err_worst": 8.709307689030046,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.837053573432931,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 4.387275794341008,
+          "ins10_db_p90": -1.4485493921845602,
+          "ins10_db_worst": -21.50633282594646,
+          "completeness_o_median": 0.42592592592592593,
+          "completeness_o_p90": 0.22857142857142856,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.20408163265306123,
+          "labelling_error_p90": 0.42105263157894735,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 339,
+            "goal": 1065,
+            "not_evaluated": 1,
+            "threshold": 86
+          },
+          "sci07_verdicts": {
+            "fail": 319,
+            "goal": 867,
+            "not_evaluated": 1,
+            "threshold": 304
+          },
+          "ins10_verdicts": {
+            "fail": 1228,
+            "threshold": 263
+          },
+          "sci05_span_verdicts": {
+            "fail": 331,
+            "goal": 1081,
+            "not_evaluated": 1,
+            "threshold": 78
+          },
+          "sci07_span_verdicts": {
+            "fail": 231,
+            "goal": 970,
+            "not_evaluated": 10,
+            "threshold": 280
+          },
+          "run_s_median": 21.635556200053543
+        },
+        "7": {
+          "n": 826,
+          "n_failed": 0,
+          "sci05_median": 0.05054360196356438,
+          "sci05_p90": 0.7186507458857342,
+          "sci05_worst": 44.81322189388275,
+          "sci07_m_median": 9729.023678545542,
+          "sci07_m_p90": 53269.727226855866,
+          "sci07_m_worst": 521540.94859176246,
+          "sci05_span_median": 0.04865019162005958,
+          "sci05_span_p90": 0.6458194545623838,
+          "sci05_span_worst": 43.58869321505116,
+          "sci07_span_m_median": 8091.131065267863,
+          "sci07_span_m_p90": 31798.498534879767,
+          "sci07_span_m_worst": 563990.7233489829,
+          "coverage_gap_m_median": 39155.56515914091,
+          "coverage_gap_m_p90": 129848.00721493385,
+          "coverage_gap_m_worst": 493489.46603096405,
+          "span_ne_err_median": 0.037133304976944226,
+          "span_ne_err_p90": 0.19066551046428307,
+          "span_ne_err_worst": 50.540580081860604,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.826773718422732,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 3.305792279517604,
+          "ins10_db_p90": -2.7535978614224064,
+          "ins10_db_worst": -24.42041843575322,
+          "completeness_o_median": 0.5483870967741935,
+          "completeness_o_p90": 0.27419354838709675,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.10300618921308577,
+          "labelling_error_p90": 0.32480818414322254,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 186,
+            "goal": 594,
+            "not_evaluated": 3,
+            "threshold": 43
+          },
+          "sci07_verdicts": {
+            "fail": 184,
+            "goal": 428,
+            "not_evaluated": 3,
+            "threshold": 211
+          },
+          "ins10_verdicts": {
+            "fail": 747,
+            "threshold": 79
+          },
+          "sci05_span_verdicts": {
+            "fail": 177,
+            "goal": 602,
+            "not_evaluated": 3,
+            "threshold": 44
+          },
+          "sci07_span_verdicts": {
+            "fail": 124,
+            "goal": 496,
+            "not_evaluated": 9,
+            "threshold": 197
+          },
+          "run_s_median": 20.72822594991885
+        },
+        "8": {
+          "n": 447,
+          "n_failed": 0,
+          "sci05_median": 0.052341562296386965,
+          "sci05_p90": 1.5663728248728856,
+          "sci05_worst": 101.66087392652237,
+          "sci07_m_median": 9214.829662904845,
+          "sci07_m_p90": 114845.45797961028,
+          "sci07_m_worst": 592347.4159951652,
+          "sci05_span_median": 0.04886775972596663,
+          "sci05_span_p90": 1.5934861467308947,
+          "sci05_span_worst": 100.33614561218667,
+          "sci07_span_m_median": 7542.3871074803565,
+          "sci07_span_m_p90": 76637.30221016741,
+          "sci07_span_m_worst": 678716.9444190538,
+          "coverage_gap_m_median": 42949.50132322332,
+          "coverage_gap_m_p90": 133874.11070885678,
+          "coverage_gap_m_worst": 493371.95686046756,
+          "span_ne_err_median": 0.03635103908080395,
+          "span_ne_err_p90": 0.5958940581135055,
+          "span_ne_err_worst": 114.0658360945686,
+          "span_reached_median": 0.9980851646826866,
+          "span_reached_p90": 0.8050240958919387,
+          "span_reached_worst": 0.0,
+          "ins10_db_median": 3.6070328082329013,
+          "ins10_db_p90": -1.589628105432024,
+          "ins10_db_worst": -16.08397634227677,
+          "completeness_o_median": 0.5555555555555556,
+          "completeness_o_p90": 0.2534883720930233,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.09478885893980234,
+          "labelling_error_p90": 0.36038961038961037,
+          "labelling_error_worst": 0.8888888888888888,
+          "sci05_verdicts": {
+            "fail": 120,
+            "goal": 309,
+            "not_evaluated": 3,
+            "threshold": 15
+          },
+          "sci07_verdicts": {
+            "fail": 121,
+            "goal": 232,
+            "not_evaluated": 3,
+            "threshold": 91
+          },
+          "ins10_verdicts": {
+            "fail": 412,
+            "threshold": 35
+          },
+          "sci05_span_verdicts": {
+            "fail": 115,
+            "goal": 312,
+            "not_evaluated": 3,
+            "threshold": 17
+          },
+          "sci07_span_verdicts": {
+            "fail": 80,
+            "goal": 272,
+            "not_evaluated": 10,
+            "threshold": 85
+          },
+          "run_s_median": 20.768321300158277
+        },
+        "9": {
+          "n": 100,
+          "n_failed": 0,
+          "sci05_median": 0.051737933172804985,
+          "sci05_p90": 1.2000906391951465,
+          "sci05_worst": 3.504126768839481,
+          "sci07_m_median": 8392.287612218945,
+          "sci07_m_p90": 84323.00368084165,
+          "sci07_m_worst": 237644.14100256428,
+          "sci05_span_median": 0.046859497700664,
+          "sci05_span_p90": 1.045525384941817,
+          "sci05_span_worst": 3.6258920357537976,
+          "sci07_span_m_median": 7583.515201804665,
+          "sci07_span_m_p90": 73821.3466616288,
+          "sci07_span_m_worst": 334740.43508687365,
+          "coverage_gap_m_median": 43274.57366518446,
+          "coverage_gap_m_p90": 137148.44114735085,
+          "coverage_gap_m_worst": 637609.9958775422,
+          "span_ne_err_median": 0.0331990203917128,
+          "span_ne_err_p90": 0.23511134083107013,
+          "span_ne_err_worst": 3.6064078923253344,
+          "span_reached_median": 1.0,
+          "span_reached_p90": 0.7166715395365592,
+          "span_reached_worst": 0.15092302825416914,
+          "ins10_db_median": 4.283854173325196,
+          "ins10_db_p90": -1.299320222682359,
+          "ins10_db_worst": -16.250003640234297,
+          "completeness_o_median": 0.6108108108108108,
+          "completeness_o_p90": 0.3018867924528302,
+          "completeness_o_worst": 0.0,
+          "labelling_error_median": 0.047619047619047616,
+          "labelling_error_p90": 0.2659915611814346,
+          "labelling_error_worst": 1.0,
+          "sci05_verdicts": {
+            "fail": 32,
+            "goal": 63,
+            "threshold": 5
+          },
+          "sci07_verdicts": {
+            "fail": 32,
+            "goal": 54,
+            "threshold": 14
+          },
+          "ins10_verdicts": {
+            "fail": 93,
+            "threshold": 7
+          },
+          "sci05_span_verdicts": {
+            "fail": 32,
+            "goal": 64,
+            "threshold": 4
+          },
+          "sci07_span_verdicts": {
+            "fail": 23,
+            "goal": 63,
+            "threshold": 14
+          },
+          "run_s_median": 20.094069149927236
+        }
+      }
+    }
+  },
+  "wall_s": 15146.452108199941,
+  "resumed_rows": 0,
+  "cpu_s": 257306.8873952073,
+  "metrics": {
+    "off": {
+      "n": 7790,
+      "n_failed": 0,
+      "sci05_median": 0.05040418824321853,
+      "sci05_p90": 0.36419321149096356,
+      "sci07_m_median": 8310.332829329196,
+      "sci07_m_p90": 31025.46704754432,
+      "span_ne_err_median": 0.0380739557808869,
+      "span_reached_median": 1.0,
+      "coverage_gap_m_median": 23754.828950536263,
+      "sci05_verdicts": {
+        "fail": 1480,
+        "goal": 5718,
+        "threshold": 592
+      },
+      "sci07_verdicts": {
+        "fail": 1298,
+        "goal": 4566,
+        "threshold": 1926
+      },
+      "m2_pass": true
+    },
+    "on": {
+      "n": 7790,
+      "n_failed": 0,
+      "sci05_median": 0.03876637477022777,
+      "sci05_p90": 0.31539892013830895,
+      "sci07_m_median": 6652.28716112574,
+      "sci07_m_p90": 27333.96243670088,
+      "span_ne_err_median": 0.029607383018054545,
+      "span_reached_median": 1.0,
+      "coverage_gap_m_median": 14491.853380811168,
+      "sci05_verdicts": {
+        "fail": 1263,
+        "goal": 6155,
+        "not_evaluated": 9,
+        "threshold": 363
+      },
+      "sci07_verdicts": {
+        "fail": 1085,
+        "goal": 5318,
+        "not_evaluated": 9,
+        "threshold": 1378
+      },
+      "m2_pass": true
+    }
+  }
+}
