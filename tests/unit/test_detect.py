@@ -114,18 +114,66 @@ def test_the_near_range_of_full_l2_noise_records_stays_below_the_threshold():
     assert near <= 10
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Code review F17 (2026-11-08): on full L2 records with leakage the measured "
-        "P_fa averages about 1.5x nominal over 20 seeds (1.52x before the F3 stream "
-        "split, 1.56x after; single seeds 0.9x to 2.3x).  The 2-seed check passed by "
-        "chance.  Strict, so it reports as soon as the detector meets the criterion."
-    ),
-)
 def test_measured_pfa_on_full_l2_noise_records_with_leakage():
+    """Failed (about 1.6x nominal over 10 to 20 seeds) until 2026-11-08, when the
+    noise reference still took in the notch the leakage high-pass cuts below the
+    minimum range (code review F17)."""
     hits, cells, _ = _full_l2_noise_counts()
     assert 1 / 1.5 < (hits / cells) / PFA < 1.5
+
+
+class _NotchedSpectrum:
+    """The fields of a range spectrum that :func:`noise_reference` reads."""
+
+    def __init__(self, negative_w):
+        self.negative_power_db = 10.0 * np.log10(np.atleast_2d(negative_w))
+        self.power_db = self.negative_power_db
+        self.bin_spacing_m = 500.0
+        self.enbw_bins = 1.5
+        self.range_resolution_m = 1500.0  # one cell is two bins: pad factor 2
+        self.n_incoherent = 1
+
+
+def test_the_noise_reference_skips_the_high_pass_notch():
+    """Negative-half bins whose mirrored range is under 100 km (the leakage
+    high-pass's notch) are left out of the median; the near-cell guard alone is
+    what ``min_range_m=0`` gives."""
+    rng = np.random.default_rng(0)
+    n = 2100  # 1050 km at 500 m per bin; bin j mirrors range (j + 1) * 500 m
+    row = rng.exponential(size=n)
+    row[:199] *= 0.03  # the notch, -15 dB, out to 100 km
+    sp = _NotchedSpectrum(row)
+    ref = d.noise_reference(sp)
+    assert ref["n_bins"] == n - 199
+    assert ref["median_w"] == pytest.approx(float(np.median(row[199:])), rel=1e-9)
+    near_only = d.noise_reference(sp, min_range_m=0.0)
+    assert near_only["n_bins"] == n - 12  # 4 cells x pad 2 x ENBW 1.5
+    assert near_only["median_w"] < 0.95 * ref["median_w"]
+
+
+def test_the_reference_matches_the_noise_beyond_the_minimum_range():
+    """On a full L2 record the positive half beyond 100 km sits at the reference.
+
+    It sat 0.2 to 0.3 dB above it while the reference took in the notch, which
+    is what raised the false-alarm rate (code review F17).
+    """
+    from tss.interfaces import EchoSet
+    from tss.l2_instrument.baseline import BaselineInstrument
+    from tss.l3_signal.ionogram import BaselineSignalProcessing
+    from tss.studies import _base_config, _sweep_from_config, instrument_config
+
+    cfg = _base_config(())
+    sweep = _sweep_from_config(cfg, io.StringIO())[0]
+    inst = BaselineInstrument.from_config(instrument_config(cfg))
+    l3 = BaselineSignalProcessing(dispersion="none")
+    empty = EchoSet(freq_hz=np.array([]), mode=np.array([], dtype=object), group_delay_s=np.array([]),
+                    amplitude_db=np.array([]), absorption_db=np.array([]))
+    offsets = []
+    for sp in l3.spectra(inst.receive(empty, sweep, np.random.default_rng(0))):
+        p = 10.0 ** (np.asarray(sp.power_db, dtype=float)[0] / 10.0)
+        band = (sp.range_m >= 1.0e5) & (sp.range_m <= 1.05e6)
+        offsets.append(10.0 * np.log10(np.median(p[band]) / d.noise_reference(sp)["median_w"]))
+    assert abs(float(np.mean(offsets))) < 0.15
 
 
 # -- detection probability ------------------------------------------------------------

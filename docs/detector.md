@@ -22,6 +22,13 @@ project notes `claude/wp4-plan.md` and `claude/wp4-p2-detector.md`.
 - The transform now keeps that half (`RangeSpectrum.negative_power_db`).
 - The reference is its median, an ordered statistic.
   - It excludes 4 cells around zero beat, where the leakage image sits.
+  - It excludes every bin whose mirrored range is under 100 km (INS-04's
+    minimum range; `min_range_m`, `reference_min_range_m`). L2's leakage
+    high-pass notches the noise there, in both halves: about -16 dB out to
+    25 km, -9 dB from 25 to 50 km, flat beyond 100 km. Until 2026-11-08 the
+    notch was inside the reference, which then sat about 0.3 dB below the
+    noise beyond 100 km and raised the false-alarm rate to about 1.6 times
+    nominal (code review F17).
   - It is robust to a few contaminated cells: returns folded from beyond the
     unambiguous range, and in hardware the I/Q-imbalance image of strong
     returns.
@@ -77,15 +84,17 @@ adjacent bins without changing it.
 | Check | Result |
 |---|---|
 | Measured `P_fa`, white noise | 0.8e-4 (exit criterion: within a factor of 1.5 of nominal) |
-| Measured `P_fa`, full L2 noise-only records with leakage, canceller and AM at the WP3 allocations | 1.25e-4 |
-| False alarms below 50 km on the same records | none |
-| Positive half against negative half, noise floor | agree to 0.0 dB (no leakage) and 0.2 dB (leakage) |
+| Measured `P_fa`, full L2 noise-only records with leakage, canceller and AM at the WP3 allocations | 0.94e-4 pooled over 10 records, 0.88e-4 over 20 (since 2026-11-08). Before the 100 km reference guard: 1.25e-4 on the 2 records first checked, 1.52e-4 to 1.65e-4 over 10 to 20 (code review F17) |
+| False alarms below 50 km on the same records | none (10 records) |
+| Positive half beyond 100 km against the reference, noise floor | agree to -0.03 dB with leakage (was +0.22 to +0.30 dB before the guard) |
 | SNR for Pd = 0.5, steady target | 9.46 dB measured, 9.40 dB theory (Marcum Q, known noise); 0.06 dB apart |
 | SNR for Pd = 0.9 | 11.94 dB measured, 11.75 dB theory; 0.19 dB apart (exit criterion: 0.5 dB) |
 | Pd at INS-10's 10 dB | 0.60 measured, 0.62 theory |
 | False alarms per ionogram | about 92,000 independent cells within 1050 km; about 26 distinct over-threshold runs, and about 12 runs of the 2 bins the extractor needs, in about 7 % of columns |
 
-The tests are in `tests/unit/test_detect.py` (14 tests). They also check:
+The tests are in `tests/unit/test_detect.py` (17 tests). They also check:
+- the reference leaves out the high-pass notch below 100 km, and on a full L2
+  record it matches the noise beyond 100 km to 0.15 dB;
 - the noise reference is unmoved by a 40 dB echo and a clutter continuum, which
   raise the column median by more than 3 dB;
 - the sidelobes of a 71 dB return are removed, and an O echo 6 dB under an X

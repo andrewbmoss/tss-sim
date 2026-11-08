@@ -43,6 +43,18 @@ be indifferent to them:
 * in hardware, the image of strong positive-beat returns through I/Q
   imbalance, typically 30 to 40 dB down.
 
+One thing shapes the noise itself.  The leakage high-pass after the de-chirp
+(:class:`tss.l2_instrument.receive_chain.LeakageHighpass`, corner at the beat of
+50 km) cuts a notch in the noise near zero beat, in both halves alike: about
+-16 dB out to 25 km and -9 dB from 25 to 50 km, flat beyond 100 km.  The
+reference is therefore taken only from negative-half bins whose mirrored range
+is at least ``min_range_m``, INS-04's 100 km, the nearest range the high-pass is
+designed to keep, so it measures the flat noise that the cells beyond it see.
+Until 2026-11-08 it was taken from four cells out; the notch pulled the median
+about 0.3 dB below the noise beyond 100 km and the false-alarm rate on full L2
+records to about 1.6 times nominal (code review F17).  Inside 100 km the
+threshold is then above the local noise, which is conservative.
+
 The estimator is the sample median, an ordered statistic that a few
 contaminated cells do not move.  The threshold is ``alpha * X_(k)``, with ``k``
 the middle of ``N`` and ``alpha`` from the ordered-statistic false-alarm
@@ -155,18 +167,26 @@ def _independent(n_bins: int, spectrum: Any) -> int:
     return max(int(round(n_bins / (spectrum_pad_factor(spectrum) * float(spectrum.enbw_bins)))), 1)
 
 
-def noise_reference(spectrum: Any, *, channel: int = 0, near_guard_cells: float = 4.0
-                    ) -> dict[str, Any]:
+def noise_reference(spectrum: Any, *, channel: int = 0, near_guard_cells: float = 4.0,
+                    min_range_m: float = 1.0e5) -> dict[str, Any]:
     """The noise reference of one spectrum: median, mean and cell counts.
 
-    From the negative-beat half when the spectrum carries it; otherwise from the
-    positive half (the WP3-era estimate), which is flagged.
+    From the negative-beat half when the spectrum carries it, beyond both the
+    near-cell guard and ``min_range_m`` of mirrored range (module docstring,
+    THE NOISE REFERENCE); the range guard is dropped if it would leave fewer
+    than 64 bins.  Otherwise from the positive half (the WP3-era estimate),
+    which is flagged.
     """
     neg = getattr(spectrum, "negative_power_db", None)
     pad = spectrum_pad_factor(spectrum)
     if neg is not None and np.size(neg):
         row = np.asarray(neg, dtype=float)[int(channel)]
         g0 = int(math.ceil(near_guard_cells * pad * float(spectrum.enbw_bins)))
+        if min_range_m > 0.0:
+            # Bin j mirrors the range (j + 1) * bin spacing.
+            g_range = int(math.ceil(float(min_range_m) / float(spectrum.bin_spacing_m))) - 1
+            if row.size - g_range >= 64:
+                g0 = max(g0, g_range)
         use = row[g0:]
         source = "negative_half"
     else:
@@ -328,13 +348,15 @@ def _sidelobe_blank(p: np.ndarray, candidates: np.ndarray, spectrum: Any, margin
 def cfar_detect(spectrum: Any, *, channel: int = 0, pfa: float = DEFAULT_PFA,
                 local_pfa: float | None = None, local_ref_cells: int = 16,
                 guard_cells: int = 2, local_order: float = 0.75, near_guard_cells: float = 4.0,
+                reference_min_range_m: float = 1.0e5,
                 sidelobe_margin_db: float | None = 6.0,
                 max_range_m: float | None = None, exclude_below_m: float = 0.0) -> CfarResult:
     """Cell decisions for one range spectrum (module docstring)."""
     power_db = np.asarray(spectrum.power_db, dtype=float)[int(channel)]
     rng = np.asarray(spectrum.range_m, dtype=float)
     p = np.where(np.isfinite(power_db), 10.0 ** (power_db / 10.0), np.nan)
-    ref = noise_reference(spectrum, channel=channel, near_guard_cells=near_guard_cells)
+    ref = noise_reference(spectrum, channel=channel, near_guard_cells=near_guard_cells,
+                          min_range_m=reference_min_range_m)
     n_eff = int(ref["n_eff"])
     if n_eff < 2 or not np.isfinite(ref["median_w"]):
         return CfarResult(np.zeros(p.size, dtype=bool), float("-inf"), float("inf"), None, pfa,
