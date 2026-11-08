@@ -32,6 +32,23 @@ Contract rules that apply to every tier:
     the wave is evanescent and there is no measurement to report.
 4.  Randomness is drawn only from a ``numpy.random.Generator`` passed in, so a
     run is reproducible from its recorded seed.
+
+OPTIONAL HOOKS
+--------------
+The pipeline uses four things beyond the six tier protocols.  A tier may lack
+them; the requirements that depend on them are then not evaluated, and each run
+records which hooks it found (``RunResult.flags["hooks"]``, :func:`hook_support`)
+so that a missing one is visible rather than silent (code review F5,
+2026-11-08).  The contract tests hold every implemented tier to them.
+
+*  :class:`MeasuresTruthEchoSNR`: L3's ``snr_at``, the SNR at given cells, which
+   INS-10 is scored on; with a ``floor`` keyword it also reports signal to
+   noise plus clutter.
+*  The ``l2_metrics`` keyword of an L5 ``score``: requirement evidence only L2
+   can give (INS-11, INS-23, INS-24, INS-29 to INS-31).
+*  :class:`ReportsGroupIndex`: L1's ``group_index_used``, which gates SCI-05
+   and SCI-07 on L1 and L4 treating the field the same way.
+*  :class:`ClutterAugmenter`: the clutter generator applied between L1 and L2.
 """
 
 from __future__ import annotations
@@ -57,6 +74,11 @@ __all__ = [
     "L4Retrieval",
     "L5Assessment",
     "Tier",
+    "MeasuresTruthEchoSNR",
+    "ReportsGroupIndex",
+    "ClutterAugmenter",
+    "accepts_keyword",
+    "hook_support",
 ]
 
 
@@ -388,3 +410,79 @@ class L5Assessment(Tier, Protocol):
         which is what INS-10 is scored on.
         """
         ...
+
+
+# ---------------------------------------------------------------------------
+# Optional hooks (module docstring, OPTIONAL HOOKS)
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class MeasuresTruthEchoSNR(Protocol):
+    """An L3 tier that can measure the SNR at given (frequency, range) cells.
+
+    ``floor`` selects the noise reference (``"noise"`` or ``"column"``); a tier
+    that does not take it gives INS-10 but not signal to noise plus clutter.
+    """
+
+    def snr_at(
+        self,
+        signal: ReceivedSignal,
+        freq_hz: np.ndarray,
+        range_m: np.ndarray,
+        *args: Any,
+        **kwargs: Any,
+    ) -> np.ndarray: ...
+
+
+@runtime_checkable
+class ReportsGroupIndex(Protocol):
+    """An L1 tier that says which group index it used (set by ``echoes``)."""
+
+    group_index_used: str | None
+
+
+@runtime_checkable
+class ClutterAugmenter(Protocol):
+    """Adds clutter returns to an echo set between L1 and L2."""
+
+    last_report: Mapping[str, Any]
+
+    def augment(
+        self,
+        echoes: EchoSet,
+        truth: IonosphereState,
+        platform: PlatformState,
+        freq_hz: np.ndarray,
+        rng: np.random.Generator,
+    ) -> EchoSet: ...
+
+    def describe(self) -> Mapping[str, Any]: ...
+
+
+def accepts_keyword(fn: Any, name: str) -> bool:
+    """Whether ``fn`` takes a keyword argument ``name`` (or ``**kwargs``)."""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def hook_support(tiers: Mapping[str, Any], clutter: Any = None) -> dict[str, bool | None]:
+    """Which optional hooks a set of tiers provides, for the run record.
+
+    ``clutter`` is ``None`` when no clutter generator was given.
+    """
+    l3 = tiers.get("l3")
+    l5 = tiers.get("l5")
+    snr = isinstance(l3, MeasuresTruthEchoSNR)
+    return {
+        "l1_group_index": isinstance(tiers.get("l1"), ReportsGroupIndex),
+        "l3_snr_at": snr,
+        "l3_snr_floor": bool(snr and accepts_keyword(l3.snr_at, "floor")),
+        "l5_l2_metrics": bool(l5 is not None and accepts_keyword(getattr(l5, "score", None), "l2_metrics")),
+        "clutter": None if clutter is None else isinstance(clutter, ClutterAugmenter),
+    }

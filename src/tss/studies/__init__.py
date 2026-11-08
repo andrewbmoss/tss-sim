@@ -742,6 +742,9 @@ def run_campaign(
             "summary": record["summary"],
             "timing_s": result.timing_s,
             "source": assessment.source,
+            # Which optional hooks the run found (code review F5): a missing one
+            # leaves requirements not evaluated, and this says why.
+            "hooks": result.flags.get("hooks"),
         }
         failed = sorted(
             rid for rid, entry in assessment.requirements.items()

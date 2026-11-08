@@ -254,15 +254,15 @@ def test_l5_scores_the_l2_evidence_and_says_what_kind_it_is():
 
 
 def test_the_pipeline_hands_the_l2_evidence_only_to_a_tier_that_takes_it():
+    from tss.interfaces import accepts_keyword  # the pipeline's private _accepts until F5
     from tss.l5_assessment.standard import StandardAssessment
-    from tss.pipeline import _accepts
 
-    assert _accepts(StandardAssessment().score, "l2_metrics")
+    assert accepts_keyword(StandardAssessment().score, "l2_metrics")
 
     def old(retrieved, truth, ionogram, configuration, *, platform=None, truth_echo_snr=None):
         return None
 
-    assert not _accepts(old, "l2_metrics")
+    assert not accepts_keyword(old, "l2_metrics")
 
 
 # ----------------------------------------------------------------------------

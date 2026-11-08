@@ -415,6 +415,28 @@ def test_rule3_l2_takes_a_uniform_sweep_with_leakage_on(chain):
     assert signal.flags["rows_used"] == 0
 
 
+def test_the_implemented_tiers_provide_the_pipeline_hooks():
+    """The optional hooks the pipeline uses (code review F5, 2026-11-08).  A tier
+    that lost one would leave requirements not evaluated without an error."""
+    from tss.interfaces import MeasuresTruthEchoSNR, ReportsGroupIndex, accepts_keyword
+
+    for name in IMPLEMENTED["l1"]:
+        assert isinstance(_build("l1", name), ReportsGroupIndex), name
+    for name in IMPLEMENTED["l3"]:
+        tier = _build("l3", name)
+        assert isinstance(tier, MeasuresTruthEchoSNR), name
+        assert accepts_keyword(tier.snr_at, "floor"), name
+    for name in IMPLEMENTED["l5"]:
+        assert accepts_keyword(_build("l5", name).score, "l2_metrics"), name
+
+
+def test_the_clutter_generator_is_a_clutter_augmenter():
+    from tss.interfaces import ClutterAugmenter
+    from tss.l1_propagation.clutter import ClutterGenerator
+
+    assert isinstance(ClutterGenerator({"enabled": True}), ClutterAugmenter)
+
+
 def test_rule3_an_echo_free_record_gives_an_empty_ionogram(chain):
     """Failed until 2026-10-17, when L2 set its sample rate from the echoes and
     sampled an echo-free record at 2.5 Hz."""

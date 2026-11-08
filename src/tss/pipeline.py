@@ -24,6 +24,11 @@ L1 likewise draws from a stream of its own (spawn key 0x11), and L2 is given
 the configuration's main stream.  Until 2026-11-08 L1 and L2 shared one
 generator, so an L1 tier that drew would have changed L2's noise (code review
 F3); the analytic L1 tier draws nothing, so no earlier result depends on it.
+
+The optional hooks the pipeline uses beyond the tier protocols (L3 ``snr_at``,
+L5 ``l2_metrics``, L1 ``group_index_used``, the clutter generator) are declared
+in :mod:`tss.interfaces`, and every run records which it found in
+``RunResult.flags["hooks"]`` (code review F5).
 """
 
 from __future__ import annotations
@@ -41,24 +46,17 @@ from tss.interfaces import (
     EchoSet,
     Ionogram,
     IonosphereState,
+    MeasuresTruthEchoSNR,
     PlatformState,
     ReceivedSignal,
+    ReportsGroupIndex,
     SweepSchedule,
+    accepts_keyword,
+    hook_support,
 )
 from tss.registry import build
 
 __all__ = ["Pipeline", "RunResult", "build_tiers"]
-
-
-def _accepts(fn: Any, name: str) -> bool:
-    """Whether ``fn`` takes a keyword ``name``."""
-    import inspect
-
-    try:
-        params = inspect.signature(fn).parameters
-    except (TypeError, ValueError):
-        return False
-    return name in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 @dataclass
@@ -150,6 +148,7 @@ class Pipeline:
 
         rng = self._rng(configuration)
         result = RunResult(configuration=configuration)
+        result.flags["hooks"] = hook_support(self.tiers, self.clutter)
         t: dict[str, float] = {}
 
         t0 = time.perf_counter()
@@ -182,9 +181,10 @@ class Pipeline:
         # pipeline only hands one to the other.  A tier without the
         # measurement leaves INS-10 not evaluated.
         truth_echo_snr: dict[str, Any] | None = None
-        measure = getattr(self.tiers["l3"], "snr_at", None)
-        if callable(measure):
+        if isinstance(self.tiers["l3"], MeasuresTruthEchoSNR):
             from tss.l5_assessment.scoring import truth_echo_cells
+
+            measure = self.tiers["l3"].snr_at
 
             t0 = time.perf_counter()
             cells = truth_echo_cells(echoes)
@@ -195,7 +195,7 @@ class Pipeline:
             # WP4 Phase 2 (G1): INS-10 is scored against the noise floor; the
             # same cells measured against the column, which a clutter continuum
             # raises, are reported beside it as signal to noise plus clutter.
-            if _accepts(measure, "floor"):
+            if accepts_keyword(measure, "floor"):
                 truth_echo_snr["snr_db_column"] = np.asarray(
                     measure(signal, cells["freq_hz"], cells["range_m"], floor="column"))
             t["l3_truth_echo_snr"] = time.perf_counter() - t0
@@ -208,7 +208,8 @@ class Pipeline:
         # and the inversion treat the magnetic field the same way.  The
         # retrieval cannot know how its echoes were made, so that is recorded
         # here, where both tiers are in hand.  This is bookkeeping, not physics.
-        forward = getattr(self.tiers["l1"], "group_index_used", None)
+        forward = (self.tiers["l1"].group_index_used
+                   if isinstance(self.tiers["l1"], ReportsGroupIndex) else None)
         if forward is not None:
             retrieved = replace(
                 retrieved,
@@ -220,7 +221,7 @@ class Pipeline:
         # an assessment tier that takes them is given them.
         l5_kwargs: dict[str, Any] = {"platform": platform, "truth_echo_snr": truth_echo_snr}
         l2_metrics = (signal.flags or {}).get("l2_metrics") if signal is not None else None
-        if l2_metrics is not None and _accepts(self.tiers["l5"].score, "l2_metrics"):
+        if l2_metrics is not None and accepts_keyword(self.tiers["l5"].score, "l2_metrics"):
             l5_kwargs["l2_metrics"] = l2_metrics
 
         t0 = time.perf_counter()
