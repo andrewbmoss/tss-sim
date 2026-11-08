@@ -10,11 +10,11 @@
 
 generated_by: scripts/import_srm.py
 source_workbook: TSS_SRM_RevG.xlsx
-source_sha256: 510485777c5e1a828c84769b374b8ad55d63984739aca01b2885c456ce0f4c98
+source_sha256: f5c0029b03ae0b74d6e4eadbfeaed17ba78adf93b50860ccef31ddbf139c7cf1
 revision: G
 counts:
   SCI: 28
-  INS: 32
+  INS: 33
   MIS: 11
   SW: 4
 requirements:
@@ -618,8 +618,11 @@ requirements:
       25.9 dB minimum over the scored echoes; the two cutoff-step echoes reach 18.9 dB. The earlier 38.5
       dB median and 33.1 dB minimum came from the inherited TISC link budget (300 km, legacy antenna).
       Availability clause waits on SCI-28.'
-    verification: A, S, B. Link budget; L5 metric snr_db_min_at_truth_echoes, with the cutoff steps reported
-      as snr_db_min_at_cutoff_steps; bench. Availability clause waits on SCI-28.
+    verification: 'A, S, B. Link budget; L5 metric snr_db_min_at_truth_echoes, with the cutoff steps reported
+      as snr_db_min_at_cutoff_steps; bench. Availability clause waits on SCI-28. Detector: the stated-P_fa
+      test of tss.l3_signal.detect, 1×10⁻⁴ per range cell (ordered statistic, 9.7 dB over the mean noise),
+      noise reference from the echo-free negative-beat half; SNR against that noise floor, signal to noise
+      plus clutter reported beside it (decision G1; stated 2026-11-06).'
     verification_methods:
     - A
     - S
@@ -1007,6 +1010,25 @@ requirements:
     verification_methods:
     - B
     - A
+  INS-32:
+    sheet: Instrument & Mission
+    family: INS
+    requirement: Dispersion within a dwell
+    value: The ionogram processing shall hold the loss of echo SNR to dispersion within a dwell to ≤1
+      dB median and ≤3 dB at the 90th percentile for echoes that cross up to 64 range cells in one dwell,
+      N = (2Δf_i²/c)·dP′/df, and shall report dP′/df for each detected echo. Echoes crossing more than
+      64 cells, near the local plasma frequency and the penetration cusps, are handled by the trace tracker's
+      cusp model and reported separately. A condition on the processing, not on the instrument (decision
+      G6, 2026-10-31).
+    flows_from: INS-05, INS-10, SCI-05, SCI-07; TV §5.3
+    status: 'New 2026-11-06 (WP4 Phase 6). With the A1 sweep an echo crosses 15 to 28 cells near 3 MHz;
+      transforming each dwell whole loses about 4 dB median and 9 dB at the 90th percentile. The chirp-rate
+      search over 64 cells (decision G2, the tss-sim default) meets it: 0.1 dB median, 2.0 dB at the 90th
+      percentile over every echo of 18 scenes, 1.2 dB for those crossing up to 64 cells.'
+    verification: 'S. tss study wp4_dispersion: echo level, 18 scenes (6 Chapman, 12 ISIS-1), O and X,
+      3 seeds.'
+    verification_methods:
+    - S
   MIS-01:
     sheet: Instrument & Mission
     family: MIS
@@ -1179,9 +1201,14 @@ requirements:
       CRC hand-scaled topside profiles (SPDF), incoherent-scatter topside profiles from Millstone Hill
       and Jicamarca (Madrigal), and IRTAM-assimilated peak parameters with a model topside. For ISIS-1
       records with an archived ionogram, L1 shall reproduce the archived virtual-height trace from the
-      CRC profile to within one ISIS range cell (15 km), which checks the propagation model against measurement.'
-    flows_from: SCI-01, SCI-07
-    verification: T, D, R. Fixture test on ISIS-1 and Madrigal records; archived-trace comparison.
+      CRC profile to within one ISIS range cell (15 km), which checks the propagation model against measurement.
+      On a set of measured ionospheres (WP4 milestone M2; amended 2026-11-06), SCI-05 and SCI-07 are scored
+      over the heights the measured profile covers, with the full profile from the truth peak, including
+      any model completion below the measured heights, reported beside it; the chain meets them when the
+      median is at threshold or better and at least 80 % of profiles are at threshold or better.'
+    flows_from: SCI-01, SCI-05, SCI-07
+    verification: T, D, R. Fixture test on ISIS-1 and Madrigal records; archived-trace comparison. tss
+      study isis1_retrieval (7,790 ISIS-1 profiles, the M2 rule).
     verification_methods:
     - T
     - D

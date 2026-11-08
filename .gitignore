@@ -28,3 +28,6 @@ slprj/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Archived run outputs, kept locally (too large or superseded); see data/archive/README.md
+data/archive/

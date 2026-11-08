@@ -48,6 +48,9 @@
 # 2026-10-28 (WP3 Phase 5): INS-29, INS-30 and INS-31 added from the amended
 # SRM (the leakage budget), scored from the L2 record.
 #
+# 2026-11-06 (WP4 Phase 6): INS-32 added from the amended SRM (dispersion
+# within a dwell), not scored here: verified by tss study wp4_dispersion.
+#
 # To take in a new SRM revision: run `python scripts/import_srm.py <workbook>`,
 # review the diff of srm_catalog.yaml, amend the scored entries and the
 # not_scored reasons whose text changed, and run `tss requirements`.
@@ -720,6 +723,15 @@ not_scored:
       and L2 profiles formed from every ionogram at cadence, verified on the
       prototype from recorded sweeps.  What is produced is defined by INS-13
       and sized by tss study data_volume; the processor is a mission design.
+
+  INS-32:
+    category: analysis
+    work_packages: [WP4]
+    reason: >-
+      Dispersion within a dwell (new 2026-11-06, WP4 Phase 6; decision G6): a
+      condition on the processing, verified by the stand-alone study
+      tss study wp4_dispersion at echo level (18 scenes, O and X, 3 seeds),
+      not by the single-sweep pipeline.
 
   # -- verified on hardware or in orbit ----------------------------------------
   SCI-17:

@@ -1,9 +1,12 @@
 # tss-sim: where things stand
 
-Updated 2026-10-17, at the start of the simulation build that follows the
-proposal (Rev D).  The history of what was built and why is in the git log and
-in the project notes; this file says what the code does today, what it does
-not, and what comes next.
+Updated 2026-11-06, after WP4 (M2 met; master 9039ec5, 857 tests pass,
+1 skipped; 858 pass after the INS-32 catalogue update).  WP0, WP3 and WP4 are
+complete (the Rev G amendment adding INS-32, the SRM and the TV M2 update were
+accepted 2026-11-06); WP5 and WP6 are next and are now on the critical path;
+WP9 depends on funding.  The history of what was built and why is in the git log,
+the phase log below and the project notes; this file says what the code does
+today, what it does not, and what comes next.
 
 ## Baseline
 
@@ -22,10 +25,10 @@ not, and what comes next.
 | Layer | Implemented tiers | Stubs | What it does not yet model |
 |---|---|---|---|
 | L0 | chapman, analytic, iri (IRI-2020, `model: pharlap` by default or `pyiri`), iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
-| L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes |
-| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation | - | leakage in the samples (model built, WP3 Phase 1; added in Phase 3), oscillator phase noise, AM noise, spurs, sweep nonlinearity and Doppler are in the samples when `transmit_impairments` turns them on (WP3 Phase 2; all off by default), real vector channels |
-| L3 | baseline: per-step transform, leading-edge trace, connected-trace filter, SNR measurement at given cells | motion_separated (WP5) | O/X labelling, robust extraction (CFAR, a search limit at the design range), Doppler separation |
-| L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default) | - | uncertainty propagation, depletion crossings, reference-field error |
+| L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler; clutter (WP4: ground echo, plasma resonances, spread F; on by default) | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes, ray-traced clutter |
+| L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation; transmit-to-receive leakage, transmit impairments (`transmit_impairments`), the receive chain (front end, per-step high-pass) and the passive canceller (WP3; defaults AM -140 dBc/Hz and an ideal 26 dB canceller); HF broadcast carriers (WP4 clutter) | - | real vector channels (WP11), measured hardware behaviour (WP9) |
+| L3 | baseline (WP4): per-step transform with the chirp-rate search (64 cells, a rate per detection); the stated-P_fa detector (1e-4 per cell); the trace tracker (track-before-detect, O and X labelled by self-consistency, ground-echo and streak masks, cusp model, per-sample sigma, confidence and quality; legacy threshold-and-connect kept); SNR measurement at given cells; Poole's stationary-phase range estimator | motion_separated (WP5) | O/X by measurement (WP11; labelling is model-based), Doppler separation (WP5), measured traces with steep starts and ledges |
+| L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default); starting value from the tracker's onboard f_N (`start_policy: onboard`, WP4) | - | uncertainty propagation, depletion crossings, reference-field error |
 | L5 | standard: scores the Rev G set, reports what it does not score | feasibility (WP7) | NmF2/hmF2 errors, 1 sigma coverage, Kp classes |
 
 The C3 work (route one, route two, the field-aligned sheet, the tilt map, the
