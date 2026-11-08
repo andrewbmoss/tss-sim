@@ -76,6 +76,11 @@ COUPLER_LOSS_DB = 0.5
 #: An active vector modulator's output noise (-148 dBm/Hz) behind a 10 dB coupler.
 ACTIVE_NOISE_DBM_HZ = -158.0
 SEEDS = (0, 1, 2)
+#: Seed of the start-up runs (primed, cold, one settling step).
+START_UP_SEED = 0
+#: Seed of the draw that picks which grid points are re-simulated directly.
+VALIDATION_SAMPLE_SEED = 12345
+# All three reach the manifest as ``seeds`` (code review F9).
 
 _GOOD = {"amplitude_error_db": 0.1, "phase_error_deg": 1.0, "delay_mismatch_s": 1.0e-9}
 #: Canceller cases: name -> RFCanceller keywords (None for no canceller).
@@ -362,7 +367,7 @@ def ins10_predicted(truth: dict[str, Any], f_steps: np.ndarray, ped_over_noise_d
 # ----------------------------------------------------------------------------
 
 
-def start_up(sweep: Any, canceller: str = "none", seed: int = 0) -> dict[str, dict[str, float]]:
+def start_up(sweep: Any, canceller: str = "none", seed: int = START_UP_SEED) -> dict[str, dict[str, float]]:
     """Primed, cold, and one settling step, on the default (MoM bus, -133 dBc/Hz AM)."""
     from tss import sweep_law
     from tss.l2_instrument import leakage as lk
@@ -422,7 +427,8 @@ def start_up(sweep: Any, canceller: str = "none", seed: int = 0) -> dict[str, di
 # ----------------------------------------------------------------------------
 
 
-def compute(*, seeds: tuple[int, ...] = SEEDS, validate: int = 16) -> dict[str, Any]:
+def compute(*, seeds: tuple[int, ...] = SEEDS, validate: int = 16,
+            sample_seed: int = VALIDATION_SAMPLE_SEED) -> dict[str, Any]:
     from tss import sweep_law
     from tss.studies.data_volume import A1, A2
 
@@ -477,7 +483,7 @@ def compute(*, seeds: tuple[int, ...] = SEEDS, validate: int = 16) -> dict[str, 
         rows.append(row)
 
     # Re-simulate a sample of grid points directly.
-    rng = np.random.default_rng(12345)
+    rng = np.random.default_rng(sample_seed)
     checks = []
     pick = [r for r in rows if r["canceller"] not in ACTIVE_FROM]
     for k in rng.choice(len(pick), size=min(validate, len(pick)), replace=False):
@@ -503,7 +509,7 @@ def compute(*, seeds: tuple[int, ...] = SEEDS, validate: int = 16) -> dict[str, 
                              "predicted_db": row["ins10_min_db"], "direct_db": direct,
                              "error_db": direct - row["ins10_min_db"]})
 
-    startup = {c: start_up(sweeps["A1"], canceller=c) for c in ("none", "rf_good")}
+    startup = {c: start_up(sweeps["A1"], canceller=c, seed=START_UP_SEED) for c in ("none", "rf_good")}
     depths = {}
     from tss.l2_instrument.leakage import RFCanceller
 
@@ -623,6 +629,8 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     requirements=["INS-10", "INS-11", "INS-14", "INS-22", "INS-23", "INS-24"],
 )
 def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
+    manifest.seeds.update({"receive": list(SEEDS), "start_up": START_UP_SEED,
+                           "validation_sample": VALIDATION_SAMPLE_SEED})
     res = compute()
     rows = res["rows"]
     cols = list(rows[0].keys())

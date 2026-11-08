@@ -72,13 +72,22 @@ def git_state(repo: str | Path | None = None) -> dict[str, Any]:
 
 @dataclass
 class Manifest:
-    """Everything needed to reproduce one run."""
+    """Everything needed to reproduce one run.
+
+    ``seed`` is the campaign seed, ``config["seed"]``, from which the pipeline
+    derives its generators.  ``seeds`` holds every other seed a study draws
+    from, by role (for instance ``{"leakage": 0, "receive": [1, 2, 3]}``).  A
+    study that seeds a generator itself names the seed as a module constant or
+    an option and records it here, so the manifest alone reproduces the run
+    (code review F9).
+    """
 
     study: str
     configuration: str = ""
     config: Mapping[str, Any] = field(default_factory=dict)
     tiers: Mapping[str, Any] = field(default_factory=dict)
     seed: int | None = None
+    seeds: dict[str, Any] = field(default_factory=dict)
     inputs: list[dict[str, str]] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
     notes: str = ""

@@ -75,7 +75,13 @@ def _steady_state(hp: Any, x: np.ndarray, sweep: Any, fs: float) -> np.ndarray:
     return st
 
 
-def per_step(inst: Any, sweep: Any, *, model: Any | None = None, primed: bool = False) -> dict[str, np.ndarray]:
+#: Seed of the generator the leakage waveform draws from (its AM and PM noise).
+#: Recorded in the manifest as ``seeds["leakage"]`` (code review F9).
+LEAKAGE_SEED = 0
+
+
+def per_step(inst: Any, sweep: Any, *, model: Any | None = None, primed: bool = False,
+             seed: int = LEAKAGE_SEED) -> dict[str, np.ndarray]:
     """Per-step quantities for one instrument, sweep and leakage model."""
     from tss import sweep_law
     from tss.constants import C_LIGHT, K_BOLTZ
@@ -86,7 +92,7 @@ def per_step(inst: Any, sweep: Any, *, model: Any | None = None, primed: bool = 
     fs = inst.sample_rate_for(sweep)
     dwell = float(sweep.step_dwell_s)
     n = int(math.floor(sweep_law.active_duration_s(sweep) * fs))
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(seed)
     leak = lk.leakage_signal(sweep, fs, model, rng, n_samples=n, transmit_power_w=inst.tx_power_w,
                              tx_chain_efficiency_db=inst.tx_chain_efficiency_db,
                              impairments=inst.impairments)
@@ -231,6 +237,7 @@ def _metrics(r: dict[str, np.ndarray]) -> dict[str, Any]:
     requirements=["INS-11", "INS-23", "INS-24"],
 )
 def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
+    manifest.seeds.update({"leakage": LEAKAGE_SEED})
     res = compute()
     outputs: list[Path] = []
     metrics: dict[str, Any] = {}

@@ -84,6 +84,10 @@ C_LIGHT = 299_792_458.0
 WINDOW_M = 150.0e3
 BANDS_MHZ = ((0.0, 0.5), (0.5, 2.0), (2.0, 5.0), (5.0, 10.0), (10.0, 20.0))
 DEFAULT_SEEDS = (1, 2, 3)
+#: Seed of the generator handed to L1 for each scene's echoes.  The receive
+#: seeds are ``wp4_dispersion.seeds`` (default DEFAULT_SEEDS); both reach the
+#: manifest as ``seeds`` (code review F9).
+L1_ECHO_SEED = 0
 
 #: name: (L3 keyword arguments, sweep overrides)
 NARROW = {"narrow_lo_hz": 2.0e6, "narrow_hi_hz": 8.0e6, "narrow_cap_hz": 50.0e3}
@@ -310,7 +314,7 @@ def run_scene(name: str, l0: Any, platform: Any, epoch: str, *, config: dict[str
         sweep, freq, notes = _sweep(config, json.loads(sw_key))
         for mode in ("O", "X"):
             l1 = build("l1", "analytic", modes=[mode])
-            echoes = l1.echoes(state, platform, freq, np.random.default_rng(0))
+            echoes = l1.echoes(state, platform, freq, np.random.default_rng(L1_ECHO_SEED))
             truth_dpdf = _dpdf_truth(echoes)
             for seed in seeds:
                 rec_on = inst_on.receive(echoes, sweep, np.random.default_rng(seed))
@@ -422,13 +426,18 @@ def chain(config: dict[str, Any], seeds: list[int]) -> dict[str, Any]:
     return out
 
 
+def _receive_seeds(config: dict[str, Any]) -> list[int]:
+    opts = dict(config.get("wp4_dispersion", {}) or {})
+    return [int(s) for s in (opts.get("seeds") or DEFAULT_SEEDS)]
+
+
 def compute(config: dict[str, Any]) -> dict[str, Any]:
     from tss.config import load_yaml, resolve_path
     from tss.studies import platform_for
     from tss.studies import wp4_campaign as w
 
     opts = dict(config.get("wp4_dispersion", {}) or {})
-    seeds = [int(s) for s in (opts.get("seeds") or DEFAULT_SEEDS)]
+    seeds = _receive_seeds(config)
     n_isis = int(opts.get("n_isis", 12))
     do_chain = bool(opts.get("chain", True))
     conf = load_yaml(resolve_path("leo_500km_single", subdir="configurations"))
@@ -503,6 +512,7 @@ def _summary(res: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     requirements=["INS-05", "INS-07", "INS-10", "SCI-05", "SCI-07", "SCI-09"],
 )
 def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
+    manifest.seeds.update({"l1_echoes": L1_ECHO_SEED, "receive": _receive_seeds(dict(config))})
     res = compute(dict(config))
     rows = res["rows"]
     cols = sorted({k for r in rows for k in r}, key=lambda k: list(rows[0]).index(k) if k in rows[0] else 99)
