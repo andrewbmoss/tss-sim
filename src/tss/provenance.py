@@ -80,6 +80,10 @@ class Manifest:
     study that seeds a generator itself names the seed as a module constant or
     an option and records it here, so the manifest alone reproduces the run
     (code review F9).
+
+    ``error`` is ``None`` for a run that finished.  A study that raised an
+    unexpected exception still gets a manifest, with ``error`` holding the
+    exception's type, message and traceback (code review F13).
     """
 
     study: str
@@ -91,6 +95,7 @@ class Manifest:
     inputs: list[dict[str, str]] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
     notes: str = ""
+    error: dict[str, str] | None = None
 
     created_utc: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")

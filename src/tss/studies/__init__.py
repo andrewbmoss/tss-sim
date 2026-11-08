@@ -59,6 +59,9 @@ than raising, because :mod:`tss.cli` hands it straight to the shell:
         archive; the message names the file and the command that fetches it
     4   no study of that name is registered
     5   the working tree is dirty and ``--strict`` was given
+    6   the study raised an unexpected exception; the run directory keeps
+        whatever it wrote, plus a ``manifest.json`` whose ``error`` records the
+        exception and its traceback, and ``latest.json`` is not moved
 
 Those are distinguished rather than collapsed because they call for different
 actions, and a nightly job that reruns the study set should be able to tell a
@@ -69,6 +72,7 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -316,6 +320,23 @@ def run_study(
         _remove_if_empty(out_dir)
         print(f"study {name!r} cannot run here.\n  {exc}", file=out_stream)
         return 3
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed (code review F13)
+        # Anything else is a defect in the study.  Record it where the partial
+        # outputs are, so the directory never looks like a result without saying
+        # it is not one, and leave the latest.json pointer where it was.
+        manifest.error = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        }
+        manifest.outputs = sorted(str(p) for p in out_dir.rglob("*") if p.is_file())
+        manifest_path = manifest.write(out_dir)
+        print(
+            f"study {name!r} failed: {type(exc).__name__}: {exc}\n"
+            f"  the traceback is in {manifest_path}",
+            file=out_stream,
+        )
+        return 6
 
     summary_path = _write_summary(out_dir, study, result)
     result.outputs.append(summary_path)
