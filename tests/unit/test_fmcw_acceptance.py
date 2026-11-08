@@ -3,8 +3,30 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from tss.studies import fmcw_acceptance as fa
+
+
+def _flat(f, t):
+    return np.full_like(f, 3.0e5)
+
+
+def test_a_noisy_cell_without_a_generator_is_refused():
+    """Code review F8: noise from an unseeded generator would make a study irreproducible."""
+    with pytest.raises(ValueError, match="rng"):
+        fa.cell(5.0e6, 0.0, fa.K_P, fa.T_P, fa.FS_P, _flat, snr_db=20.0)
+
+
+def test_a_noisy_cell_is_reproducible_from_its_generator():
+    a = fa.cell(5.0e6, 0.0, fa.K_P, fa.T_P, fa.FS_P, _flat, snr_db=20.0, rng=np.random.default_rng(7))
+    b = fa.cell(5.0e6, 0.0, fa.K_P, fa.T_P, fa.FS_P, _flat, snr_db=20.0, rng=np.random.default_rng(7))
+    assert np.array_equal(a, b)
+
+
+def test_a_noiseless_cell_needs_no_generator():
+    x = fa.cell(5.0e6, 0.0, fa.K_P, fa.T_P, fa.FS_P, _flat)
+    assert x.size == int(round(fa.T_P * fa.FS_P))
 
 
 def test_parabolic_layer_phase_height_integrates_to_group_height():

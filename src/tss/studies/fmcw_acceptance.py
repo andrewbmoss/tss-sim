@@ -55,8 +55,16 @@ DEFAULTS = {"mc_trials": 2000, "seed": 20261103, "a9_snr_db": 30.0}
 def cell(f0_hz: float, t0_s: float, k: float, cell_s: float, fs_hz: float, rstar: Any,
          *, snr_db: float | None = None, rng: np.random.Generator | None = None,
          window: str = "hann") -> np.ndarray:
-    """One de-chirped cell (paper 1 eq. 14).  ``rstar(f_hz, t_s)`` is the phase range, m."""
+    """One de-chirped cell (paper 1 eq. 14).  ``rstar(f_hz, t_s)`` is the phase range, m.
+
+    With ``snr_db`` the cell carries complex white noise drawn from ``rng``, which
+    is then required: an unseeded fallback would make the study's statistics
+    irreproducible from its manifest seed (code review F8).
+    """
     from tss.l3_signal.transform import window_gains, window_taper
+
+    if snr_db is not None and rng is None:
+        raise ValueError("cell(): a noisy cell (snr_db given) needs an explicit rng")
 
     n = int(round(cell_s * fs_hz))
     t = np.arange(n) / fs_hz
@@ -66,8 +74,7 @@ def cell(f0_hz: float, t0_s: float, k: float, cell_s: float, fs_hz: float, rstar
     if snr_db is not None:
         _, enbw = window_gains(window_taper(window, n))
         sigma2 = n / (enbw * 10.0 ** (snr_db / 10.0))
-        g = rng if rng is not None else np.random.default_rng()
-        x = x + math.sqrt(sigma2 / 2.0) * (g.standard_normal(n) + 1j * g.standard_normal(n))
+        x = x + math.sqrt(sigma2 / 2.0) * (rng.standard_normal(n) + 1j * rng.standard_normal(n))
     return x
 
 
