@@ -104,6 +104,16 @@ back into the record, as they would in the instrument, because the analytic
 phase is evaluated at the sample times; they are counted in
 ``flags["rows_beyond_unambiguous_range"]``.
 
+RANDOM STREAMS
+--------------
+The transmit impairments, the leakage and the RF canceller each draw from a
+child stream spawned from the generator the tier is given, which does not
+advance it; the thermal noise and the extra receive channels draw from that
+generator itself.  Switching a sub-model on or off therefore leaves every
+other draw as it was, and a record with all three off is the record this tier
+made before 2026-11-08, when one stream served every draw in turn (code review
+F3).  ``flags["l2_substreams"]`` records whether the generator could spawn.
+
 WHAT IS NOT IN IT YET
 ---------------------
 Transmit-to-receive leakage.  :mod:`tss.l2_instrument.leakage` models it (WP3
@@ -223,6 +233,20 @@ def _traces_by_mode(
             continue
         out[label] = DelayTrace(f, delay[sel])
     return out
+
+
+def _substreams(rng: np.random.Generator, n: int) -> list[np.random.Generator]:
+    """``n`` independent child generators of ``rng``, without advancing it.
+
+    A generator that cannot spawn (one built without a SeedSequence, or a test
+    double) is returned ``n`` times, which is the single shared stream this
+    tier used before 2026-11-08.
+    """
+    try:
+        return list(rng.spawn(n))
+    except (AttributeError, TypeError, ValueError):
+        return [rng] * n
+
 
 def _leakage_model_from_config(leak: Mapping[str, Any], isolation: Mapping[str, Any]) -> Any:
     """The leakage model a ``leakage`` block asks for.
@@ -508,6 +532,10 @@ class BaselineInstrument:
         """De-chirped baseband for one sweep.  Inputs are never modified."""
         validate_schedule(sweep)
         imp = self.impairments
+        # Each L2 sub-model draws from a stream of its own (module docstring,
+        # RANDOM STREAMS; code review F3, 2026-11-08).
+        imp_rng, leak_rng, canc_rng = _substreams(rng, 3)
+        substreams = imp_rng is not rng
         freq = np.asarray(echoes.freq_hz, dtype=float)
         delay = np.asarray(echoes.group_delay_s, dtype=float)
         amp_db = np.asarray(echoes.amplitude_db, dtype=float)
@@ -621,7 +649,7 @@ class BaselineInstrument:
         ref_noise = None
         if imp.needs_realization:
             realization = imp.realize(
-                sweep, fs_hz, n_samples, rng, max_delay_s=1.2 * max_delay + 1.0e-3
+                sweep, fs_hz, n_samples, imp_rng, max_delay_s=1.2 * max_delay + 1.0e-3
             )
             ref_noise = realization.ref_phase()
         dopp_in = getattr(echoes, "doppler_hz", None)
@@ -777,7 +805,7 @@ class BaselineInstrument:
             from tss.l2_instrument import leakage as _lk
 
             leak = _lk.leakage_signal(
-                sweep, fs_hz, self.leakage, rng, n_samples=n_samples, t0_s=0.0,
+                sweep, fs_hz, self.leakage, leak_rng, n_samples=n_samples, t0_s=0.0,
                 transmit_power_w=self.tx_power_w,
                 tx_chain_efficiency_db=self.tx_chain_efficiency_db,
                 impairments=imp, realization=realization, primed=self.leakage_primed,
@@ -788,9 +816,9 @@ class BaselineInstrument:
                 # WP3 Phase 5: the RF canceller subtracts a weighted sample of
                 # the transmitted signal, so the leakage keeps its noise in
                 # proportion; it adds its own noise when it is active.
-                g_canc = self.canceller.residual_factor(sweep, t, self.leakage, rng)
+                g_canc = self.canceller.residual_factor(sweep, t, self.leakage, canc_rng)
                 leak = leak * g_canc
-                c_noise = self.canceller.added_noise(n_samples, fs_hz, rng)
+                c_noise = self.canceller.added_noise(n_samples, fs_hz, canc_rng)
                 if c_noise is not None:
                     leak = leak + c_noise
             samples = samples + leak
@@ -927,6 +955,7 @@ class BaselineInstrument:
             "l2_metrics": l2_metrics,
             "leakage_per_step": per_step,
             "vector_channels_are_placeholders": channels > 1,
+            "l2_substreams": bool(substreams),
             "absorption_db_carried_not_applied": True,
         }
 

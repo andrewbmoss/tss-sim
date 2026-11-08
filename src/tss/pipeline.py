@@ -19,6 +19,11 @@ so it works with any L1 tier.  It draws from a generator of its own, derived
 from the same seed and configuration with a further spawn key, so clutter on or
 off does not by itself redraw L2's noise.  The default is no clutter; the
 campaign runner passes one when the configuration's ``clutter`` block is on.
+
+L1 likewise draws from a stream of its own (spawn key 0x11), and L2 is given
+the configuration's main stream.  Until 2026-11-08 L1 and L2 shared one
+generator, so an L1 tier that drew would have changed L2's noise (code review
+F3); the analytic L1 tier draws nothing, so no earlier result depends on it.
 """
 
 from __future__ import annotations
@@ -108,6 +113,14 @@ class Pipeline:
         )
         return np.random.default_rng(mixed)
 
+    def _l1_rng(self, configuration: str) -> np.random.Generator:
+        """L1's own stream (spawn key 0x11 after the configuration's)."""
+        mixed = np.random.SeedSequence(
+            entropy=self.seed,
+            spawn_key=(zlib.crc32(configuration.encode("utf-8")), 0x11),
+        )
+        return np.random.default_rng(mixed)
+
     def _rng(self, configuration: str) -> np.random.Generator:
         """A generator unique to (seed, configuration) and stable across runs.
 
@@ -146,7 +159,7 @@ class Pipeline:
         t["l0"] = time.perf_counter() - t0
 
         t0 = time.perf_counter()
-        echoes = self.tiers["l1"].echoes(truth, platform, freq_hz, rng)
+        echoes = self.tiers["l1"].echoes(truth, platform, freq_hz, self._l1_rng(configuration))
         t["l1"] = time.perf_counter() - t0
 
         if self.clutter is not None:
