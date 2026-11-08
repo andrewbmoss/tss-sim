@@ -99,6 +99,9 @@ def test_tracker_labels_o_and_x_on_mid_latitude_noon(profile, clutter, min_compl
     assert tuple(ion.modes) == ("O", "X")
     assert ion.flags["extractor"] == "tracker" and ion.flags["mode_labelling"] == "model_self_consistent"
     assert ion.flags["mode_discrimination"] is False  # INS-08 needs the vector receive (WP11)
+    # The reason says the labels are a model, not that there are none (code review F7).
+    reason = ion.flags["mode_discrimination_reason"]
+    assert "labelled by model self-consistency" in reason and "not measured" in reason
     m = w.trace_measures(ion, row["_result"].echoes)
     assert m["completeness_o"] >= min_complete
     assert m["labelling_error"] <= max_label_err

@@ -39,14 +39,21 @@ resolution are the same trade seen from two sides.
 
 What this tier does not do
 ---------------------------
-It does not separate O from X.  A single receive channel sees the two traces
-superposed and there is no information in one channel with which to label them.
-The ionogram therefore carries one mode column, named ``"unresolved"``, and
-``flags["mode_discrimination"]`` is False.  L5 scores INS-08 against that flag
-and reports a failure, which is the correct report: the baseline configuration
-does not meet INS-08 and the vector receive of WP11 is what would.  Filling two
-columns with the same trace would score INS-08 as met and would be a fabricated
-result.
+It does not discriminate O from X by measurement.  A single receive channel sees
+the two traces superposed and carries no polarisation with which to tell them
+apart, so ``flags["mode_discrimination"]`` is False with either extractor.  L5
+scores INS-08 against that flag and reports a failure, which is the correct
+report: the baseline configuration does not meet INS-08 and the vector receive
+of WP11 is what would.
+
+With the legacy extractor the ionogram carries one mode column, named
+``"unresolved"``; filling two columns with the same trace would score INS-08 as
+met and would be a fabricated result.  With the trace tracker of WP4 Phase 4
+(the default when a platform state is given) it carries ``"O"`` and ``"X"``
+columns labelled by model self-consistency under the IGRF field
+(``flags["mode_labelling"]``), which is a model and not a measurement, and
+``flags["mode_discrimination_reason"]`` says which of the two it is (code
+review F7, 2026-11-08).
 
 It does not populate ``doppler_mps``.  A single sweep cannot separate the
 Doppler shift from the range, which is the whole of C3.  Leaving the field
@@ -760,6 +767,11 @@ class BaselineSignalProcessing(SignalProcessingBase):
             # two traces under the IGRF field), not measured by polarisation:
             # INS-08 still needs the vector receive of WP11.
             flags["mode_labelling"] = "model_self_consistent"
+            flags["mode_discrimination_reason"] = (
+                "scalar receive; O and X are labelled by model self-consistency "
+                "(the tracker), not measured; discrimination by measurement needs "
+                "the vector receive of WP11 (INS-08, C5)"
+            )
             flags["range_sigma_m"] = np.where(np.isfinite(track.sigma_m), track.sigma_m, -1.0).tolist()
             flags["label_confidence"] = np.where(np.isfinite(track.confidence), track.confidence, -1.0).tolist()
             flags["sample_quality"] = np.asarray(track.quality, dtype=int).tolist()

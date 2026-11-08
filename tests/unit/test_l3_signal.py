@@ -263,6 +263,12 @@ def test_baseline_tier_declines_to_claim_mode_or_doppler():
     assert ionogram.flags["mode_discrimination"] is False
     assert ionogram.flags["doppler_separated"] is False
     assert tuple(ionogram.modes) == ("unresolved",)
+    # Without the tracker there is no labelling at all, and the reason is the
+    # original one (code review F7 gave the tracker case a reason of its own).
+    assert ionogram.flags["extractor"] == "legacy"
+    assert ionogram.flags["mode_discrimination_reason"] == (
+        "scalar receive; O and X labelling needs the vector receive of WP11 (INS-08, C5)"
+    )
 
 
 def test_baseline_tier_does_not_mutate_its_input():
