@@ -800,7 +800,10 @@ class BaselineInstrument:
         t_ant = self.antenna_temperature_k(np.clip(f_tx, 1.0, None) / 1.0e6)
         t_sys = t_ant + self.receiver.noise_temperature_k
         sigma = np.sqrt(K_BOLTZ * t_sys * fs_hz / 2.0)
-        samples = samples + rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
+        # The noise-free input is kept for the extra receive channels below,
+        # each of which adds its own noise to it (code review F1, 2026-11-08).
+        clean = samples
+        samples = clean + rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
 
         # Receive chain.  Front end (bandpass-equivalent compression of the
         # composite), the leakage high-pass after the de-chirp (WP3 Phase 3),
@@ -824,10 +827,13 @@ class BaselineInstrument:
         # signal with an independent noise realisation, which is enough to
         # exercise the interface and is not enough to test anything about C5.
         # The flag ``vector_channels_are_placeholders`` says so on every record.
+        # Each channel's noise is added to the noise-free input; until
+        # 2026-11-08 it was added to channel 1's noisy samples, which gave the
+        # extra channels +3 dB of noise correlated with channel 1 (review F1).
         for _ in range(channels - 1):
             extra_noise = rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
             chain = self.receiver.apply_gain(
-                self._analog(samples + extra_noise, sweep, fs_hz, state=hp_state)
+                self._analog(clean + extra_noise, sweep, fs_hz, state=hp_state)
             )
             chain, _ = self.receiver.clip(chain, clip_level_w)
             rows_out.append(
