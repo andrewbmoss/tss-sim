@@ -396,6 +396,25 @@ def test_rule3_l2_accepts_an_echo_set_with_no_rows(chain):
     assert signal.flags["rows_used"] == 0
 
 
+def test_rule3_l2_takes_a_uniform_sweep_with_leakage_on(chain):
+    """The tier built from the instrument file has the leakage on, which the
+    default-built tier above does not.  A uniform sweep then raised a ValueError
+    in the INS-11 leakage check until 2026-11-08 (code review F2)."""
+    from tss.interfaces import SweepSchedule
+    from tss.studies import build_instrument
+
+    l2 = build_instrument(
+        "baseline", load_campaign("smoke").config,
+        load_yaml(resolve_path("leo_500km_single", subdir="configurations")),
+    )
+    uniform = SweepSchedule(
+        f_start_hz=1.0e6, f_stop_hz=2.0e6, k_f_hz_per_s=5.6e6, sweep_period_s=1.0 / 5.6
+    )
+    signal = l2.receive(_empty(chain["echoes"]), uniform, np.random.default_rng(0))
+    assert signal.flags["leakage_modelled"]
+    assert signal.flags["rows_used"] == 0
+
+
 def test_rule3_an_echo_free_record_gives_an_empty_ionogram(chain):
     """Failed until 2026-10-17, when L2 set its sample rate from the echoes and
     sampled an echo-free record at 2.5 Hz."""

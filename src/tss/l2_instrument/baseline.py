@@ -139,6 +139,7 @@ from tss.l2_instrument.receiver import Receiver
 from tss.l2_instrument.waveform import (
     sweep_bandwidth_hz,
     sweep_duration_s,
+    sweep_frequency_hz,
     validate_schedule,
 )
 from tss.registry import register
@@ -1129,7 +1130,9 @@ class BaselineInstrument:
             got = 10.0 * math.log10(lin / lout)
             if need - got > shortfall:
                 shortfall = need - got
-                worst_f = float(sweep_law.frequency_hz(sweep, (s + e) / 2.0 / float(fs_hz)))
+                # Either sweep law (code review F2, 2026-11-08): sweep_law knows
+                # only the stepped one, and a uniform sweep raised here.
+                worst_f = float(sweep_frequency_hz(sweep, (s + e) / 2.0 / float(fs_hz)))
         clip_in = float(clip_level_w) / float(undb(self.receiver.gain_db))
         over = 10.0 * math.log10(max(float(np.max(np.abs(res) ** 2)), 1e-300) / clip_in)
         out["dynamic_range_db_at_digitiser"] = dr - max(0.0, float(shortfall), over)
