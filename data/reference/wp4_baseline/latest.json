@@ -11,15 +11,17 @@
   "metrics": {
     "clutter": "off",
     "n_runs": 30,
-    "sci05_median": 0.17629349830197433,
-    "sci05_worst": 1.1718827684024493,
-    "sci07_median_m": 18795.008121567378,
-    "sci07_worst_m": 108280.65935219817,
-    "ins10_median_db": 14.389997640004566,
-    "ins10_worst_db": -13.91986258569122,
-    "completeness_o_median": 0.13636363636363635,
+    "sci05_median": 0.17146222903294484,
+    "sci05_worst": 1.2280985360002197,
+    "sci07_median_m": 19434.660615390152,
+    "sci07_worst_m": 111705.4783755416,
+    "ins10_median_db": 15.638854946260835,
+    "ins10_worst_db": -16.55843535132368,
+    "completeness_o_median": 0.10344827586206896,
     "completeness_o_worst": 0.0,
-    "fraction_on_x_median": 0.5076628352490422
+    "fraction_on_x_median": 0.49242424242424243,
+    "labelling_error_pooled": 0.8624708624708625,
+    "coverage_gap_median_m": 25629.136391413864
   },
   "work_packages": [
     "WP4"

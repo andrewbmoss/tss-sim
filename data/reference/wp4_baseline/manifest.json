@@ -1,5 +1,56 @@
 {
   "config": {
+    "clutter": {
+      "climatology": false,
+      "compression_image": {
+        "enabled": true
+      },
+      "enabled": false,
+      "ground_echo": {
+        "d_region_a_db_mhz2": 100.0,
+        "d_region_f_l_mhz": 1.2,
+        "enabled": true,
+        "surface_reflection_db": -3.0
+      },
+      "interference": {
+        "carriers_per_band": 3,
+        "enabled": true,
+        "only_above_fof2": true,
+        "power_dbm_iso": -70.0,
+        "raster_hz": 5000.0,
+        "sigma_db": 6.0
+      },
+      "plasma_resonances": {
+        "enabled": true,
+        "extent_km": 1000.0,
+        "fN": {
+          "decay_ms": 0.5,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "fUH": {
+          "decay_ms": 1.0,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "floor_db": 30.0,
+        "nfH": {
+          "decay_ms": 3.0,
+          "enabled": true,
+          "harmonics": 3,
+          "level_db": -70.0
+        },
+        "row_spacing_km": 3.0
+      },
+      "spread_f": {
+        "beyond_penetration_fraction": 0.05,
+        "enabled": true,
+        "extent_km": 100.0,
+        "level_db": -6.0,
+        "mean_km": 30.0,
+        "rows_per_echo": 12
+      }
+    },
     "grid": {
       "alt_max_m": 2000000.0,
       "alt_min_m": 90000.0,
@@ -33,14 +84,19 @@
       "l0": "chapman",
       "l1": "analytic",
       "l2": "baseline",
-      "l3": "baseline",
+      "l3": {
+        "detector": "fixed",
+        "dispersion": "none",
+        "extractor": "legacy",
+        "name": "baseline"
+      },
       "l4": "lamination_magnetoionic",
       "l5": "standard"
     }
   },
-  "config_sha256": "204dc9965d08fba394f0c71d02846922b40bd512595f963eaef6ddda43457406",
+  "config_sha256": "2183de84fa46fd56610f70860a011542c0fa9696d62fdafb7dfe30723aa3e588",
   "configuration": "",
-  "created_utc": "2026-10-30T13:59:21+00:00",
+  "created_utc": "2026-11-08T16:22:17+00:00",
   "environment": {
     "host": "HeartOfGold",
     "platform": "Windows-10-10.0.26300-SP0",
@@ -48,8 +104,8 @@
     "user": "Andrew"
   },
   "git": {
-    "branch": "wp4-p1",
-    "commit": "af28d58e673820a4b2dacc7d5a7d59a6a3ae63b4",
+    "branch": "master",
+    "commit": "16c521885205a5078f5c960740691241572d8d52",
     "dirty": false,
     "dirty_files": []
   },
