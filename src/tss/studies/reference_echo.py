@@ -52,14 +52,14 @@ _COLUMNS = (
 )
 
 
-def _instrument() -> Any:
+def reference_instrument() -> Any:
     from tss.config import load_yaml, resolve_path
     from tss.l2_instrument.baseline import BaselineInstrument
 
     return BaselineInstrument.from_config(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
 
 
-def _crossing_mhz(f_hz: np.ndarray, snr_db: np.ndarray, level: float = 10.0) -> float | None:
+def crossing_mhz(f_hz: np.ndarray, snr_db: np.ndarray, level: float = 10.0) -> float | None:
     """Lowest frequency above which the free-space SNR at R_max stays at or above ``level``."""
     ok = np.asarray(snr_db) >= level
     if np.all(ok):
@@ -76,7 +76,7 @@ def compute() -> dict[str, Any]:
     from tss.l2_instrument import reference_echo as rx
     from tss.studies.data_volume import A1, A2
 
-    inst = _instrument()
+    inst = reference_instrument()
     out: dict[str, Any] = {"legacy": rx.legacy_echo_db(5.0e6), "configs": {}}
     for cfg in (A1, A2):
         sweep = cfg.schedule()
@@ -183,7 +183,7 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
 
     i5 = idx[SUMMARY_MHZ.index(5.0)]
     legacy = res["legacy"]
-    cross = _crossing_mhz(lev["f_hz"], lev["snr_rmax_db"])
+    cross = crossing_mhz(lev["f_hz"], lev["snr_rmax_db"])
     a2 = res["configs"]["A2"]
     metrics = {
         "legacy_echo_below_tx_db_5mhz_300km": legacy["echo_below_tx_db"],

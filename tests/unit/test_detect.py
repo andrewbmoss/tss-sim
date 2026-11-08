@@ -86,10 +86,10 @@ def _full_l2_noise_counts(n_seeds: int = 10) -> tuple[int, int, int]:
     from tss.interfaces import EchoSet
     from tss.l2_instrument.baseline import BaselineInstrument
     from tss.l3_signal.ionogram import BaselineSignalProcessing
-    from tss.studies import _base_config, _sweep_from_config, instrument_config
+    from tss.studies import base_config, instrument_config, sweep_from_config
 
-    cfg = _base_config(())
-    sweep = _sweep_from_config(cfg, io.StringIO())[0]
+    cfg = base_config(())
+    sweep = sweep_from_config(cfg, io.StringIO())[0]
     inst = BaselineInstrument.from_config(instrument_config(cfg))  # leakage on, the default
     assert inst.leakage_enabled
     l3 = BaselineSignalProcessing(dispersion="none")  # the detector, on one transform per dwell
@@ -160,10 +160,10 @@ def test_the_reference_matches_the_noise_beyond_the_minimum_range():
     from tss.interfaces import EchoSet
     from tss.l2_instrument.baseline import BaselineInstrument
     from tss.l3_signal.ionogram import BaselineSignalProcessing
-    from tss.studies import _base_config, _sweep_from_config, instrument_config
+    from tss.studies import base_config, instrument_config, sweep_from_config
 
-    cfg = _base_config(())
-    sweep = _sweep_from_config(cfg, io.StringIO())[0]
+    cfg = base_config(())
+    sweep = sweep_from_config(cfg, io.StringIO())[0]
     inst = BaselineInstrument.from_config(instrument_config(cfg))
     l3 = BaselineSignalProcessing(dispersion="none")
     empty = EchoSet(freq_hz=np.array([]), mode=np.array([], dtype=object), group_delay_s=np.array([]),
@@ -328,10 +328,10 @@ def test_snr_at_against_noise_and_against_the_column():
     from tss.interfaces import EchoSet
     from tss.l2_instrument.baseline import BaselineInstrument
     from tss.l3_signal.ionogram import BaselineSignalProcessing
-    from tss.studies import _base_config, _sweep_from_config, instrument_config
+    from tss.studies import base_config, instrument_config, sweep_from_config
 
-    cfg = _base_config(())
-    sweep = _sweep_from_config(cfg, io.StringIO())[0]
+    cfg = base_config(())
+    sweep = sweep_from_config(cfg, io.StringIO())[0]
     icfg = instrument_config(cfg)
     icfg["leakage"]["enabled"] = False
     icfg["transmit_impairments"] = {}

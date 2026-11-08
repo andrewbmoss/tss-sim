@@ -32,12 +32,12 @@ from tss.l5_assessment.scoring import truth_echo_cells, truth_echo_metrics
 from tss.pipeline import Pipeline, build_tiers
 from tss.registry import build
 from tss.studies import (
-    _grids,
-    _platform_for,
-    _sweep_from_config,
     build_instrument,
+    campaign_grids,
     instrument_config,
+    platform_for,
     run_campaign,
+    sweep_from_config,
 )
 
 EPOCH = "2026-01-01T12:00:00Z"
@@ -45,8 +45,8 @@ EPOCH = "2026-01-01T12:00:00Z"
 
 def _smoke():
     config = load_campaign("smoke").config
-    sweep, _ = _sweep_from_config(config, io.StringIO())
-    alt_m, freq_hz = _grids(config)
+    sweep, _ = sweep_from_config(config, io.StringIO())
+    alt_m, freq_hz = campaign_grids(config)
     return config, sweep, alt_m, freq_hz
 
 
@@ -86,7 +86,7 @@ def test_the_sample_rate_is_the_ins06_rate_whatever_the_echoes():
 
 def test_the_unambiguous_range_reaches_ins04_through_the_whole_chain():
     config, sweep, alt_m, freq_hz = _smoke()
-    platform = _platform_for(_configuration("leo_500km_single"), EPOCH)
+    platform = platform_for(_configuration("leo_500km_single"), EPOCH)
     tiers = build_tiers({k: v for k, v in config["tiers"].items() if k != "l2"})
     tiers["l2"] = build_instrument("baseline", config, _configuration("leo_500km_single"))
     result = Pipeline(tiers, seed=1).run_configuration(
@@ -258,7 +258,7 @@ def test_ins10_is_not_evaluated_without_the_measurement():
 
 def test_the_pipeline_scores_ins10_at_the_truth_echoes():
     config, sweep, alt_m, freq_hz = _smoke()
-    platform = _platform_for(_configuration("leo_500km_single"), EPOCH)
+    platform = platform_for(_configuration("leo_500km_single"), EPOCH)
     tiers = build_tiers({k: v for k, v in config["tiers"].items() if k != "l2"})
     tiers["l2"] = build_instrument("baseline", config, _configuration("leo_500km_single"))
     result = Pipeline(tiers, seed=1).run_configuration(

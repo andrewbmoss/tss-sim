@@ -15,7 +15,7 @@ rate search keeps a rate per detection (:func:`tss.l3_signal.ionogram.assign_rat
 WHAT IT DOES
 ------------
 1. **Onboard priors.**  The gyrofrequency at the spacecraft comes from the
-   geomagnetic field at its position (:func:`tss.l4_retrieval.lamination.geomagnetic_field_model`,
+   geomagnetic field at its position (:func:`tss.l1_propagation.lamination.geomagnetic_field_model`,
    IGRF with a dipole fallback).  The local plasma frequency is estimated from
    the ionogram, as the Alouette and ISIS analysts did: the plasma resonances
    ring through a whole column, so the lowest streak column that is not a
@@ -462,7 +462,7 @@ def _trim(path: np.ndarray, sc: np.ndarray, s: TrackerSettings) -> tuple[np.ndar
 
 def _profile_from_o(freq_hz: np.ndarray, range_m: np.ndarray, f_start_hz: float, h_sat_m: float,
                     fld: FieldModel) -> tuple[np.ndarray, np.ndarray] | None:
-    from tss.l4_retrieval.lamination import lamina_thicknesses_magnetoionic_m
+    from tss.l1_propagation.lamination import lamina_thicknesses_magnetoionic_m
 
     f = np.asarray(freq_hz, dtype=float)
     r = np.asarray(range_m, dtype=float)

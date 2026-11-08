@@ -112,9 +112,9 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
     # INS-04's range, comes from tss.l2_instrument.reference_echo.
     from tss.l2_instrument.reference_echo import reference_levels
     from tss.studies.data_volume import A1
-    from tss.studies.reference_echo import _crossing_mhz, _instrument
+    from tss.studies.reference_echo import crossing_mhz, reference_instrument
 
-    lev = reference_levels(_instrument(), A1.schedule())
+    lev = reference_levels(reference_instrument(), A1.schedule())
     inst_snr = np.asarray(lev["snr_rmax_db"], dtype=float)
     inst_path = out_dir / "instrument_snr_at_rmax.csv"
     np.savetxt(
@@ -122,7 +122,7 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
         delimiter=",", header="f_mhz,gain_dbi,snr_db_free_space_1050km", comments="",
     )
     outputs.append(inst_path)
-    cross = _crossing_mhz(lev["f_hz"], inst_snr)
+    cross = crossing_mhz(lev["f_hz"], inst_snr)
     i5 = int(np.argmin(np.abs(lev["f_hz"] / 1e6 - 5.0)))
     metrics.update({
         "default_config_is_inherited_tisc_point_design": True,

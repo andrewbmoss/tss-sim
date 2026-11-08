@@ -181,11 +181,11 @@ def test_stepped_echo_lands_at_its_range_across_the_band(range_m):
 
 
 def test_campaign_grid_uses_step_centres():
-    from tss.studies import _grids
+    from tss.studies import campaign_grids
 
     cfg = {"sweep": {"f_start_hz": 3.3e5, "f_stop_hz": 2.0e7, "step_dwell_s": 0.0268,
                      "step_fraction": 0.05, "step_cap_hz": 1.5e5}}
-    _, freq = _grids(cfg)
+    _, freq = campaign_grids(cfg)
     assert freq.size == 159
     assert np.allclose(freq, law.step_centres_hz(A1))
 

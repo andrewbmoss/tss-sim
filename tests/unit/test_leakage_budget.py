@@ -22,8 +22,8 @@ def _cfg(canceller=None, **imp):
     return cfg
 
 
-def _no_echoes():
-    from tss.studies.leakage_residual import _no_echoes as ne
+def no_echoes():
+    from tss.studies.leakage_residual import no_echoes as ne
 
     return ne()
 
@@ -103,9 +103,9 @@ def test_the_configuration_block_reads():
 
 def test_the_canceller_takes_the_am_down_with_the_carrier():
     sweep = A1.schedule()
-    off = BaselineInstrument.from_config(_cfg()).receive(_no_echoes(), sweep, np.random.default_rng(0))
+    off = BaselineInstrument.from_config(_cfg()).receive(no_echoes(), sweep, np.random.default_rng(0))
     on = BaselineInstrument.from_config(_cfg({"ideal_depth_db": 30.0})).receive(
-        _no_echoes(), sweep, np.random.default_rng(0))
+        no_echoes(), sweep, np.random.default_rng(0))
     d = np.asarray(off.flags["leakage_per_step"]["residual_pedestal_dbw"]) - np.asarray(
         on.flags["leakage_per_step"]["residual_pedestal_dbw"])
     assert np.median(d) == pytest.approx(30.0, abs=0.3)
@@ -121,7 +121,7 @@ def test_an_active_canceller_adds_its_own_noise():
     inst = BaselineInstrument.from_config(_cfg({"ideal_depth_db": 30.0}, am_noise_dbc_hz=None))
     noisy = copy.deepcopy(_cfg({"amplitude_error_db": 0.0, "phase_error_deg": 0.0, "error_draw": "worst",
                                 "delay_mismatch_s": 0.0, "added_noise_dbm_hz": -150.0}, am_noise_dbc_hz=None))
-    r = BaselineInstrument.from_config(noisy).receive(_no_echoes(), sweep, np.random.default_rng(0))
+    r = BaselineInstrument.from_config(noisy).receive(no_echoes(), sweep, np.random.default_rng(0))
     lev = reference_levels(inst, sweep)
     want = -180.0 + 10 * np.log10(lev["cell_bandwidth_hz"])
     got = np.asarray(r.flags["leakage_per_step"]["residual_pedestal_dbw"])
@@ -135,7 +135,7 @@ def test_the_default_carries_ins30_and_ins31_at_threshold_and_meets_ins24():
     inst = BaselineInstrument.from_config(load_yaml(resolve_path("instrument/baseline_6u.yaml")))
     assert inst.impairments.am_noise_dbc_hz == -140.0
     assert inst.canceller is not None and inst.canceller.ideal_depth_db == 26.0
-    m = inst.receive(_no_echoes(), A1.schedule(), np.random.default_rng(3)).flags["l2_metrics"]
+    m = inst.receive(no_echoes(), A1.schedule(), np.random.default_rng(3)).flags["l2_metrics"]
     # The leakage noise is 6.3 dB under the system noise at the band bottom.
     assert m["leakage_noise_over_system_noise_db"] == pytest.approx(-6.3, abs=1.0)
     assert m["leakage_residual_margin_db"] > 10.0
@@ -153,7 +153,7 @@ def test_without_a_canceller_ins31_says_why_it_is_not_evaluated():
     from tss.l5_assessment.requirements_check import check_requirements
 
     m = BaselineInstrument.from_config(_cfg(None)).receive(
-        _no_echoes(), A1.schedule(), np.random.default_rng(3)).flags["l2_metrics"]
+        no_echoes(), A1.schedule(), np.random.default_rng(3)).flags["l2_metrics"]
     rec = check_requirements(m)
     assert rec["INS-31"]["verdict"] == "not_evaluated" and "canceller" in rec["INS-31"]["reason"]
 

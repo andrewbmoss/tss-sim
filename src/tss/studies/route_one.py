@@ -74,6 +74,11 @@ from tss.l1_propagation.doppler import (
     doppler_shift_hz,
     refractive_index_at_platform,
 )
+from tss.l3_signal.novel.route_one_estimator import (  # moved to L3 (code review F4)
+    HALF_POWER_X,
+    envelope_power,
+    fit_overflight_time,
+)
 from tss.studies import StudyResult, register_study
 
 __all__ = [
@@ -113,9 +118,6 @@ PLATFORM_SPEED_MPS = 7600.0
 #: accuracy at mu_sat = sqrt(3)/2, kept unrounded so the budget reproduces 10.0.
 INS26_THRESHOLD = 2.0 * 10.0 * np.sqrt(0.75) / C_LIGHT
 INS26_GOAL = 3.2e-9
-
-#: First zero of d/dx [sinc^2] half-power point: sinc^2(x) = 1/2 at this x.
-_HALF_POWER_X = 1.3915573782515
 
 
 def mu_sat(f_hz: float | np.ndarray, f_n_sat_hz: float = REFERENCE_F_N_SAT_HZ) -> np.ndarray:
@@ -195,17 +197,11 @@ def envelope_width_s(
     """Full width at half maximum of the echo power envelope, s."""
     lam = C_LIGHT / np.asarray(f_hz, dtype=float)
     return (
-        2.0 * _HALF_POWER_X / (2.0 * np.pi)
+        2.0 * HALF_POWER_X / (2.0 * np.pi)
         * lam
         * np.asarray(p_group_m, dtype=float)
         / (np.asarray(facet_m, dtype=float) * float(v_s_mps))
     )
-
-
-def envelope_power(t_s: np.ndarray, t0_s: float, width_s: float) -> np.ndarray:
-    """Unit-peak ``sinc^2`` envelope with half-power width ``width_s``."""
-    x = 2.0 * _HALF_POWER_X * (np.asarray(t_s, dtype=float) - float(t0_s)) / float(width_s)
-    return np.sinc(x / np.pi) ** 2
 
 
 def overflight_time_tolerance_s(
@@ -281,43 +277,6 @@ def simulate_overflight_power(
     noise = (rng.standard_normal(t.size) + 1j * rng.standard_normal(t.size)) / np.sqrt(2.0)
     power = np.abs(field * g + noise) ** 2
     return OverflightTrial(t_s=t, power=power, t0_s=t0, width_s=float(width_s))
-
-
-def fit_overflight_time(t_s: np.ndarray, power: np.ndarray) -> tuple[float, float]:
-    """Least-squares centre and width of a ``sinc^2`` envelope on a noise floor.
-
-    Four parameters are fitted: centre, width, amplitude and floor.  The start
-    comes from the data alone, a smoothed peak for the centre and the second
-    moment about it for the width, so the fit is not told the answer.
-    """
-    from scipy.optimize import least_squares
-
-    t = np.asarray(t_s, dtype=float)
-    p = np.asarray(power, dtype=float)
-    span = float(t[-1] - t[0])
-    dt = float(t[1] - t[0])
-
-    floor0 = float(np.median(p))
-    k = max(3, int(round(0.08 * t.size)) | 1)
-    smooth = np.convolve(p, np.ones(k) / k, mode="same")
-    c0 = float(t[int(np.argmax(smooth))])
-    excess = np.clip(smooth - floor0, 0.0, None)
-    if excess.sum() > 0.0:
-        var = float(np.sum(excess * (t - c0) ** 2) / excess.sum())
-        w0 = float(np.clip(2.0 * np.sqrt(var), 4.0 * dt, 0.6 * span))
-    else:
-        w0 = 0.2 * span
-    a0 = max(float(smooth.max() - floor0), 1e-3)
-
-    def resid(q: np.ndarray) -> np.ndarray:
-        return q[2] * envelope_power(t, q[0], q[1]) + q[3] - p
-
-    sol = least_squares(
-        resid,
-        x0=[c0, w0, a0, floor0],
-        bounds=([t[0], 2.0 * dt, 0.0, 0.0], [t[-1], span, np.inf, np.inf]),
-    )
-    return float(sol.x[0]), float(sol.x[1])
 
 
 def overflight_time_sigma_s(

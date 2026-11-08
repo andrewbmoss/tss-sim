@@ -22,17 +22,17 @@ PFA = 1.0e-4
 
 
 def _cfg():
-    from tss.studies import _base_config
+    from tss.studies import base_config
 
-    return _base_config(())
+    return base_config(())
 
 
 def _sweep(**over):
-    from tss.studies import _sweep_from_config
+    from tss.studies import sweep_from_config
 
     cfg = _cfg()
     cfg["sweep"] = {**cfg["sweep"], **over}
-    return _sweep_from_config(cfg, io.StringIO())[0]
+    return sweep_from_config(cfg, io.StringIO())[0]
 
 
 def _instrument(leakage=True, dispersion=True):
@@ -186,14 +186,14 @@ def test_rate_search_and_narrow_steps_recover_the_dispersion_loss_on_a_dispersiv
     from dataclasses import replace
 
     from tss.config import load_yaml, resolve_path
-    from tss.studies import _platform_for
+    from tss.studies import platform_for
     from tss.studies import wp4_campaign as w
     from tss.studies import wp4_dispersion as d
 
     cfg = _cfg()
     conf = load_yaml(resolve_path("leo_500km_single", subdir="configurations"))
     lat, lt, *_ = w.PROFILES["mid_day_min"]
-    pl = replace(_platform_for(conf, w.EPOCH), lat_deg=lat, lon_deg=w._lon_for_local_time(lt))
+    pl = replace(platform_for(conf, w.EPOCH), lat_deg=lat, lon_deg=w._lon_for_local_time(lt))
     tr = {k: d.TREATMENTS[k] for k in ("D0", "D2w", "D3")}
     rows = d.run_scene("mid_day_min", w._l0_for("mid_day_min"), pl, w.EPOCH, config=cfg, seeds=[1],
                        treatments=tr)

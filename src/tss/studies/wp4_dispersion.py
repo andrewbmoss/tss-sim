@@ -200,12 +200,12 @@ def isis_scenes(n: int, seed: int = 0, qualities: Any = ISIS_QUALITIES) -> list[
 
 
 def _sweep(config: dict[str, Any], over: dict[str, Any]) -> tuple[Any, np.ndarray, dict[str, Any]]:
-    from tss.studies import _grids, _sweep_from_config
+    from tss.studies import campaign_grids, sweep_from_config
 
     cfg = copy.deepcopy(config)
     cfg["sweep"] = {**dict(cfg.get("sweep", {})), **over}
-    sweep, notes = _sweep_from_config(cfg, io.StringIO())
-    _, freq = _grids(cfg)
+    sweep, notes = sweep_from_config(cfg, io.StringIO())
+    _, freq = campaign_grids(cfg)
     return sweep, freq, notes
 
 
@@ -297,9 +297,9 @@ def run_scene(name: str, l0: Any, platform: Any, epoch: str, *, config: dict[str
               treatments: dict[str, tuple[dict[str, Any], dict[str, Any]]]) -> list[dict[str, Any]]:
     from tss.l3_signal.ionogram import BaselineSignalProcessing
     from tss.registry import build
-    from tss.studies import _grids
+    from tss.studies import campaign_grids
 
-    alt_m, _ = _grids(config)
+    alt_m, _ = campaign_grids(config)
     state = l0.state_at(platform.lat_deg, platform.lon_deg, epoch, alt_m)
     inst_on, inst_off = _instrument(config, True), _instrument(config, False)
     rows: list[dict[str, Any]] = []
@@ -424,7 +424,7 @@ def chain(config: dict[str, Any], seeds: list[int]) -> dict[str, Any]:
 
 def compute(config: dict[str, Any]) -> dict[str, Any]:
     from tss.config import load_yaml, resolve_path
-    from tss.studies import _platform_for
+    from tss.studies import platform_for
     from tss.studies import wp4_campaign as w
 
     opts = dict(config.get("wp4_dispersion", {}) or {})
@@ -436,14 +436,14 @@ def compute(config: dict[str, Any]) -> dict[str, Any]:
     scenes: list[dict[str, Any]] = []
     for name in (opts.get("profiles") or list(w.PROFILES)):
         lat, lt, *_ = w.PROFILES[name]
-        pl = replace(_platform_for(conf, w.EPOCH), lat_deg=float(lat), lon_deg=w._lon_for_local_time(lt))
+        pl = replace(platform_for(conf, w.EPOCH), lat_deg=float(lat), lon_deg=w._lon_for_local_time(lt))
         rows += run_scene(name, w._l0_for(name), pl, w.EPOCH, config=config, seeds=seeds, treatments=TREATMENTS)
         scenes.append({"scene": name, "source": "chapman"})
     quals = [int(q) for q in (opts.get("isis_qualities") or ISIS_QUALITIES)]
     for i, prof in enumerate(isis_scenes(n_isis, qualities=quals)):
         l0 = MeasuredTopside(prof)
         ep = prof.epoch.strftime("%Y-%m-%dT%H:%M:%SZ")
-        pl = replace(_platform_for(conf, ep), alt_m=float(prof.sat_alt_km) * 1e3, lat_deg=float(prof.lat_deg),
+        pl = replace(platform_for(conf, ep), alt_m=float(prof.sat_alt_km) * 1e3, lat_deg=float(prof.lat_deg),
                      lon_deg=float(prof.lon_deg), epoch=ep)
         name = f"isis{i:02d}"
         try:

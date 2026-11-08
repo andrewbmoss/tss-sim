@@ -27,7 +27,7 @@ error budgets per layer, not just a final profile error.
 
 These apply to every tier implementation at every layer.  They are stated in the
 module docstring of `src/tss/interfaces.py` and are enforced by the shared
-contract tests in `tests/test_interfaces.py`.
+contract tests in `tests/contract/test_tier_contracts.py`.
 
 **1.  Inputs are never mutated.**  A tier returns new objects.  The data objects
 are frozen dataclasses, which stops accidental field assignment but does not
@@ -267,6 +267,26 @@ obvious what a campaign did not reach.  That choice makes assessments more
 verbose and it is worth the verbosity, because a silently shortened requirement
 table reads as a clean sweep.
 
+## Import direction
+
+A module imports only modules at its own rank or below.  From the bottom:
+
+1. support: `constants`, `units`, `interfaces`, `registry`, `config`,
+   `provenance`, `requirements`, `sweep_law`, `windows`, `data`, `platform`;
+2. L0 to L5, in order;
+3. `pipeline`;
+4. `studies`, `verify`, `figures`;
+5. `cli`.
+
+`tests/contract/test_layering.py` enforces it, for imports at module level and
+inside functions alike, and holds the studies to each other's public names.
+Until 2026-11-08 five imports ran upward (code review F4).  Physics that two
+layers share lives in the lower of them, or below both: the collision frequency
+in `tss.constants`, the window tapers in `tss.windows`, and the stratified
+group-path model (field model, lamination kernels, thickness solver) in
+`tss.l1_propagation.lamination`, which L3's tracker and L4's retrieval tiers
+both use.  The old import paths still work through re-exports.
+
 ## Known seams
 
 A seam is a place where the implementation does not match the architecture this
@@ -286,13 +306,13 @@ passing unit tests, and it contains, mixed together:
 * the plasma frequency and reflection condition it uses to decide whether there
   is an echo at all, which properly belongs to **L0**.
 
-The L0 and L1 packages therefore re-export the pieces that belong to them rather
-than owning them:
-
-```python
-# src/tss/l1_propagation/__init__.py
-from tss.l2_instrument.linkbudget import absorption_db, path_loss_db   # seam
-```
+L1 now owns its own absorption integral and collision frequency
+(`tss.l1_propagation.absorption`, `tss.constants`), and the tiers use those.  The
+import that once ran from L1 into the link budget is gone, and the layering test
+would fail on it.  What remains of the seam is duplication: the link budget
+keeps its own copies of the collision frequency and the absorption integral
+beside L1's (code review F12).  The rest of this section is the original
+rationale, kept for the record.
 
 **Why it is left this way.**  Splitting the module means moving code that is
 covered by 21 passing tests, and the tests are written against the module's

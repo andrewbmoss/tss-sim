@@ -244,13 +244,13 @@ def run_one(profile: str, seed: int, *, config: dict[str, Any], configuration: s
     """One profile, one seed, end to end.  Returns the scored row."""
     from tss.config import load_yaml, resolve_path
     from tss.pipeline import Pipeline
-    from tss.studies import _grids, _platform_for, _sweep_from_config, build_instrument
+    from tss.studies import build_instrument, campaign_grids, platform_for, sweep_from_config
 
     lat, lt, *_ = PROFILES[profile]
     conf = load_yaml(resolve_path(configuration, subdir="configurations"))
-    sweep, _ = _sweep_from_config(config, io.StringIO())
-    alt_m, freq_hz = _grids(config)
-    platform = replace(_platform_for(conf, EPOCH), lat_deg=float(lat), lon_deg=_lon_for_local_time(lt))
+    sweep, _ = sweep_from_config(config, io.StringIO())
+    alt_m, freq_hz = campaign_grids(config)
+    platform = replace(platform_for(conf, EPOCH), lat_deg=float(lat), lon_deg=_lon_for_local_time(lt))
     tiers = {**shared, "l0": _l0_for(profile),
              "l2": build_instrument(config["tiers"]["l2"], config, conf)}
     kwargs: dict[str, Any] = {"seed": int(seed), "keep_intermediates": True}

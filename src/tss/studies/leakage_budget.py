@@ -137,8 +137,8 @@ def _cfg(*, profile: str = "mom_bus", am: float | None = AM_REF_DBC_HZ, cancelle
     return cfg
 
 
-def _no_echoes() -> Any:
-    from tss.studies.leakage_residual import _no_echoes as ne
+def no_echoes() -> Any:
+    from tss.studies.leakage_residual import no_echoes as ne
 
     return ne()
 
@@ -147,7 +147,7 @@ def _run(cfg: dict[str, Any], sweep: Any, seed: int) -> tuple[dict[str, np.ndarr
     from tss.l2_instrument.baseline import BaselineInstrument
 
     inst = BaselineInstrument.from_config(cfg)
-    rec = inst.receive(_no_echoes(), sweep, np.random.default_rng(seed))
+    rec = inst.receive(no_echoes(), sweep, np.random.default_rng(seed))
     ps = {k: np.asarray(v, dtype=float) for k, v in rec.flags["leakage_per_step"].items()}
     return ps, dict(rec.flags["l2_metrics"]), inst
 
@@ -288,15 +288,15 @@ def smoke_truth_echoes(instrument_cfg: dict[str, Any] | None = None, campaign: s
     from tss.config import load_campaign, load_yaml, resolve_path
     from tss.l2_instrument.baseline import BaselineInstrument
     from tss.pipeline import Pipeline, build_tiers
-    from tss.studies import _grids, _platform_for, _sweep_from_config, instrument_config
+    from tss.studies import campaign_grids, instrument_config, platform_for, sweep_from_config
 
     loaded = load_campaign(campaign, ())
     config = loaded.config
     shared = build_tiers({k: v for k, v in loaded.tiers.items() if k != "l2"})
     import io
 
-    sweep, _ = _sweep_from_config(config, io.StringIO())
-    alt_m, freq_hz = _grids(config)
+    sweep, _ = sweep_from_config(config, io.StringIO())
+    alt_m, freq_hz = campaign_grids(config)
     epoch = str(config.get("epoch", "2026-01-01T12:00:00Z"))
     name = loaded.configurations[0]
     configuration = load_yaml(resolve_path(name, subdir="configurations"))
@@ -313,7 +313,7 @@ def smoke_truth_echoes(instrument_cfg: dict[str, Any] | None = None, campaign: s
                 icfg[key] = copy.deepcopy(instrument_cfg[key])
     pipe = Pipeline({**shared, "l2": BaselineInstrument.from_config(icfg)}, seed=loaded.seed,
                     keep_intermediates=False)
-    res = pipe.run_configuration(name, platform=_platform_for(configuration, epoch), sweep=sweep,
+    res = pipe.run_configuration(name, platform=platform_for(configuration, epoch), sweep=sweep,
                                  freq_hz=freq_hz, alt_m=alt_m, epoch=epoch)
     tes = res.truth_echo_snr or {}
     snr = np.asarray(tes.get("snr_db", []), dtype=float)

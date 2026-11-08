@@ -184,7 +184,7 @@ def run_record(index: int, clutter: str) -> dict[str, Any]:
     import time
 
     from tss.pipeline import Pipeline
-    from tss.studies import _grids, _platform_for, _sweep_from_config, build_instrument
+    from tss.studies import build_instrument, campaign_grids, platform_for, sweep_from_config
     from tss.studies import wp4_campaign as w
     from tss.studies.wp4_dispersion import MeasuredTopside
 
@@ -199,10 +199,10 @@ def run_record(index: int, clutter: str) -> dict[str, Any]:
         l0 = MeasuredTopside(prof)
         ep = row["epoch"]
         conf = _STATE["conf"]
-        pl = replace(_platform_for(conf, ep), alt_m=float(prof.sat_alt_km) * 1e3, lat_deg=float(prof.lat_deg),
+        pl = replace(platform_for(conf, ep), alt_m=float(prof.sat_alt_km) * 1e3, lat_deg=float(prof.lat_deg),
                      lon_deg=float(prof.lon_deg), epoch=ep)
-        sweep, _ = _sweep_from_config(config, io.StringIO())
-        alt_m, freq_hz = _grids(config)
+        sweep, _ = sweep_from_config(config, io.StringIO())
+        alt_m, freq_hz = campaign_grids(config)
         tiers = {**_STATE["shared"], "l0": l0, "l2": build_instrument(config["tiers"]["l2"], config, conf)}
         kwargs: dict[str, Any] = {"seed": int(index) + 1, "keep_intermediates": True}
         if _STATE["clutter"][clutter] is not None:

@@ -70,9 +70,9 @@ def test_x_trace_predicted_from_the_true_o_trace_matches_the_true_x_trace():
     res = row["_result"]
     lat, lt, *_ = w.PROFILES["mid_day_min"]
     from tss.config import load_yaml, resolve_path
-    from tss.studies import _platform_for
+    from tss.studies import platform_for
     conf = load_yaml(resolve_path("leo_500km_single", subdir="configurations"))
-    pl = replace(_platform_for(conf, w.EPOCH), lat_deg=float(lat), lon_deg=w._lon_for_local_time(lt))
+    pl = replace(platform_for(conf, w.EPOCH), lat_deg=float(lat), lon_deg=w._lon_for_local_time(lt))
     alt = pl.alt_m
     fld, _ = geomagnetic_field_model(pl.lat_deg, pl.lon_deg, pl.epoch or w.EPOCH, alt + 2e4)
     cells = truth_echo_cells(res.echoes)

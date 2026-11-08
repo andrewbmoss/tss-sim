@@ -793,9 +793,9 @@ class BaselineSignalProcessing(SignalProcessingBase):
 
     def _track(self, spectra: Sequence[RangeSpectrum], platform: PlatformState) -> Any:
         """The WP4 Phase 4 tracker on this record's spectra (:mod:`tss.l3_signal.tracker`)."""
+        from tss.l1_propagation.lamination import geomagnetic_field_model
         from tss.l3_signal.detect import cfar_detect, spectrum_pad_factor
         from tss.l3_signal.tracker import track_traces
-        from tss.l4_retrieval.lamination import geomagnetic_field_model
 
         settings = self.detector_settings()
         cfars = [cfar_detect(sp, **settings) for sp in spectra]

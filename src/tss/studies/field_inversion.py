@@ -103,10 +103,10 @@ def whole_chain(config: dict[str, Any], seeds: tuple[int, ...]) -> np.ndarray:
     """Rows per latitude and inversion; see the module docstring."""
     from tss.interfaces import PlatformState
     from tss.pipeline import Pipeline, build_tiers
-    from tss.studies import _grids, _sweep_from_config, build_instrument
+    from tss.studies import build_instrument, campaign_grids, sweep_from_config
 
-    sweep, _ = _sweep_from_config(config, io.StringIO())
-    alt_m, freq_hz = _grids(config)
+    sweep, _ = sweep_from_config(config, io.StringIO())
+    alt_m, freq_hz = campaign_grids(config)
     epoch = str(config.get("epoch", "2026-01-01T12:00:00Z"))
 
     rows = []

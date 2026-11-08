@@ -32,7 +32,7 @@ import numpy as np
 from tss.config import load_campaign, load_yaml, resolve_path
 from tss.l5_assessment.scoring import _NO_ECHO_FLAGS, truth_echo_cells, truth_echo_metrics
 from tss.pipeline import Pipeline, build_tiers
-from tss.studies import _grids, _platform_for, _sweep_from_config, build_instrument
+from tss.studies import build_instrument, campaign_grids, platform_for, sweep_from_config
 
 GYRO_HZ_PER_T = 2.799249e10
 
@@ -41,8 +41,8 @@ def _setup(model: str):
     loaded = load_campaign("baseline", [f"tiers.l0.model={model}"])
     config = loaded.config
     shared = build_tiers({k: v for k, v in loaded.tiers.items() if k != "l2"})
-    sweep, _ = _sweep_from_config(config, sys.stdout)
-    alt_m, freq_hz = _grids(config)
+    sweep, _ = sweep_from_config(config, sys.stdout)
+    alt_m, freq_hz = campaign_grids(config)
     epoch = str(config.get("epoch", "2026-01-01T12:00:00Z"))
     return loaded, config, shared, sweep, alt_m, freq_hz, epoch
 
@@ -80,7 +80,7 @@ def cmd_echoes(model: str, out: Path) -> None:
         configuration = load_yaml(resolve_path(name, subdir="configurations"))
         pipe = Pipeline({**shared, "l2": build_instrument(loaded.tiers["l2"], config, configuration)},
                         seed=loaded.seed, keep_intermediates=True)
-        platform = _platform_for(configuration, epoch)
+        platform = platform_for(configuration, epoch)
         res = pipe.run_configuration(name, platform=platform, sweep=sweep, freq_hz=freq_hz,
                                      alt_m=alt_m, epoch=epoch)
         e = res.echoes
@@ -125,7 +125,7 @@ def cmd_cusp(model: str, out: Path, cfgname: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
     configuration = load_yaml(resolve_path(cfgname, subdir="configurations"))
     l2 = build_instrument(loaded.tiers["l2"], config, configuration)
-    platform = _platform_for(configuration, epoch)
+    platform = platform_for(configuration, epoch)
     truth0 = shared["l0"].state_at(platform.lat_deg, platform.lon_deg, epoch, alt_m)
     rows = []
     for s in np.linspace(0.97, 1.0, 13):

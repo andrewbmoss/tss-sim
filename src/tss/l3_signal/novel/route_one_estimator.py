@@ -42,6 +42,9 @@ import numpy as np
 from tss.constants import C_LIGHT
 
 __all__ = [
+    "HALF_POWER_X",
+    "envelope_power",
+    "fit_overflight_time",
     "DopplerHistory",
     "RouteOneEstimate",
     "doppler_history_from_field",
@@ -126,6 +129,56 @@ def free_t0_degeneracy(
     return out
 
 
+# The overflight envelope and its fit, the fit TV Section 8.8 sizes.  They lived
+# in tss.studies.route_one until 2026-11-08, which made this L3 module import a
+# study (code review F4); the study now imports them from here.
+#: First zero of d/dx [sinc^2] half-power point: sinc^2(x) = 1/2 at this x.
+HALF_POWER_X = 1.3915573782515
+
+
+def envelope_power(t_s: np.ndarray, t0_s: float, width_s: float) -> np.ndarray:
+    """Unit-peak ``sinc^2`` envelope with half-power width ``width_s``."""
+    x = 2.0 * HALF_POWER_X * (np.asarray(t_s, dtype=float) - float(t0_s)) / float(width_s)
+    return np.sinc(x / np.pi) ** 2
+
+
+def fit_overflight_time(t_s: np.ndarray, power: np.ndarray) -> tuple[float, float]:
+    """Least-squares centre and width of a ``sinc^2`` envelope on a noise floor.
+
+    Four parameters are fitted: centre, width, amplitude and floor.  The start
+    comes from the data alone, a smoothed peak for the centre and the second
+    moment about it for the width, so the fit is not told the answer.
+    """
+    from scipy.optimize import least_squares
+
+    t = np.asarray(t_s, dtype=float)
+    p = np.asarray(power, dtype=float)
+    span = float(t[-1] - t[0])
+    dt = float(t[1] - t[0])
+
+    floor0 = float(np.median(p))
+    k = max(3, int(round(0.08 * t.size)) | 1)
+    smooth = np.convolve(p, np.ones(k) / k, mode="same")
+    c0 = float(t[int(np.argmax(smooth))])
+    excess = np.clip(smooth - floor0, 0.0, None)
+    if excess.sum() > 0.0:
+        var = float(np.sum(excess * (t - c0) ** 2) / excess.sum())
+        w0 = float(np.clip(2.0 * np.sqrt(var), 4.0 * dt, 0.6 * span))
+    else:
+        w0 = 0.2 * span
+    a0 = max(float(smooth.max() - floor0), 1e-3)
+
+    def resid(q: np.ndarray) -> np.ndarray:
+        return q[2] * envelope_power(t, q[0], q[1]) + q[3] - p
+
+    sol = least_squares(
+        resid,
+        x0=[c0, w0, a0, floor0],
+        bounds=([t[0], 2.0 * dt, 0.0, 0.0], [t[-1], span, np.inf, np.inf]),
+    )
+    return float(sol.x[0]), float(sol.x[1])
+
+
 def _fit_peak(t: np.ndarray, p: np.ndarray) -> tuple[float, float]:
     """Centre and contrast of the power envelope.
 
@@ -134,8 +187,6 @@ def _fit_peak(t: np.ndarray, p: np.ndarray) -> tuple[float, float]:
     of the two window edges, so a value near one means there is no peak inside
     the window.
     """
-    from tss.studies.route_one import fit_overflight_time
-
     centre, _ = fit_overflight_time(t, p)
     k = max(3, int(round(0.05 * t.size)))
     edge = max(float(p[:k].mean()), float(p[-k:].mean()), 1e-300)

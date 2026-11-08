@@ -97,7 +97,7 @@ LEGACY_LEAKAGE_OVER_ECHO_PLUS_ISOLATION_DB = 122.0
 
 def window_enbw_bins(window: str = "hann", n: int = 4096) -> float:
     """Equivalent noise bandwidth of an L3 window, in bins."""
-    from tss.l3_signal.transform import window_gains, window_taper
+    from tss.windows import window_gains, window_taper
 
     return float(window_gains(window_taper(window, int(n)))[1])
 

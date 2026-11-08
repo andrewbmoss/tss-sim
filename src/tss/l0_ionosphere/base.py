@@ -30,13 +30,11 @@ path for the 37-test link budget module and for the hand-scaled ISIS-1 profiles.
 
 **Collision frequency.**  L0 has to supply ``nu`` because the absorption
 integral needs it and because a tier that leaves it ``None`` silently degrades
-every absorption number downstream.  The implementation is imported from
-:mod:`tss.l1_propagation.absorption` rather than copied.  That import runs from
-L0 into L1, which is the wrong direction, and it is the lesser evil: the
-alternative is two implementations of the Schunk and Nagy electron-ion Coulomb
-form that can disagree.  It is the same trade recorded in the "known seams"
-section of ``docs/architecture.md`` for the link budget module, and it comes out
-in the same wash when WP4 splits the physics along layer lines.
+every absorption number downstream.  The one implementation, the Schunk and Nagy electron-ion Coulomb form, lives
+in :mod:`tss.constants`, below every layer, and L1's absorption integral uses
+the same function.  Until 2026-11-08 it lived in
+:mod:`tss.l1_propagation.absorption` and this module imported it from there,
+an import from L0 into L1 (code review F4).
 """
 
 from __future__ import annotations
@@ -48,13 +46,9 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from tss.constants import PLASMA_CONST, plasma_frequency
+from tss.constants import PLASMA_CONST, collision_frequency, plasma_frequency
 from tss.interfaces import IonosphereState
 from tss.l0_ionosphere import geomag
-
-# Seam: the collision-frequency form lives with the absorption integral that
-# consumes it.  See the module docstring and docs/architecture.md.
-from tss.l1_propagation.absorption import collision_frequency  # noqa: F401
 
 __all__ = [
     "IonosphereBase",

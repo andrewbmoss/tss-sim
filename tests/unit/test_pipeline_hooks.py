@@ -29,7 +29,7 @@ from tss.interfaces import (
 )
 from tss.l1_propagation.clutter import ClutterGenerator
 from tss.pipeline import Pipeline, build_tiers
-from tss.studies import _platform_for, run_campaign
+from tss.studies import platform_for, run_campaign
 
 _UNIFORM = SweepSchedule(
     f_start_hz=1.0e6, f_stop_hz=2.0e6, k_f_hz_per_s=5.6e6, sweep_period_s=1.0 / 5.6
@@ -40,7 +40,7 @@ _DEFAULT = {"l0": "chapman", "l1": "analytic", "l2": "baseline", "l3": "baseline
 
 
 def _run(tiers):
-    platform = _platform_for(
+    platform = platform_for(
         load_yaml(resolve_path("leo_500km_single", subdir="configurations")), _EPOCH
     )
     return Pipeline(tiers, seed=3).run_configuration(

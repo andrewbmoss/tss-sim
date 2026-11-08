@@ -47,7 +47,7 @@ from tss.interfaces import (
     ReceivedSignal,
 )
 from tss.registry import available, build
-from tss.studies import _grids, _platform_for, _sweep_from_config
+from tss.studies import campaign_grids, platform_for, sweep_from_config
 
 EPOCH = "2026-01-01T12:00:00Z"
 SEED = 20261017
@@ -103,9 +103,9 @@ DEFAULT = {"l0": "chapman", "l1": "analytic", "l2": "baseline", "l3": "baseline"
 def _setup():
     """Sweep, grids and platform, exactly as the smoke campaign builds them."""
     config = load_campaign("smoke").config
-    sweep, _ = _sweep_from_config(config, io.StringIO())
-    alt_m, freq_hz = _grids(config)
-    platform = _platform_for(
+    sweep, _ = sweep_from_config(config, io.StringIO())
+    alt_m, freq_hz = campaign_grids(config)
+    platform = platform_for(
         load_yaml(resolve_path("leo_500km_single", subdir="configurations")), EPOCH
     )
     return sweep, alt_m, freq_hz, platform

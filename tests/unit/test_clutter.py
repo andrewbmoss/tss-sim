@@ -68,9 +68,9 @@ def test_from_config_is_off_when_missing_or_disabled():
 
 def test_default_config_turns_clutter_on_and_smoke_pins_it_off():
     from tss.config import load_campaign
-    from tss.studies import _base_config
+    from tss.studies import base_config
 
-    assert cl.ClutterGenerator.from_config(_base_config(()).get("clutter")) is not None
+    assert cl.ClutterGenerator.from_config(base_config(()).get("clutter")) is not None
     assert cl.ClutterGenerator.from_config(load_campaign("smoke").config.get("clutter")) is None
 
 
@@ -219,9 +219,9 @@ def test_render_carriers_applies_the_antenna_gain_and_polarization_loss():
 
 def _instrument():
     from tss.l2_instrument.baseline import BaselineInstrument
-    from tss.studies import _base_config, instrument_config
+    from tss.studies import base_config, instrument_config
 
-    icfg = instrument_config(_base_config(()))
+    icfg = instrument_config(base_config(()))
     icfg["leakage"]["enabled"] = False
     icfg["transmit_impairments"] = {}
     return BaselineInstrument.from_config(icfg)
@@ -230,9 +230,9 @@ def _instrument():
 def _sweep():
     import io
 
-    from tss.studies import _base_config, _sweep_from_config
+    from tss.studies import base_config, sweep_from_config
 
-    return _sweep_from_config(_base_config(()), io.StringIO())[0]
+    return sweep_from_config(base_config(()), io.StringIO())[0]
 
 
 def test_l2_synthesises_a_clutter_row_exactly_as_an_echo():
@@ -308,12 +308,12 @@ def test_clutter_off_reproduces_the_phase0_baseline():
     from pathlib import Path
 
     from tss.pipeline import build_tiers
-    from tss.studies import _base_config
+    from tss.studies import base_config
     from tss.studies import wp4_campaign as w
 
     ref = Path(__file__).resolve().parents[2] / "data" / "reference" / "wp4_baseline" / "wp4_campaign_runs.csv"
     rows = {(r["profile"], r["seed"]): r for r in csv.DictReader(ref.open(encoding="utf-8"))}
-    cfg = _base_config(())
+    cfg = base_config(())
     # The Phase 0 chain: the WP3-era fixed threshold and one transform per
     # dwell (the detector became the stated-P_fa one in Phase 2, the rate
     # search the default dispersion treatment in Phase 3).
@@ -328,10 +328,10 @@ def test_clutter_off_reproduces_the_phase0_baseline():
 
 def test_pipeline_records_the_clutter_it_applied():
     from tss.pipeline import build_tiers
-    from tss.studies import _base_config
+    from tss.studies import base_config
     from tss.studies import wp4_campaign as w
 
-    cfg = _base_config(("grid.alt_step_m=20000",))
+    cfg = base_config(("grid.alt_step_m=20000",))
     shared = build_tiers({k: v for k, v in cfg["tiers"].items() if k not in ("l0", "l2")})
     gen = cl.ClutterGenerator.from_config(cfg["clutter"])
     row = w.run_one("smoke", 1, config=cfg, configuration="leo_500km_single", clutter=gen, shared=shared,

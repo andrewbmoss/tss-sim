@@ -23,7 +23,7 @@ from tss.interfaces import EchoSet, SweepSchedule
 from tss.l2_instrument import BaselineInstrument
 from tss.l2_instrument.impairments import TransmitImpairments
 from tss.pipeline import Pipeline, build_tiers
-from tss.studies import _platform_for, build_instrument, instrument_config
+from tss.studies import build_instrument, instrument_config, platform_for
 
 #: A short uniform sweep, 1 to 2 MHz at 5.6 MHz/s, quick to synthesise.
 _UNIFORM = SweepSchedule(
@@ -89,7 +89,7 @@ def _l2_record(l1_wraps: bool) -> np.ndarray:
                          "l3": "baseline", "l4": "lamination_magnetoionic", "l5": "standard"})
     if l1_wraps:
         tiers["l1"] = _DrawingL1(tiers["l1"])
-    platform = _platform_for(
+    platform = platform_for(
         load_yaml(resolve_path("leo_500km_single", subdir="configurations")), _EPOCH
     )
     result = Pipeline(tiers, seed=3).run_configuration(

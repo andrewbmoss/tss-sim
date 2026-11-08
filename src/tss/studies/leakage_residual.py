@@ -63,7 +63,7 @@ def _cfg(case: str) -> dict[str, Any]:
     return cfg
 
 
-def _no_echoes() -> Any:
+def no_echoes() -> Any:
     from tss.interfaces import EchoSet
 
     e = np.array([], dtype=float)
@@ -77,7 +77,7 @@ def per_step(case: str, sweep: Any, seed: int = 0) -> tuple[dict[str, np.ndarray
 
     cfg = _cfg(case)
     inst = BaselineInstrument.from_config(cfg)
-    rec = inst.receive(_no_echoes(), sweep, np.random.default_rng(seed))
+    rec = inst.receive(no_echoes(), sweep, np.random.default_rng(seed))
     ps = {k: np.asarray(v, dtype=float) for k, v in rec.flags["leakage_per_step"].items()}
     m = dict(rec.flags["l2_metrics"])
     am = inst.impairments.am_noise_dbc_hz

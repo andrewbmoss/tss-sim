@@ -85,6 +85,12 @@ __all__ = [
     "run_campaign",
     "results_root",
     "StudyInputMissing",
+    "base_config",
+    "sweep_from_config",
+    "campaign_grids",
+    "platform_for",
+    "instrument_config",
+    "build_instrument",
 ]
 
 
@@ -217,7 +223,7 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _base_config(overrides: Sequence[str]) -> dict[str, Any]:
+def base_config(overrides: Sequence[str]) -> dict[str, Any]:
     """``config/default.yaml`` with the command-line overrides applied.
 
     A study is not a campaign: it does not name a tier for every layer and it is
@@ -284,7 +290,7 @@ def run_study(
         print(str(exc), file=out_stream)
         return 5
 
-    config = _base_config(overrides)
+    config = base_config(overrides)
     out_dir = Path(out) if out is not None else results_root() / name / _timestamp()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -413,7 +419,7 @@ def _same_directory(left: Path, right: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _sweep_from_config(
+def sweep_from_config(
     config: Mapping[str, Any], stream: TextIO
 ) -> tuple[Any, dict[str, Any]]:
     """Build the :class:`~tss.interfaces.SweepSchedule` a campaign asks for.
@@ -499,7 +505,7 @@ def _sweep_from_config(
     return schedule, notes
 
 
-def _grids(config: Mapping[str, Any]) -> tuple[Any, Any]:
+def campaign_grids(config: Mapping[str, Any]) -> tuple[Any, Any]:
     """The altitude and sounding-frequency grids, from the ``grid`` block.
 
     ``n_freq`` is read from the same block and defaults to 128.  It is the one
@@ -536,7 +542,7 @@ def _grids(config: Mapping[str, Any]) -> tuple[Any, Any]:
     return alt, freq
 
 
-def _platform_for(configuration: Mapping[str, Any], epoch: str) -> Any:
+def platform_for(configuration: Mapping[str, Any], epoch: str) -> Any:
     """Platform state for one configuration, velocity included.
 
     The velocity comes from :func:`tss.platform.orbits.platform_state_at`, which
@@ -693,8 +699,8 @@ def run_campaign(
 
     clutter = ClutterGenerator.from_config(config.get("clutter"))
 
-    sweep, sweep_notes = _sweep_from_config(config, out_stream)
-    alt_m, freq_hz = _grids(config)
+    sweep, sweep_notes = sweep_from_config(config, out_stream)
+    alt_m, freq_hz = campaign_grids(config)
     epoch = str(config.get("epoch", "2026-01-01T12:00:00Z"))
 
     outputs: list[Path] = []
@@ -712,7 +718,7 @@ def run_campaign(
         described[name] = pipeline.describe()
         result = pipeline.run_configuration(
             name,
-            platform=_platform_for(configuration, epoch),
+            platform=platform_for(configuration, epoch),
             sweep=sweep,
             freq_hz=freq_hz,
             alt_m=alt_m,

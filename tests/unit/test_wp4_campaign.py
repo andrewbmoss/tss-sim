@@ -60,9 +60,9 @@ def test_local_time_sets_longitude():
 
 def test_one_run_end_to_end_is_scored_and_reproducible():
     from tss.pipeline import build_tiers
-    from tss.studies import _base_config
+    from tss.studies import base_config
 
-    cfg = _base_config(("grid.alt_step_m=20000",))
+    cfg = base_config(("grid.alt_step_m=20000",))
     shared = build_tiers({k: v for k, v in cfg["tiers"].items() if k not in ("l0", "l2")})
     a = w.run_one("smoke", 1, config=cfg, configuration="leo_500km_single", clutter=None, shared=shared)
     b = w.run_one("smoke", 1, config=cfg, configuration="leo_500km_single", clutter=None, shared=shared)

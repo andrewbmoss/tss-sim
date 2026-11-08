@@ -31,6 +31,7 @@ __all__ = [
     "beat_frequency",
     "range_cell_noise_bandwidth",
     "doppler_range_bias",
+    "collision_frequency",
 ]
 
 C_LIGHT = 299_792_458.0          # m/s, exact
@@ -122,3 +123,33 @@ def doppler_range_bias(velocity_mps, f_hz, k_f_hz_per_s):
         * np.asarray(f_hz, dtype=float)
         / np.asarray(k_f_hz_per_s, dtype=float)
     )
+
+
+def collision_frequency(ne: np.ndarray | float, te: np.ndarray | float) -> np.ndarray:
+    """Electron collision frequency in s^-1 from density and temperature.
+
+    Here, below every layer, so that L0 (which supplies ``nu``) and L1 (whose
+    absorption integral consumes it) share one implementation without an
+    import from L0 into L1.  Moved from :mod:`tss.l1_propagation.absorption`
+    on 2026-11-08 (code review F4), which still re-exports it.
+
+    Electron-ion Coulomb collisions dominate in the topside F region, so the
+    Schunk and Nagy form
+
+        nu_ei = 54.5 * n_i[cm^-3] / Te^1.5
+
+    is used with quasi-neutrality ``n_i = n_e``.  Electron-neutral collisions
+    are negligible above roughly 300 km and are not included.  A profile
+    extended downward into the E region needs them added, and this function will
+    understate the collision frequency there.
+
+    Parameters
+    ----------
+    ne
+        Electron density, m^-3.
+    te
+        Electron temperature, K.
+    """
+    ne_cm3 = np.asarray(ne, dtype=float) * 1e-6
+    te_arr = np.asarray(te, dtype=float)
+    return 54.5 * ne_cm3 / np.power(te_arr, 1.5)

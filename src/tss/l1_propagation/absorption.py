@@ -69,7 +69,8 @@ from typing import Any
 
 import numpy as np
 
-from tss.constants import C_LIGHT, plasma_frequency
+# collision_frequency lives in tss.constants (code review F4) and is re-exported here.
+from tss.constants import C_LIGHT, collision_frequency, plasma_frequency
 from tss.interfaces import IonosphereState
 from tss.l1_propagation.base import (
     EVANESCENT,
@@ -93,31 +94,6 @@ __all__ = [
 #: Nepers to decibels.  ``20 / ln(10)``.  Spelled out to the digits the link
 #: budget module uses so that the two implementations agree to round-off.
 NEPER_TO_DB = 8.685889638
-
-
-def collision_frequency(ne: np.ndarray | float, te: np.ndarray | float) -> np.ndarray:
-    """Electron collision frequency in s^-1 from density and temperature.
-
-    Electron-ion Coulomb collisions dominate in the topside F region, so the
-    Schunk and Nagy form
-
-        nu_ei = 54.5 * n_i[cm^-3] / Te^1.5
-
-    is used with quasi-neutrality ``n_i = n_e``.  Electron-neutral collisions
-    are negligible above roughly 300 km and are not included.  A profile
-    extended downward into the E region needs them added, and this function will
-    understate the collision frequency there.
-
-    Parameters
-    ----------
-    ne
-        Electron density, m^-3.
-    te
-        Electron temperature, K.
-    """
-    ne_cm3 = np.asarray(ne, dtype=float) * 1e-6
-    te_arr = np.asarray(te, dtype=float)
-    return 54.5 * ne_cm3 / np.power(te_arr, 1.5)
 
 
 def refractive_index(
