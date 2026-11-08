@@ -173,6 +173,11 @@ docstrings say which is which.
 
 ## The transcription verifier
 
+**Status (2026-11-08): designed, not built.**  `matlab/tss_verify_transcription.m`
+and the `tests/fixtures/bridge/` files below are not in the repository yet.  The
+`transcription` study is a WP8 stub and `tss verify --level V2` skips the
+check, saying so (code review F6).  The procedure below is the design.
+
 When a function exists on both sides, one is the reference and the other is a
 transcription.  The verifier checks that the transcription agrees with the
 reference to machine precision over a shared set of inputs.  It is part of

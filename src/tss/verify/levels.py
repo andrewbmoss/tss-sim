@@ -621,11 +621,14 @@ def _v2_transcription() -> Mapping[str, Any]:
 
     Not run.  ``docs/verification.md`` calls this the level that most often
     finds real bugs, because two implementations written at different times by
-    the same author make different mistakes.  It needs MATLAB on the path.
+    the same author make different mistakes.  It needs MATLAB on the path and
+    the MATLAB-side verifier, which is not yet in the repository (WP8).  Until
+    2026-11-08 the skip reason blamed MATLAB alone (code review F6).
     """
     raise Skipped(
-        "MATLAB is not available in this environment, so the transcription check "
-        "cannot run.  It is skipped rather than absent; see "
+        "The MATLAB-side verifier, matlab/tss_verify_transcription.m, is not yet in "
+        "the repository (WP8), so the transcription check cannot run whether or not "
+        "MATLAB is installed.  It is skipped rather than absent; see "
         "docs/matlab-python-bridge.md for the procedure and the tolerance standard."
     )
 

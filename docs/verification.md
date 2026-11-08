@@ -11,6 +11,12 @@ a verification claim without its limits is not a verification claim.
 | V3 | Does the model reproduce published results? | `src/tss/verify/v3_literature.py`, `tests/verify/` |
 | V4 | Does the model reproduce archived real measurements? | `src/tss/verify/v4_archive.py`, `src/tss/studies/isis_validation.py` |
 
+**As built (2026-11-08).**  The checks of every level live in one module,
+`src/tss/verify/levels.py`, registered by level.  The per-level modules named in
+the table, `tests/verify/` and `matlab/tss_verify_transcription.m` are the
+design and do not exist yet.  The V2 transcription check is skipped until WP8
+adds its MATLAB-side verifier (code review F6).
+
 `tss verify --level all --write` runs everything available on the machine and
 writes a report under `results/verification/`, with a manifest.  Cases that
 could not run, because MATLAB or PHaRLAP or a cached data set is absent, appear
