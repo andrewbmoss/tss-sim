@@ -100,7 +100,7 @@ dwell (`tau_c` >= `T`).
 | Product | Units | Definition | Accuracy (parameter level) and conditions | Source |
 |---|---|---|---|---|
 | `t_s` | s | Sweep times of the sequence | Exact | Sweep law |
-| `range_m` | m | Apparent range `P'` of the echo per sweep (range gate) | Resolution `c / (2 B_sub)`: 1.0 km at the recommended `B_sub` of 150 kHz (section 10).  Fixed in Phase 2 | Section 11; Phase 2 |
+| `range_m` | m | Apparent range `P'` of the echo per sweep (range gate) | Resolution `c / (2 B_sub)`: 1.0 km at the recommended `B_sub` of 150 kHz (section 10).  Fixed in Phase 2 | Section 10; Phase 2 |
 | `power_db`, `snr_db` | dB | Echo power and SNR per sweep and at the peak | SNR against the detector's noise reference | WP4 P2 |
 | `platform_doppler_hz` | Hz | `f_D,plat` removed in step 1 | Ephemeris velocity to 0.1 m/s gives 0.1 m/s | `route_one.ephemeris_term_mps` |
 | `doppler_hz` | Hz | Residual Doppler per sweep pair | As `los_rate_mps` | Step 3 |
