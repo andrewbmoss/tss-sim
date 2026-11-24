@@ -144,7 +144,7 @@ at one frequency returns three rows; the analytic tier returns one.
 | `absorption` | `src/tss/l1_propagation/absorption.py` | Non-deviative and deviative absorption from `ne` and `nu`.  Composed into the analytic tier. | Delivered and tested, WP2 |
 | `magnetoionic` | `src/tss/l1_propagation/magnetoionic.py` | O and X mode separation and the X-mode cutoff shift. | Delivered |
 | `raytrace` | `src/tss/l1_propagation/raytrace.py` | Three-dimensional numerical ray tracing through PHaRLAP, including off-vertical returns and horizontal gradients.  MATLAB-side, read back through the file bridge. | Planned, WP2 |
-| `doppler` | `src/tss/l1_propagation/doppler.py` | Platform-motion Doppler per ray, which is the input C3 has to work from. | Planned, WP2 and WP5 |
+| `doppler` | `src/tss/l1_propagation/doppler.py` | Platform-motion Doppler per ray, which is the input C3 has to work from. | Implemented (28386d6), WP2 and WP5 |
 
 **Fidelity ladder at L1.**  `analytic` is fast enough to sweep large campaigns
 and is exactly the thing V2 checks against `raytrace`.  The analytic tier cannot
@@ -200,8 +200,7 @@ that leaves it `None` is saying it did not, and L5 will record INS-09 as
 | Tier | Module | Fidelity | Status |
 | --- | --- | --- | --- |
 | `baseline` | `src/tss/l3_signal/dechirp.py`, `transform.py`, `ionogram.py`, `detect.py` | De-chirp, windowed transform, bin-to-range mapping, CFAR-style trace extraction. | Not started.  Next package, WP4 |
-| `updown` | `src/tss/l3_signal/doppler_decouple.py` | Motion-based separation of Doppler from range using up and down sweep pairing on one transmit and receive pair. | Not started, WP5, C3, principal contribution |
-| `leakage_suppress` | `src/tss/l3_signal/leakage_suppress.py` | Adaptive cancellation of the de-chirped leakage residual. | Not started, WP5, C4 |
+| `drift` | `src/tss/l3_signal/drift.py` | Drift mode over a sequence of sweeps (`Pipeline.run_sequence`): the ephemeris platform Doppler removed, the facet echo range-gated per sweep, Doppler from phase steps, route one's power peak against Doppler zero crossing, with the extended-reflector refusal.  One receive channel.  Up and down sweep pairing is not the contribution; it is the ionogram-mode INS-09 check (`novel/sweep_pairing.py`, WP5 Phase 5). | Planned, WP5 Phase 3, C3 |
 | `aoa` | `src/tss/l3_signal/aoa.py` | Arrival angle and polarization mode separation from the vector channels. | Not started, WP11, C5, goal level |
 
 **Bin index to apparent range.**  This mapping is where the FMCW-specific

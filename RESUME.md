@@ -27,7 +27,7 @@ today, what it does not, and what comes next.
 | L0 | chapman, analytic, iri (IRI-2020, `model: pharlap` by default or `pyiri`), iri2020 (PyIRI 0.1.7); matlab_iri (PHaRLAP IRI-2020); iri_wrapper (iri2016, not built) | perturbations (WP10) | NeQuick 2, IRTAM as a tier, depletions, storm days |
 | L1 | analytic: vertical incidence, magnetoionic group index for O and X, absorption, Doppler; clutter (WP4: ground echo, plasma resonances, spread F; on by default) | raytrace (WP2, PHaRLAP) | Z branch, lateral deviation, off-vertical echoes, ray-traced clutter |
 | L2 | baseline, built from `config/instrument/baseline_6u.yaml`: de-chirped baseband from the A1 stepped sweep at the INS-06 digitiser rate, in-dwell dispersion, sky noise, receiver gain, clipping, quantisation; transmit-to-receive leakage, transmit impairments (`transmit_impairments`), the receive chain (front end, per-step high-pass) and the passive canceller (WP3; defaults AM -140 dBc/Hz and an ideal 26 dB canceller); HF broadcast carriers (WP4 clutter) | - | real vector channels (WP11), measured hardware behaviour (WP9) |
-| L3 | baseline (WP4): per-step transform with the chirp-rate search (64 cells, a rate per detection); the stated-P_fa detector (1e-4 per cell); the trace tracker (track-before-detect, O and X labelled by self-consistency, ground-echo and streak masks, cusp model, per-sample sigma, confidence and quality; legacy threshold-and-connect kept); SNR measurement at given cells; Poole's stationary-phase range estimator | motion_separated (WP5) | O/X by measurement (WP11; labelling is model-based), Doppler separation (WP5), measured traces with steep starts and ledges |
+| L3 | baseline (WP4): per-step transform with the chirp-rate search (64 cells, a rate per detection); the stated-P_fa detector (1e-4 per cell); the trace tracker (track-before-detect, O and X labelled by self-consistency, ground-echo and streak masks, cusp model, per-sample sigma, confidence and quality; legacy threshold-and-connect kept); SNR measurement at given cells; Poole's stationary-phase range estimator | - | O/X by measurement (WP11; labelling is model-based), the drift mode over a sequence of sweeps (WP5), measured traces with steep starts and ledges |
 | L4 | lamination (field-free), lamination_magnetoionic (Budden 12.13, the default); starting value from the tracker's onboard f_N (`start_policy: onboard`, WP4) | - | uncertainty propagation, depletion crossings, reference-field error |
 | L5 | standard: scores the Rev G set, reports what it does not score | feasibility (WP7) | NmF2/hmF2 errors, 1 sigma coverage, Kp classes |
 
@@ -255,7 +255,8 @@ Plan: project note `claude/wp0-closure-plan.md`.  Branch `wp0-closure`.
   no Doppler.
 * `config/campaigns/c3_doppler.yaml` still asks for coherent intervals of 1 and
   2 s and up/down sweep pairing, both withdrawn; `motion_separated` describes
-  the single-pair model the route studies replaced.
+  the single-pair model the route studies replaced.  (Both retired 2026-11-24,
+  WP5 decision D9, ff9ecf1.)
 * No configuration sits at the 900 km governing case of INS-01a and MIS-01.
 
 ## WP3 Phase 0 (2026-10-20): the reference echo
@@ -307,7 +308,8 @@ Plan: project note `claude/wp3-plan.md`.  Doc: `docs/reference-echo.md`.
 4. Beside 1-3: the MATLAB bridge (`tss_yaml_lite.m`, `tss_call_python.m`), the
    PHaRLAP L1 tier, NeQuick 2 and IRTAM L0 tiers, the depletion generator,
    WP12's noise reference.
-5. WP5: `motion_separated` as a real tier over a sequence of sweeps, then WP6,
+5. WP5: the drift-mode sequence path and its L3 tier (route one at signal
+   level; `motion_separated` was retired 2026-11-24), then WP6,
    WP7, the V2-V4 campaign, and the goal-level packages.
 
 ## Rev G amended 2026-10-27: the leakage-to-echo ratio and INS-22
