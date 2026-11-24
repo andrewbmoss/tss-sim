@@ -5,8 +5,15 @@ Status: stub
 Requirements: INS-05, INS-09, INS-15
 
 Up-sweep and down-sweep pairing: unbiased range from the half-sum, radial
-velocity from the half-difference.  Not implemented.  This is the principal
-contribution of the dissertation and it is the module the concept turns on.
+velocity from the half-difference.  Not implemented.
+
+This is not the principal contribution.  Claim C3 is that spacecraft motion
+separates plasma drift from platform motion, by the three routes of Proposal
+Rev E and TV Chapter 8; up and down pairing is textbook triangular FM-CW and
+Poole (1985) already separated range from velocity on one antenna.  It is
+retained as the cheap ionogram-mode bias check of INS-09 (TV section 5.4 and
+``tab:c3methods``; WP5 decision D1, 2026-11-14), to be filled in WP5 Phase 5
+from a two-sweep record of the drift-mode sequence path.
 
 The geometry
 ------------
@@ -92,12 +99,15 @@ match, and the second-order terms are what INS-09 has to be scored against.
 2.  **The sounding frequency is not the same at the same instant of an up-sweep
     and a down-sweep.**  A given frequency is visited early in one sweep and
     late in the other, so the pair is separated in time by an amount that
-    depends on where in the band the frequency sits: near the middle of the
-    band the separation is about one sweep period, and at the band edges it
-    approaches two.  The residual is therefore frequency dependent and largest
-    at the edges, which is the opposite of the first-order bias, which is
-    largest at the top of the band.  The two effects do not have the same
-    shape in frequency and cannot be lumped.
+    depends on where in the band the frequency sits.  For an up-sweep followed
+    by a down-sweep the separation is near zero at the top of the band, where
+    the two sweeps meet, about one sweep period at mid-band, and about two
+    sweep periods at the bottom.  (This corrects an earlier statement that it
+    approaches two at both edges.)  The residual is therefore frequency
+    dependent and largest at the band edge where the sweeps are furthest
+    apart, which need not be where the first-order bias, largest at the top of
+    the band, is largest.  The two effects do not have the same shape in
+    frequency and cannot be lumped.
 
 3.  **The range itself changes between the sweeps.**  The reflection point
     moves, both because the ionosphere evolves and because the spacecraft has
@@ -165,9 +175,9 @@ __all__ = [
 ]
 
 _MESSAGE = (
-    "WP5: up and down sweep pairing is not implemented.  This is claim C3, the "
-    "principal contribution, and it is unstarted research rather than unfinished "
-    "code.  The half-sum arithmetic is stated in the module docstring of "
+    "WP5 Phase 5: up and down sweep pairing, the ionogram-mode INS-09 bias check, "
+    "is not implemented.  It needs a two-sweep record from the drift-mode sequence "
+    "path.  The half-sum arithmetic is stated in the module docstring of "
     "tss.l3_signal.novel.sweep_pairing; what is missing is the association of the "
     "two traces, the second-order residual error model, and the demonstration "
     "that the residual stays inside one INS-05 range cell as INS-09 requires.  "
@@ -182,8 +192,7 @@ class SweepPair:
     Intended to carry the two ionograms, the association between their trace
     points, the recovered range and range rate, and the residual bias estimate.
     It is declared here so that the shape of the answer is fixed before the
-    estimator exists, which is the same reason
-    ``config/campaigns/c3_doppler.yaml`` names a tier that does not work yet.
+    estimator exists.
 
     Constructing one raises, because a :class:`SweepPair` that could be built
     without the estimator would be an empty container that downstream code

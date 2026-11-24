@@ -58,8 +58,9 @@ review F7, 2026-11-08).
 It does not populate ``doppler_mps``.  A single sweep cannot separate the
 Doppler shift from the range, which is the whole of C3.  Leaving the field
 ``None`` is the tier saying so, and L5 records INS-09 as ``not_evaluated``
-rather than as a pass or a failure.  :mod:`tss.l3_signal.motion_separated` is
-the tier that will populate it.
+rather than as a pass or a failure.  The drift-mode L3 tier of WP5 Phase 3
+populates the drift-mode products, and :meth:`_estimate_doppler` (WP5 Phase 5)
+the ionogram-mode INS-09 correction.
 
 It does not populate ``residual_range_bias_m`` either, for the same reason.  A
 tier that has not estimated the Doppler does not know how much range bias it
@@ -224,7 +225,7 @@ class BaselineSignalProcessing(SignalProcessingBase):
     exclude_below_m
         Near range excluded from both the floor estimate and the detection, to
         keep the transmit leakage out.  A blunt substitute for cancelling it;
-        see :mod:`tss.l3_signal.novel.leakage_cancel`.
+        cancellation is :class:`tss.l2_instrument.leakage.RFCanceller` (WP3).
     max_jump_m
         Continuity limit for :func:`tss.l3_signal.trace_extract.connect_trace`.
         ``None`` disables the rule, which is the default.
@@ -410,8 +411,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
         resolution and a different noise floor from every other column.
 
         A record longer than one sweep is truncated to one sweep.  Processing
-        several sweeps into one ionogram is a coherent integration question and
-        it belongs to :mod:`tss.l3_signal.novel.motion_compensation`, not here.
+        several sweeps is a coherent integration question and it belongs to
+        the drift-mode sequence path of WP5 (Phases 2 and 3), not here.
 
         The plan is computed in one place so that the block duration reported
         in the ionogram flags is the block duration the transforms actually
@@ -748,7 +749,8 @@ class BaselineSignalProcessing(SignalProcessingBase):
             "doppler_separated": False,
             "doppler_separation_reason": (
                 "a single sweep cannot separate the Doppler shift from the range; "
-                "that is claim C3 and it lives in tss.l3_signal.novel.sweep_pairing (WP5)"
+                "claim C3 needs a sequence of sweeps (the WP5 drift-mode path), and the "
+                "ionogram-mode INS-09 correction is WP5 Phase 5"
             ),
             "n_frequencies": int(freq_hz.size),
             "n_detected": int(np.count_nonzero(detected)),

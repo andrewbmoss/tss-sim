@@ -553,38 +553,39 @@ def _v1_l2_l3_snr_consistency() -> Mapping[str, Any]:
 
 @check("V1", "c3_estimator_recovers_truth_velocity", quantity="velocity error, m/s")
 def _v1_c3_estimator() -> Mapping[str, Any]:
-    """The up and down sweep estimator recovers the velocity that was put in.
+    """The route-one drift estimator recovers the drift that was put in.
 
-    Not run until WP5 exists.  This is the definitive V1 test of C3: the
-    forward model of :mod:`tss.l1_propagation.doppler` is complete, so the
-    truth velocity is known, and the estimator either returns it or does not.
-    The check is registered now so that it starts reporting the moment the
-    estimator lands.
+    Not run until the drift-mode L3 tier of WP5 Phase 3 exists.  This is the
+    definitive V1 test of C3 at signal level: the forward model of
+    :mod:`tss.l1_propagation.doppler` and the facet echo of
+    :mod:`tss.l1_propagation.plate_echo` are complete, so the truth drift is
+    known, and the estimator either returns it or does not.  The
+    parameter-level version of this test is ``studies/c3_verify``.
     """
-    import numpy as np
-
-    from tss.l3_signal.novel.sweep_pairing import range_rate_from_pair_mps
-
-    # Raises NotImplementedError, which the harness turns into not_run with the
-    # stub's own message naming WP5.
-    range_rate_from_pair_mps(np.array([1.0]), np.array([1.0]), np.array([1.0e7]), 5.6e6)
-    return {"ok": False, "detail": "unreachable while the estimator is a stub"}
+    raise NotRun(
+        "WP5 Phase 3: the drift-mode L3 tier (route one at signal level) does not "
+        "exist yet.  The parameter-level test is tss.studies.c3_verify.  See "
+        "docs/work-packages.md row WP5."
+    )
 
 
 @check("V1", "leakage_cancellation_meets_ins24", quantity="residual margin, dB")
 def _v1_leakage_cancellation() -> Mapping[str, Any]:
     """The de-chirped leakage residual sits below the weakest admitted echo.
 
-    Not run until WP5 exists.  Note that even when it does, this check bounds
-    what processing can remove and not what the instrument achieves: the floor
-    is set by front-end compression, quantisation and intermodulation, which
-    are WP9 bench measurements.  C4 is a hardware claim with a modelling
-    component.
+    Not run as a V1 check.  C4 closed in simulation in WP3 (2026-10-29): the
+    residual is scored against INS-24 by the studies ``leakage_residual`` and
+    ``leakage_budget`` with :class:`tss.l2_instrument.leakage.RFCanceller`.
+    Wiring this check to those results is WP8 work.  Even then it bounds what
+    the model predicts and not what the instrument achieves: the floor is set
+    by front-end compression, quantisation and intermodulation, which are WP9
+    bench measurements.
     """
-    from tss.l3_signal.novel.leakage_cancel import residual_floor_db
-
-    residual_floor_db(None)  # raises NotImplementedError naming WP5
-    return {"ok": False, "detail": "unreachable while the canceller is a stub"}
+    raise NotRun(
+        "WP8: C4 closed in simulation in WP3 (studies leakage_residual and "
+        "leakage_budget, tss.l2_instrument.leakage.RFCanceller); this V1 check is "
+        "not yet wired to their results."
+    )
 
 
 # ===========================================================================

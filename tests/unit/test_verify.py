@@ -64,14 +64,17 @@ def test_no_check_reports_an_unknown_verdict():
 def test_unwritten_physics_reports_not_run_and_never_pass():
     """The property the whole harness exists for.
 
-    Checks registered against WP5 and WP2 have nothing to test yet.  They must
+    Checks registered against WP5, WP8 and WP2 have nothing to test yet.  They must
     say so, name the work package, and must not pass.
     """
     by_name = {r.name: r for r in run_level("V1") + run_level("V2")}
-    for name in ("c3_estimator_recovers_truth_velocity", "leakage_cancellation_meets_ins24"):
+    for name, wp in (
+        ("c3_estimator_recovers_truth_velocity", "WP5"),
+        ("leakage_cancellation_meets_ins24", "WP8"),
+    ):
         record = by_name[name]
         assert record.verdict == "not_run"
-        assert "WP5" in record.reason
+        assert wp in record.reason
     assert by_name["analytic_vs_raytrace_group_delay"].verdict == "not_run"
     assert "WP2" in by_name["analytic_vs_raytrace_group_delay"].reason
 
@@ -150,9 +153,9 @@ def test_a_stubs_own_message_becomes_the_reason():
     from tss.verify.levels import _Registration, _run_one
 
     def _calls_a_stub():
-        from tss.l3_signal.novel.leakage_cancel import residual_floor_db
+        from tss.l3_signal.novel.sweep_pairing import residual_bias_cells
 
-        residual_floor_db(None)
+        residual_bias_cells(None, 1.0e4)
 
     record = _run_one(_Registration(level="V1", name="stubby", fn=_calls_a_stub))
     assert record.verdict == "not_run"

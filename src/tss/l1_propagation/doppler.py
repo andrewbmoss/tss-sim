@@ -9,7 +9,8 @@ apparent-range bias it puts on an FMCW measurement.
 
 This module is deliberately not a stub.  The generation of the bias is
 geometry and arithmetic and both are settled; what is unsettled is the
-inversion, which lives in :mod:`tss.l3_signal.novel.sweep_pairing`.  Keeping the
+inversion: route one of C3 in the drift-mode L3 tier (WP5 Phase 3) and the
+ionogram-mode INS-09 check in :mod:`tss.l3_signal.novel.sweep_pairing`.  Keeping the
 forward model honest and complete here is what makes the inversion testable at
 all, because the test of C3 is that the estimator recovers the range and the
 velocity this module put in.
@@ -389,9 +390,9 @@ def coherent_interval_for_velocity_resolution_s(
     velocity resolution alone.  Inside the plasma the interval lengthens by
     ``1 / mu_sat``, so the demand is hardest just above the plasma frequency at
     the platform and not simply at the low end of the band.  For the 50 m/s of SCI-23 the product is about 3.0e6, so
-    1 MHz needs 3.0 s and 10 MHz needs 0.30 s.  The same relation appears in
-    :mod:`tss.l3_signal.novel.motion_compensation`, where its consequence is
-    that the geometry moves materially inside one velocity estimate.
+    1 MHz needs 3.0 s and 10 MHz needs 0.30 s.  Its consequence for the
+    drift mode of WP5 is that the geometry moves materially inside one
+    velocity estimate.
     """
     dv = np.asarray(delta_v_mps, dtype=float)
     f = np.asarray(f_hz, dtype=float)

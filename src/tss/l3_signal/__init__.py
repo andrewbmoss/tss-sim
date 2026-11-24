@@ -28,9 +28,8 @@ Module                  Status    Note
                                   labelling, no Doppler.
 ``vector``              stub      Three-channel separation and arrival
                                   angle, WP11, C5, goal level.
-``motion_separated``    stub      Registered as ``l3/motion_separated``,
-                                  the tier c3_doppler.yaml names.  WP5.
-``novel/``              stub      The four claimed algorithms.  See its own
+``novel/``              partial   The C3 estimators (parameter level) and
+                                  the INS-09 pairing stub.  See its own
                                   docstring.
 ======================  ========  ==========================================
 
@@ -39,14 +38,18 @@ A note on module names.  ``docs/architecture.md`` lists this layer's modules as
 and lists the tiers as ``baseline``, ``updown``, ``leakage_suppress`` and
 ``aoa``.  The delivered layout is the one above, with the claimed algorithms
 grouped under ``novel/`` so that the boundary between conventional processing
-and the contribution is visible in the directory listing, and with the tier the
-campaign actually names spelled ``motion_separated``.  The architecture document
-is stale on this point and, by its own rule, the code is right and the document
-needs the correction.
+and the contribution is visible in the directory listing.  The architecture
+document is stale on this point and, by its own rule, the code is right and the
+document needs the correction.
 
-Both stubs are registered or importable so that a campaign naming them can be
-validated before they exist.  They raise :class:`NotImplementedError` when
-called, with a message naming the work package.
+The ``motion_separated`` tier and the campaign that named it were retired on
+2026-11-24 (WP5 decision D9).  C3 enters the code through a drift-mode
+sequence path and its own L3 tier (WP5 Phases 2 and 3), not through a
+single-sweep tier.
+
+The stubs that remain are importable so that callers can be written before
+they exist.  They raise :class:`NotImplementedError` when called, with a
+message naming the work package.
 """
 
 from __future__ import annotations
@@ -61,7 +64,6 @@ from __future__ import annotations
 from tss.l3_signal import (  # noqa: F401
     base,
     ionogram,
-    motion_separated,
     novel,
     trace_extract,
     vector,
@@ -89,7 +91,6 @@ from tss.l3_signal.ionogram import (  # noqa: F401
     UNRESOLVED_MODE,
     BaselineSignalProcessing,
 )
-from tss.l3_signal.motion_separated import MotionSeparatedSignalProcessing  # noqa: F401
 from tss.l3_signal.trace_extract import (  # noqa: F401
     TraceSample,
     connect_trace,
@@ -113,7 +114,6 @@ from tss.l3_signal.transform import (  # noqa: F401
 __all__ = [
     # tiers
     "BaselineSignalProcessing",
-    "MotionSeparatedSignalProcessing",
     "SignalProcessingBase",
     # sweep law and mapping
     "sweep_bandwidth_hz",

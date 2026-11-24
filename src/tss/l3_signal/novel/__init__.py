@@ -1,72 +1,59 @@
 """Layer: L3
 WP: WP5
-Claims: C3, C4, C2
-Status: stub
-Requirements: INS-09, INS-15, INS-23, INS-24
+Claims: C3
+Status: partial
+Requirements: INS-09, INS-15, SCI-15, SCI-23
 
-The novel L3 algorithms.  Every module in this subpackage is a stub except
-``route_one_estimator``, which is implemented at the parameter level.
+The novel L3 algorithms of claim C3: spacecraft motion separates plasma drift
+from platform motion.  The estimators here are implemented at the parameter
+level and tested by their studies; ``sweep_pairing`` is a stub.
 
-These four modules are the research the dissertation proposes, as opposed to
-the baseline chain of WP4 which is conventional processing written so that the
-novel work has something to be measured against.  They are separated into their
-own subpackage for exactly that reason: the boundary between what is standard
-and what is claimed as a contribution should be visible in the directory
-listing and not only in the prose.
+They are separated into their own subpackage because the boundary between the
+conventional processing of WP4 and what is claimed as a contribution should be
+visible in the directory listing and not only in the prose.
 
-======================  ======  =====  ==============================================
-Module                  WP      Claim  What it would do
-======================  ======  =====  ==============================================
-``sweep_pairing``       WP5     C3     Unbiased range from the half-sum of an up and
-                                       down sweep pair, radial velocity from the
-                                       half-difference.  Principal contribution.
-``motion_compensation`` WP5     C3     Coherent integration over the known ephemeris
-                                       across the interval INS-15 demands.
-``aperture_synthesis``  WP5     C2     Along-track aperture from the orbital motion.
-                                       Exploratory extension, not a claim.
-``leakage_cancel``      WP5     C4     Adaptive cancellation of transmit-to-receive
-                                       leakage.  The claim the concept now turns on.
-``route_one_estimator`` WP5     C3     Drift from the Doppler zero crossing and the
-                                       power peak of one echo, with the extended-
-                                       reflector refusal.  Implemented (parameter
-                                       level); tested by ``studies/c3_verify``.
-======================  ======  =====  ==============================================
+============================  =====  =========================================
+Module                        Claim  What it does
+============================  =====  =========================================
+``route_one_estimator``       C3     Route one: drift from the Doppler zero
+                                     crossing and the power peak of one facet
+                                     echo, with the extended-reflector refusal.
+                                     Parameter level; ``studies/c3_verify``.
+``field_aligned_estimator``   C3     Route one for a field-aligned sheet, its
+                                     orientation from the field model.
+                                     Parameter level;
+                                     ``studies/field_aligned_verify``.
+``second_look_estimator``     C3     Route two, two nodes: drift and tilt from
+                                     two passes.  Parameter level;
+                                     ``studies/route_two``.
+``network_tilt_estimator``    C3     Route two, oblique links in a
+                                     constellation.  Parameter level;
+                                     ``studies/route_two_network``.
+``sweep_pairing``             C3     Stub.  The ionogram-mode INS-09 bias
+                                     check from an up and down sweep pair
+                                     (WP5 Phase 5).  Not the contribution.
+============================  =====  =========================================
 
-Every function of the stub modules raises :class:`NotImplementedError` with a
-message naming its work package.  That is the point.  A stub that returned a plausible number
-would let a campaign produce a result that looks like evidence for C3, and the
-first governing principle of Section 3.1 of the proposal is that no figure is
-scored until the thing it is scored against exists.  A fabricated intermediate
-is worse than a missing one because it cannot be found by looking at what is
-missing.
+Retired 2026-11-24 (WP5 decision D9): ``motion_compensation`` (the ephemeris
+platform-Doppler removal moves into the drift-mode L3 tier of WP5 Phase 3),
+``aperture_synthesis`` (exploratory, superseded by the route-one analysis of
+TV section 8.8) and ``leakage_cancel`` (claim C4 closed in simulation in WP3
+with :class:`tss.l2_instrument.leakage.RFCanceller`).  The composing tier
+``motion_separated`` and ``config/campaigns/c3_doppler.yaml`` were retired with
+them; the drift-mode tier of WP5 Phase 3 replaces both.
 
-The tier that composes these, :mod:`tss.l3_signal.motion_separated`, is
-registered so that ``config/campaigns/c3_doppler.yaml`` validates before the
-algorithms exist.  It raises when it is run.
+Every function of a stub raises :class:`NotImplementedError` with a message
+naming its work package.  A stub that returned a plausible number would let a
+campaign produce a result that looks like evidence for C3, and the first
+governing principle of Section 3.1 of the proposal is that no figure is scored
+until the thing it is scored against exists.
 """
 
 from __future__ import annotations
 
 from tss.l3_signal.novel import (  # noqa: F401
-    aperture_synthesis,
-    leakage_cancel,
-    motion_compensation,
     route_one_estimator,
     sweep_pairing,
-)
-from tss.l3_signal.novel.aperture_synthesis import (  # noqa: F401
-    along_track_resolution_m,
-    synthesize_aperture,
-)
-from tss.l3_signal.novel.leakage_cancel import (  # noqa: F401
-    cancel_leakage,
-    estimate_leakage,
-    residual_floor_db,
-)
-from tss.l3_signal.novel.motion_compensation import (  # noqa: F401
-    compensate_motion,
-    integrate_coherently,
-    phase_history_rad,
 )
 from tss.l3_signal.novel.sweep_pairing import (  # noqa: F401
     SweepPair,
@@ -78,22 +65,11 @@ from tss.l3_signal.novel.sweep_pairing import (  # noqa: F401
 )
 
 __all__ = [
-    # sweep_pairing, C3
+    # sweep_pairing, the INS-09 bias check (stub, WP5 Phase 5)
     "SweepPair",
     "pair_sweeps",
     "associate_traces",
     "unbiased_range_m",
     "range_rate_from_pair_mps",
     "residual_bias_cells",
-    # motion_compensation, C3
-    "phase_history_rad",
-    "compensate_motion",
-    "integrate_coherently",
-    # aperture_synthesis, C2, exploratory
-    "synthesize_aperture",
-    "along_track_resolution_m",
-    # leakage_cancel, C4
-    "estimate_leakage",
-    "cancel_leakage",
-    "residual_floor_db",
 ]

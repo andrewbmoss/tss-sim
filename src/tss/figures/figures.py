@@ -347,16 +347,16 @@ _declare(
     "doppler_range_bias",
     "Apparent-range bias against sounding frequency for a range of "
     "line-of-sight velocities, and the residual after the up and down sweep "
-    "pairing.  The figure C3 rests on.",
-    ("results/c3_doppler/*.json",),
-    "tss run c3_doppler, blocked on WP5",
+    "pairing.  The ionogram-mode INS-09 figure.",
+    ("results/wp5_ins09/*.json",),
+    "WP5 Phase 5, the ionogram-mode INS-09 check",
 )
 _declare(
     "leakage_residual",
     "De-chirped leakage residual against isolation, with the INS-24 margin "
     "over the weakest echo INS-10 admits.  The figure C4 rests on.",
     ("results/leakage/*.json",),
-    "WP5 processing and WP9 bench measurement",
+    "tss study leakage_residual (WP3); WP9 bench measurement if funded",
 )
 _declare(
     "feasibility_surface",

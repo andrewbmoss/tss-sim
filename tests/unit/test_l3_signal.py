@@ -23,7 +23,6 @@ from tss.constants import C_LIGHT, beat_frequency, range_cell_noise_bandwidth
 from tss.interfaces import Ionogram, ReceivedSignal, SweepSchedule
 from tss.l3_signal import (
     BaselineSignalProcessing,
-    MotionSeparatedSignalProcessing,
     dechirp,
     leading_edge,
     range_bin_index,
@@ -35,12 +34,7 @@ from tss.l3_signal import (
     window_gains,
     window_taper,
 )
-from tss.l3_signal.novel import (
-    aperture_synthesis,
-    leakage_cancel,
-    motion_compensation,
-    sweep_pairing,
-)
+from tss.l3_signal.novel import sweep_pairing
 from tss.registry import available
 
 K_F = 5.6e6
@@ -311,55 +305,14 @@ def test_robust_trace_extract_is_a_stub_naming_wp4():
     ],
 )
 def test_sweep_pairing_is_a_stub_naming_wp5(call):
-    """C3 is unstarted research and every entry point says so.
+    """The INS-09 bias check is not built yet and every entry point says so.
 
     The half-sum arithmetic is stated in the module docstring and deliberately
     not offered as a function, because a function that averaged two range
     arrays would be used on unassociated traces and would return a number that
     looked like a measurement.
     """
-    with pytest.raises(NotImplementedError, match="WP5"):
-        call()
-
-
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda: motion_compensation.required_coherent_interval_s(50.0, 1.0e6),
-        lambda: motion_compensation.phase_history_rad([], 1.0e6, np.zeros(3)),
-        lambda: motion_compensation.compensate_motion(None, [], None),
-        lambda: motion_compensation.integrate_coherently([], []),
-    ],
-)
-def test_motion_compensation_is_a_stub_naming_wp5(call):
-    with pytest.raises(NotImplementedError, match="WP5"):
-        call()
-
-
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda: aperture_synthesis.along_track_aperture_m(7600.0, 1.0),
-        lambda: aperture_synthesis.synthesize_aperture([], []),
-        lambda: aperture_synthesis.along_track_resolution_m(1.0e4, 1.0e7, 4.0e5),
-    ],
-)
-def test_aperture_synthesis_is_a_stub_naming_wp5(call):
-    with pytest.raises(NotImplementedError, match="WP5"):
-        call()
-
-
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda: leakage_cancel.estimate_leakage(None),
-        lambda: leakage_cancel.cancel_leakage(None),
-        lambda: leakage_cancel.residual_floor_db(None),
-        lambda: leakage_cancel.cancellation_margin_db(0.0, 0.0),
-    ],
-)
-def test_leakage_cancel_is_a_stub_naming_wp5(call):
-    with pytest.raises(NotImplementedError, match="WP5"):
+    with pytest.raises(NotImplementedError, match="WP5 Phase 5"):
         call()
 
 
@@ -377,19 +330,23 @@ def test_vector_receive_is_a_stub_naming_wp11(call):
         call()
 
 
-def test_motion_separated_tier_registers_but_refuses_to_run():
-    """The campaign shape is fixed before the algorithm exists.
+def test_retired_c3_stubs_are_gone():
+    """WP5 decision D9 (2026-11-24): the superseded C3 and C4 stubs are retired.
 
-    ``config/campaigns/c3_doppler.yaml`` names this tier, so it must register
-    for the campaign to validate, and it must refuse when run.  Both halves
-    are the point: ``tss config c3_doppler`` succeeds and ``tss run
-    c3_doppler`` says WP5.
+    The up and down pairing design of C3 was withdrawn on 2026-09-27, and C4
+    closed in simulation in WP3, so neither the ``motion_separated`` tier nor
+    the stub modules that described them may come back unnoticed.
     """
-    assert "motion_separated" in available("l3")["l3"]
-    tier = MotionSeparatedSignalProcessing()
-    assert tier.describe()["status"] == "stub"
-    with pytest.raises(NotImplementedError, match="WP5"):
-        tier.form_ionogram(_point_target(4.0e5))
+    import importlib.util
+
+    assert "motion_separated" not in available("l3")["l3"]
+    for name in (
+        "tss.l3_signal.motion_separated",
+        "tss.l3_signal.novel.motion_compensation",
+        "tss.l3_signal.novel.aperture_synthesis",
+        "tss.l3_signal.novel.leakage_cancel",
+    ):
+        assert importlib.util.find_spec(name) is None, name
 
 
 # ---------------------------------------------------------------------------

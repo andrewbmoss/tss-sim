@@ -67,7 +67,6 @@ IMPLEMENTED: dict[str, tuple[str, ...]] = {
 #: NotImplementedError naming its work package when it is called.
 STUBS: dict[tuple[str, str], str] = {
     ("l1", "raytrace"): "WP2",
-    ("l3", "motion_separated"): "WP5",
 }
 #: Tiers that need software this suite cannot assume (the IRI Fortran
 #: wrapper, MATLAB).  Only their description is checked here.

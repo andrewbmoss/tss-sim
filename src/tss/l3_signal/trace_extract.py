@@ -58,9 +58,9 @@ addresses:
   zero range with tens of decibels more power than any echo, and its window
   skirt extends across the near range cells.  The exclusion range used here is a
   blunt instrument that throws away the near range along with the leakage.  The
-  real answer is to cancel the leakage first, which is
-  :mod:`tss.l3_signal.novel.leakage_cancel`, and until that exists the
-  near-range behaviour of this extractor is not meaningful.
+  real answer is to cancel the leakage first, which
+  :class:`tss.l2_instrument.leakage.RFCanceller` does (WP3); this legacy
+  extractor predates it, and its near-range behaviour is not meaningful.
 * **Multiple traces.**  O and X are two traces, the X displaced upward in
   frequency by roughly half the gyrofrequency, and a scalar receiver sees them
   superposed.  Labelling them needs either polarization (WP11, C5) or a model of
@@ -115,7 +115,7 @@ _ROBUST_MESSAGE = (
     "WP4: the robust trace extractor is not implemented.  The threshold-and-connect "
     "extractor in tss.l3_signal.trace_extract.extract_trace works on clean synthetic "
     "data only.  A robust extractor needs leakage cancellation "
-    "(tss.l3_signal.novel.leakage_cancel, WP5), a stated detection statistic with a "
+    "(tss.l2_instrument.leakage.RFCanceller, WP3), a stated detection statistic with a "
     "false-alarm rate rather than a fixed threshold, O and X labelling (WP11, C5), "
     "and a cusp treatment.  See the module docstring and docs/work-packages.md row WP4."
 )

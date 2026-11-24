@@ -62,10 +62,10 @@ sweep and picking one would be arbitrary.
 It is also sampling and not resolution.  The along-track cell is the antenna
 footprint, which for an electrically small antenna with no directivity is very
 much larger than the sampling interval.  Making the resolution match the
-sampling is what :mod:`tss.l3_signal.novel.aperture_synthesis` would be for, and
-it is exploratory.  SCI-09 as written asks for sampling, so sampling is what is
-reported, and the gap between the two is recorded here rather than left
-implicit.
+sampling is what along-track aperture synthesis would be for; it was
+exploratory and was retired in WP5 (decision D9, 2026-11-24).  SCI-09 as
+written asks for sampling, so sampling is what is reported, and the gap
+between the two is recorded here rather than left implicit.
 """
 
 from __future__ import annotations

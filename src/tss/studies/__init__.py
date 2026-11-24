@@ -41,11 +41,11 @@ STATUS IS PART OF THE DESCRIPTOR
 ``implemented`` means the study runs and its result is citable.  ``partial``
 means it runs but bounds the answer rather than settling it, which is the honest
 description of :mod:`tss.studies.sky_noise`.  ``stub`` means it raises
-:class:`NotImplementedError` naming the work package that will fill it in.  Two
-studies are stubs and both are named in the risk section of the proposal, so
-they are registered rather than omitted: a reader who asks for
-``doppler_separation`` should be told that WP5 owns it, not that no such study
-exists.
+:class:`NotImplementedError` naming the work package that will fill it in.
+Stubs are registered rather than omitted, so that a reader who asks for one is
+told which work package owns it, not that no such study exists.  The
+``doppler_separation`` stub, which described the superseded up and down
+pairing design of C3, was retired on 2026-11-24 (WP5 decision D9).
 
 EXIT STATUS
 -----------
@@ -837,7 +837,6 @@ from tss.studies import (  # noqa: E402,F401
     aoa_options,
     c3_verify,
     data_volume,
-    doppler_separation,
     field_aligned_verify,
     field_inversion,
     fmcw_acceptance,

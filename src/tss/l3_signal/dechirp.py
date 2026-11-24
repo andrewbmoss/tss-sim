@@ -64,7 +64,8 @@ C4.  The claim is not that the waveform is pure enough.  The claim is about
 transmit-to-receive isolation and receiver dynamic range, because the leakage
 path has ``tau`` near zero, gets no range correlation benefit at all, and is
 tens of decibels stronger than the echo.  The hard problem moved; it did not go
-away.  :mod:`tss.l3_signal.novel.leakage_cancel` is where it sits now.
+away.  It was closed in simulation in WP3 by
+:class:`tss.l2_instrument.leakage.RFCanceller` and the leakage budget.
 
 One caveat on the suppression factor.  It is derived for a two-way delay that
 is constant across the coherent interval.  Over the 1.15 s goal interval of
