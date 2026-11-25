@@ -857,5 +857,6 @@ from tss.studies import (  # noqa: E402,F401
     transcription,
     wp4_campaign,
     wp4_dispersion,
+    wp5_campaign,
     wp9_bench,
 )
