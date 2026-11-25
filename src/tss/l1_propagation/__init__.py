@@ -30,6 +30,8 @@ Module                  Status    Note
                                   Forward model of the C3 verification study.
 ``analytic``            done      Vertical-incidence tier, registered as
                                   ``l1/analytic``.
+``facet``               partial   The plate model per sweep, registered as
+                                  ``l1/facet`` (WP5 Phase 2, D4).
 ``raytrace``            stub      PHaRLAP through the MATLAB bridge.
 ``offvertical``         stub      Depletion wall geometry, WP10, goal level.
 ======================  ========  ==========================================
@@ -45,6 +47,7 @@ from tss.l1_propagation import (  # noqa: F401
     absorption,
     analytic,
     doppler,
+    facet,
     magnetoionic,
     offvertical,
     raytrace,
@@ -77,6 +80,7 @@ from tss.l1_propagation.doppler import (  # noqa: F401
     residual_bias_second_order_m,
     velocity_from_doppler_mps,
 )
+from tss.l1_propagation.facet import FacetTier  # noqa: F401
 from tss.l1_propagation.magnetoionic import (  # noqa: F401
     appleton_hartree,
     cutoff_frequency,
@@ -94,6 +98,7 @@ from tss.l1_propagation.raytrace import RaytracePropagation  # noqa: F401
 __all__ = [
     # tiers
     "AnalyticPropagation",
+    "FacetTier",
     "RaytracePropagation",
     "PropagationBase",
     # absorption

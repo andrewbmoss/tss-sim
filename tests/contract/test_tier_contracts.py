@@ -57,7 +57,7 @@ SEED = 20261017
 #: needs no MATLAB; its PHaRLAP route is checked in tests/unit/test_l0_iri.py.
 IMPLEMENTED: dict[str, tuple[str, ...]] = {
     "l0": ("chapman", "analytic", "iri2020", "iri"),
-    "l1": ("analytic",),
+    "l1": ("analytic", "facet"),
     "l2": ("baseline",),
     "l3": ("baseline",),
     "l4": ("lamination", "lamination_magnetoionic"),
