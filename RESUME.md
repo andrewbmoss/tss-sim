@@ -1,6 +1,7 @@
 # tss-sim: where things stand
 
-Updated 2026-11-25, after WP5 Phase 2 (the drift-mode sequence path).
+Updated 2026-11-25, after WP5 Phase 2 (the drift-mode sequence path; 1000
+tests pass).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, see the
 last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -575,11 +576,13 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   `plate_echo.echo_track` is the general entry; `echo_free_space` and
   `echo_stratified` are unedited and reproduced exactly.
 * Exit met: noise-free L2 phase against `echo_stratified` to 1.3e-9 rad over
-  the window (0.01 rad asked), the Doppler to 1e-3, the orbit + L0 chain to
-  0.01 rad; smoke and `wp4_campaign` unchanged.
+  the window (0.01 rad asked) and the Doppler to 1e-3; smoke and
+  `wp4_campaign` unchanged.  The orbit + L0 chain agrees with the tier itself
+  to 6.6e-9 rad (a self-consistency check; no independent spherical reference).
 * For Phase 3: on the orbit the range curvature near overflight is
-  `v^2 r_f / r_p / D`, about 7 % under the flat value at 300 km below a
-  600 km orbit, so route one needs the effective speed; the blanked first
+  `v^2 r_f / r_p / D`, 4.3 % under the flat value at 300 km below a
+  600 km orbit (about 1.1 m/s on 25 m/s), so route one needs
+  `v_eff^2 = v^2 r_f / r_p`; the blanked first
   `tau_g` costs 15 to 30 % of each record.  Not done: `sheet_echo`, the
   diffuse halo, any study driving `run_sequence`.
 * Next: Phase 3, the drift tier and the Cramer-Rao harness.

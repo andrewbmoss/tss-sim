@@ -61,7 +61,7 @@ def test_free_space_range_is_the_spherical_chord():
 
 
 def test_doppler_slope_carries_the_curvature():
-    """Near overflight d^2 r/dt^2 = v^2 (r_f / r_p) / D, about 7 % below the flat v^2 / D.
+    """Near overflight d^2 r/dt^2 = v^2 (r_f / r_p) / D, 4.3 % below the flat v^2 / D.
 
     A 50 m plate, far inside the Fresnel zone, so it scatters as a point; a
     2 km plate is part mirror and its slope is smaller (route one's envelope).

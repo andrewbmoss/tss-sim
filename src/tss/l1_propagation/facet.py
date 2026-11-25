@@ -58,9 +58,10 @@ integral assumes ``mu_g = 1/mu``, which the flattened index does not obey, so
 in this geometry the group path is taken as ``d(f P)/df`` by a central
 difference in frequency.  What the sphere does to route one is real: near
 overflight the range's second derivative is ``v^2 (r_f / r_p) / D``, not the
-flat ``v^2 / D``, about 7 % less at 300 km below a 600 km orbit
-(``tests/unit/test_l1_facet_orbit.py``), so an estimator that assumes the flat
-slope reads drift about 7 % wrong.  The plate is two-dimensional: the facet is
+flat ``v^2 / D``, 4.3 % less at 300 km below a 600 km orbit
+(``r_f / r_p = 0.957``; ``tests/unit/test_l1_facet_orbit.py``), so an
+estimator that assumes the flat slope reads drift about 4 % wrong unless it
+uses ``v_eff^2 = v^2 r_f / r_p``.  The plate is two-dimensional: the facet is
 taken in the platform's track plane and the platform's cross-track offset from
 it is ignored; the largest seen is in :attr:`FacetTier.max_cross_track_m`.
 Drift is the medium rising past the platform (the plate model's frame), so it

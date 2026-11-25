@@ -64,7 +64,7 @@ Noise-free, `quantise=False`, 5 MHz, reference plasma, a 2 km facet with
 | L2 phase against `echo_stratified` called directly, whole window to the first nulls | 0.01 rad | 1.3e-9 rad (3.3e-10 over the main lobe) |
 | Echo-set Doppler at overflight against `doppler_shift_hz(25 m/s, f, mu_sat)` | 1e-3 | within 1e-3 (central difference) |
 | Doppler from L2 phase steps about overflight | 1e-3 | within 1e-3 |
-| Same chain on the orbit in the L0 profile, against the tier at the record centre | 0.01 rad | within 0.01 rad, all sweeps |
+| Same chain on the orbit in the L0 profile, against the tier itself at the record centre (chain self-consistency, not an independent check: no spherical reference exists) | 0.01 rad | 6.6e-9 rad, all 61 sweeps |
 | Smoke campaign and `wp4_campaign` unchanged | byte-identical | identical except run time and the requirements path (see the commit) |
 
 ## Orbit and the L0 profile (new, unverified)
@@ -79,11 +79,13 @@ Noise-free, `quantise=False`, 5 MHz, reference plasma, a 2 km facet with
   tabulated L0 profile reproduces the exponential to under 0.01 cycle and its
   second difference across sweeps to 1e-3 rad.
 * **Finding for Phase 3.**  Near overflight the range's second derivative is
-  `v^2 (r_f / r_p) / D`, not the flat `v^2 / D`: about 7 % less for a facet
-  300 km below a 600 km orbit (measured on a point-like 50 m plate).  Route
-  one's estimator, which uses `v_s^2 / (mu_sat P')`, would read the drift about
-  7 % wrong (1.75 m/s on 25 m/s, over the 1 m/s noise-free criterion of M3)
-  unless it uses the effective speed `v^2 r_f / r_p`.  A 2 km plate, part
+  `v^2 (r_f / r_p) / D`, not the flat `v^2 / D`: 4.3 % less for a facet
+  300 km below a 600 km orbit (`r_f / r_p = 0.957`; the tier matches the
+  formula to 0.5 % on a point-like 50 m plate).  Route one's estimator, which
+  uses `v_s^2 / (mu_sat P')`, would read the drift about 4 % wrong (about
+  1.1 m/s on 25 m/s, at the edge of M3's 1 m/s noise-free criterion, and
+  larger for deeper facets) unless it uses the effective speed
+  `v_eff = v sqrt(r_f / r_p)`, that is `v_eff^2 = v^2 r_f / r_p`.  A 2 km plate, part
   mirror, has a smaller slope than a point; that is the envelope physics route
   one already handles.
 * **Limits.**  The plate is two-dimensional: the facet is taken in the track
