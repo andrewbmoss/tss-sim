@@ -515,7 +515,13 @@ requirements:
       Scored as the 1-sigma accuracy of the line-of-sight velocity of an
       isolated echo, in the Earth-fixed frame after the ephemeris-predicted
       platform term is removed, in the Doppler observing mode (metric
-      los_velocity_accuracy_mps).  Two parts of SCI-15 are not scored by this
+      los_velocity_accuracy_mps).  The truth is the plasma's own velocity along
+      the echo's true wave normal (Andrew, 2026-11-24): the platform's
+      projection on a reflector tilt, which survives removal of the platform
+      term for a local-down wave normal, counts as error (docs/drift-mode.md,
+      section 4).  The +/-1 km/s unambiguous interval is claimed only where
+      sampling gives it, f mu_sat <= 5.3 MHz at 71 Hz; the +/-1.5 km/s goal is
+      not claimed.  Two parts of SCI-15 are not scored by this
       entry: the unambiguous interval (+/-1 km/s threshold, +/-1.5 km/s goal),
       and at goal the 50 m/s resolution between scatterers in one range cell;
       the goal value carried here is the 50 m/s accuracy.  The ionogram mode

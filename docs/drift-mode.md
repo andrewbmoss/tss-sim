@@ -30,6 +30,20 @@ contract, output `single_node_gaps.csv`, parts A to G).
 - M3 is route one alone at signal level (2026-11-24).
 - The several-frequency lever is a standard facet product, set per facet when
   the facet's reflection band allows it (2026-11-24).
+- **SCI-15 is scored against the plasma's own rate** (2026-11-24, evening):
+  the plasma's velocity along the echo's true wave normal, in the Earth-fixed
+  frame.  The platform's projection on a reflector tilt, which survives the
+  removal of the ephemeris term for a local-down wave normal, counts as error.
+  The combined rate `los_rate_mps` is reported, but it scores SCI-15 only when
+  a class product removes or bounds the tilt term (section 4, "What SCI-15 is
+  scored against").
+- **The unambiguous interval is limited to +/-1 km/s, and claimed only where
+  sampling supports it** (2026-11-24, evening): `f mu_sat` <= 5.3 MHz at 71 Hz,
+  3.4 MHz at 45 Hz.  The +/-1.5 km/s goal is not claimed.  Resolving the wrap
+  with drift-mode sub-bands at different frequencies is recorded as a possible
+  future improvement of the plasma-velocity mode, not adopted.
+- **`tau_c_s` and `facet_size_m` are reportable data products** (2026-11-24,
+  evening).
 - Reference case, as in TV Ch. 8: plasma frequency at the spacecraft
   `f_N,sat` = 1.5 MHz, so `mu_sat` = 0.87, 0.95, 0.99 at 3, 5, 10 MHz;
   `v_s` = 7.6 km/s; 10 dB per sweep; 45 Hz sweep repetition, 71 Hz cap
@@ -107,15 +121,40 @@ dwell (`tau_c` >= `T`).
 | `los_rate_mps` | m/s | **Combined line-of-sight rate**, `c (f_D - f_D,plat) / (2 f mu_sat)`, averaged over the dwell.  For a reflector tilted by `alpha` along track it is `w cos(alpha) + v_s (mu_f / mu_sat) sin(alpha)`: drift plus the platform's projection on the tilt, which one channel cannot remove | Dwell 1.15 s (INS-15 goal): **8.7-10.0 m/s** with the oscillator at the INS-26 threshold, **0.5-1.0 m/s** at the INS-26 goal, 3-20 MHz.  Dwell 0.3 s: 8.7-11.9 m/s (threshold), 1.0-6.5 m/s (goal).  Dwell 0.05 s (INS-15 threshold): 15-95 m/s, Doppler term dominant, worst at 3 MHz | Screen part A; the oscillator term is `route_one`'s; matches the Doppler and oscillator terms of TV Table `c3r1budget` |
 | `los_rate_sigma_mps` | m/s | 1-sigma of `los_rate_mps` from the terms above | | |
 | `resolution_mps` | m/s | Separation at which two scatterers in one range cell are resolved in Doppler, `c / (2 f mu_sat T)` | Dwell 1.15 s: 50, 27, 13 m/s at 3, 5, 10 MHz.  The SCI-15 goal of 50 m/s between scatterers is met at 1.15 s from 3 MHz up, which is how INS-15's goal was derived | Arithmetic; INS-15 |
-| `v_unambiguous_mps` | m/s | `c f_rep / (4 f mu_sat)` | 45 Hz: 1298, 707, 341, 169 m/s at 3, 5, 10, 20 MHz.  71 Hz: 2048, 1116, 538, 267 m/s.  The +/-1 km/s of INS-09 and SCI-15 is met by sampling alone only where `f mu_sat` <= 5.3 MHz at 71 Hz; above that, ambiguity has to be resolved (open question 2) | Screen part B |
+| `v_unambiguous_mps` | m/s | `c f_rep / (4 f mu_sat)` | 45 Hz: 1298, 707, 341, 169 m/s at 3, 5, 10, 20 MHz.  71 Hz: 2048, 1116, 538, 267 m/s.  **The +/-1 km/s interval of INS-09 and SCI-15 is claimed only where sampling gives it: `f mu_sat` <= 5.3 MHz at 71 Hz, 3.4 MHz at 45 Hz** (decision of 2026-11-24).  Above that the product reports the interval it has and sets `ALIAS_RISK`.  The +/-1.5 km/s goal is not claimed | Screen part B |
 | `range_debiased_m` | m | `range_m` corrected for the measured rate in the drift-mode sweep, bias `mu_sat Rdot f / K_sub` | Follows `los_rate_sigma_mps` | `doppler.apparent_range_bias_m` |
 | `doppler_spread_hz` | Hz | Spectral width of the residual after the mean Doppler (and, for a facet, the ephemeris slope) is removed | To be established in Phase 3.  Used to flag several scatterers in one cell or a rough reflector | Phase 3 |
-| `tau_c_s` | s | **The echo's own decorrelation time**, from `|R(1)| / (R(0) - noise)` of the complex echo (the modulus removes the constant Doppler, so no Doppler estimate is needed) | 10 dB per sweep, 45 Hz: tau_c 0.1 s within a factor 0.69-1.41 (16-84 %) over a 1.15 s dwell and 0.77-1.24 over 3 s; tau_c 0.5 s within 0.43-2.9 (1.15 s) and 0.58-1.8 (3 s); tau_c 2 s gives only a lower bound.  Rule: an estimate when `tau_c` <= about half the dwell, otherwise a lower bound.  Not modelled: decorrelation from the platform moving over a rough reflector, which biases `tau_c` short and has to be separated at signal level | Screen part G |
+| `tau_c_s` | s | **Data product.**  **The echo's own decorrelation time**, from `|R(1)| / (R(0) - noise)` of the complex echo (the modulus removes the constant Doppler, so no Doppler estimate is needed) | 10 dB per sweep, 45 Hz: tau_c 0.1 s within a factor 0.69-1.41 (16-84 %) over a 1.15 s dwell and 0.77-1.24 over 3 s; tau_c 0.5 s within 0.43-2.9 (1.15 s) and 0.58-1.8 (3 s); tau_c 2 s gives only a lower bound.  Rule: an estimate when `tau_c` <= about half the dwell, otherwise a lower bound.  Not modelled: decorrelation from the platform moving over a rough reflector, which biases `tau_c` short and has to be separated at signal level | Screen part G |
 | `echo_class` | label | Section 3 | | |
 
 `tau_c_s` matters beyond the echo.  The topside decorrelation time gates route
 one (WP5 decision D3) and nothing measures it.  A sounder that reports it for
-every echo measures it in flight, at the frequencies and heights it sounds.
+every echo measures it in flight, at the frequencies and heights it sounds.  It
+is a reportable data product (decision of 2026-11-24), with `TAU_LOWER_BOUND`
+set where it is only a bound.
+
+### What SCI-15 is scored against
+
+The L5 truth for SCI-15 is the plasma's own velocity along the echo's true wave
+normal at the spacecraft, in the Earth-fixed frame (decision of 2026-11-24).
+For a reflector tilted by `alpha` along track that is `w cos(alpha) +
+u sin(alpha)`.  The combined rate `los_rate_mps` is instead
+`w cos(alpha) + v_s (mu_f/mu_sat) sin(alpha)`: its tilt term is the platform's
+motion projected on the tilt, so against this truth it is an error of about
+133 m/s per degree of tilt at `mu_f/mu_sat` = 1.  The consequences:
+
+| Product | Scores SCI-15? |
+|---|---|
+| `los_rate_mps` of any echo | Only for a reflector whose tilt is known to be negligible; otherwise the tilt term is in the error.  Its 8.7-10.0 m/s at 1.15 s is a floor, not the SCI-15 result |
+| `drift_mps` (route one, compact facet) | Yes, with the tilt bias of `tilt_allowance_deg` counted as error (`TILT_UNFLAGGED`) |
+| `drift_mf_mps` (several-frequency lever) | Yes; the tilt term is estimated and removed |
+| `drift_fa_mps` (field-aligned sheet) | Yes within `NEAR_MERIDIAN` / `OFF_MERIDIAN`, with `phi_error_mps` counted; refused beyond |
+| Extended layer | No product; SCI-15 is not met by one node with one channel (section 7) |
+
+The requirement text (`requirements.yaml`, SCI-15 notes) says "the
+line-of-sight velocity of an isolated echo, in the Earth-fixed frame after the
+ephemeris-predicted platform term is removed".  The decision reads "velocity"
+as the plasma's, and the notes now say so.
 
 `mu_sat` sensitivity (part C): 1 % of error in `f_N,sat` scales every rate by
 1.3 % at 2 MHz, 0.33 % at 3 MHz, 0.10 % at 5 MHz and 0.02 % at 10 MHz: 0.3 m/s
@@ -131,9 +170,9 @@ of 100 m/s at 3 MHz, 1.3 m/s at 2 MHz.  It matters only below about
 | `SHORT_DWELL` | Dwell under 0.05 s (INS-15 threshold) | Rate reported; accuracy from the Doppler term |
 | `DECORRELATED` | `tau_c_s` < dwell | The coherent Doppler bound does not hold; the rate is incoherently averaged and its sigma is widened |
 | `TAU_LOWER_BOUND` | `tau_c_s` > half the dwell | `tau_c_s` is a lower bound |
-| `ALIAS_RISK` | Predicted residual rate (drift prior plus the tilt allowance) beyond `v_unambiguous_mps` | Rate may be wrapped; resolve by open question 2 |
+| `ALIAS_RISK` | Predicted residual rate (drift prior plus the tilt allowance) beyond `v_unambiguous_mps`, or `f mu_sat` above the limit of the +/-1 km/s claim | Rate may be wrapped; outside the +/-1 km/s claim |
 | `SPREAD` | `doppler_spread_hz` above the single-scatterer value | Several scatterers or a rough reflector; class products are not formed |
-| `TILT_DEGENERATE` | Always, unless a class product removes it | `los_rate_mps` is drift plus `v_s (mu_f/mu_sat) sin(alpha)`; it is not the plasma's own rate |
+| `TILT_DEGENERATE` | Always, unless a class product removes it | `los_rate_mps` is drift plus `v_s (mu_f/mu_sat) sin(alpha)`; it is not the plasma's own rate and does not score SCI-15 |
 
 ## 5. Compact facets: route one
 
@@ -150,7 +189,7 @@ imported from the ephemeris; drift `w = v_s^2 (t_zc - t_pk) / (mu_sat P')`.
 | `slope_ratio`, `peak_contrast` | - | The classification statistics | | Section 3 |
 | `along_track_m` | m | Along-track position where the spacecraft crosses the **facet normal**, `v_s t_pk` | **175-410 m** without fading, **0.7-3.3 km** at tau_c 0.5 s.  It is the facet's position only for an untilted facet; a tilt of `alpha` moves it by `h tan(alpha)` | Screen part D from the `route_one` budget; `c3_verify` finding |
 | `facet_range_m` | m | Apparent range at the power peak | As `range_m`; true height needs the WP6 inversion | Phase 2; WP6 |
-| `facet_size_m` | m | Along-track size of the specular region, `L = 0.443 lambda P' / (W v_s)` from the fitted envelope width `W` | **3-9 %** (1-sigma) without fading for W 0.44-2.9 s; **14-48 %** with fading at tau_c 0.1-0.5 s, biased low by 2-27 % (fading narrows the fitted envelope).  It measures the coherent specular region, which a curved or rough facet makes smaller than the facet | Screen part E; `route_one.envelope_width_s` |
+| `facet_size_m` | m | **Data product.**  Along-track size of the specular region, `L = 0.443 lambda P' / (W v_s)` from the fitted envelope width `W` | **3-9 %** (1-sigma) without fading for W 0.44-2.9 s; **14-48 %** with fading at tau_c 0.1-0.5 s, biased low by 2-27 % (fading narrows the fitted envelope).  It measures the coherent specular region, which a curved or rough facet makes smaller than the facet | Screen part E; `route_one.envelope_width_s` |
 | `tilt_allowance_deg` | deg | Facet tilt at which the unflagged bias `v_s (mu_f/mu_sat) sin(alpha)` plus the random budget reaches 50 or 100 m/s | Goal / threshold: about 0.3 / 0.7 deg near the spacecraft (`mu_f` = `mu_sat`), 0.6 / 1.3 deg at `mu_f` 0.5, 1.5 / 3.3 deg near reflection (`mu_f` 0.2); 0.06-0.35 deg at 3 MHz with fading | `route_one_tilt_map`, TV Table `c3tiltallow` |
 | `arrival_angle_deg` | deg | Along-track arrival angle, by-product for a facet of known orientation | 0.02-0.45 deg | `route_one` study note (2026-10-06) |
 | `tau_c_s`, `doppler_spread_hz` | | As for every echo, with the envelope divided out | | Section 4 |
@@ -525,25 +564,12 @@ arrival-direction work in WP11.  Where C4 goes is recorded as open question 5.
 
 ## 11. Open questions for Andrew
 
-1. **What SCI-15 is scored against.**  `requirements.yaml` scores SCI-15 as
-   the line-of-sight velocity of an isolated echo after the
-   ephemeris-predicted platform term is removed.  Read literally, that is
-   `los_rate_mps`, which meets threshold and goal (8.7-10 m/s at 1.15 s).  But
-   for a tilted reflector it contains `v_s (mu_f/mu_sat) sin(alpha)`, which is
-   platform motion, not plasma motion.  Should the L5 truth be the apparent
-   rate (what the requirement literally says) or the plasma's own rate along
-   the wave normal (what the science needs)?  The second is met only for
-   facets, through route one and the lever.
-2. **Velocity ambiguity above `f mu_sat` of about 5.3 MHz.**  The drift mode
-   cannot sample +/-1 km/s unambiguously there even at 71 Hz.  Options: two
-   sub-bands at different frequencies resolve the wrap by their different
-   unambiguous intervals (the several-frequency lever schedules several
-   sub-bands anyway); or restrict the +/-1 km/s claim to the lower
-   frequencies.
-3. **Adopt `tau_c_s` as a data product.**  It would measure the topside
-   decorrelation time in flight.  It adds a few numbers per echo to the INS-13
-   product.
-4. **Adopt `facet_size_m`.**  It comes free from the envelope fit.
+Decided on the evening of 2026-11-24 (recorded under "Decisions this contract
+rests on"): 1, SCI-15 is scored against the plasma's own rate; 2, the
+unambiguous interval is limited to +/-1 km/s where sampling supports it, with
+sub-bands a possible future improvement; 3 and 4, `tau_c_s` and
+`facet_size_m` are reportable data products.  Still open:
+
 5. **Where the null scan (C4) goes.**  It is arrival-direction work (WP11 by
    the decision of 2026-11-14) but needs only one channel and the attitude
    system.  Options: keep it in WP11 with the two-channel methods; or make it a
@@ -554,6 +580,20 @@ arrival-direction work in WP11.  Where C4 goes is recorded as open question 5.
 6. **D8 condition 1.**  Confirm in Phase 2 that a drift-mode sequence carries
    the sweep-to-sweep phase along the phase path (section 10).  If it does not,
    the simulator overstates the plasma Doppler by `1/mu_sat^2`.
+7. **INS-13 product set.**  `tau_c_s` and `facet_size_m` are now data
+   products.  The INS-13 product sets and the data-volume estimate
+   (`docs/data-volume.md`) do not list them.  Adding them is a requirements
+   amendment, which needs Andrew's approval; they add a few numbers per echo.
+
+## Possible future improvement (not adopted)
+
+In the plasma-velocity mode, two or more drift-mode sub-bands at different
+frequencies have different unambiguous intervals, `c f_rep / (4 f mu_sat)`, and
+together resolve a wrapped rate by the usual staggered-frequency argument.
+That would extend the +/-1 km/s interval (and the +/-1.5 km/s goal) across the
+band above `f mu_sat` of 5.3 MHz.  The several-frequency lever already
+schedules several sub-bands for facets, so the cost is mainly in the
+scheduler.  Recorded 2026-11-24; not part of the WP5 baseline.
 
 ## Sources
 
