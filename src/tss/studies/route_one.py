@@ -59,6 +59,19 @@ shown to reach.  Fading is a complex Gaussian process with an exponential
 correlation, which is a choice and not a measurement; the decorrelation time of
 the topside is not known.  The fit is told the form of the envelope.  Each of
 these is kind to the result.
+
+The 0.1 s case is an extended reflector (2026-11-24)
+----------------------------------------------------
+Until 2026-11-24 the Monte Carlo also ran a fading case at 0.1 s.  In the
+spacecraft frame a randomly phased patch decorrelates on the time the facet
+envelope of a patch of its size takes, so a Rayleigh echo that decorrelates in
+0.1 s at 5 MHz and 500 km is a patch about 14 km long
+(:func:`tss.l2_instrument.fading.halo_extent_m`).  That is past the 2 to 4 km
+at which the WP5 length scenes become extended, so the case belongs with the
+extended reflector, which route one declines, and not in a compact-facet
+budget (gate G1, docs/decorrelation.md).  It is listed in
+:data:`EXTENDED_FADING_CASES` and no longer run here.  The other cases keep
+their seeds and case codes, so their numbers are unchanged.
 """
 
 from __future__ import annotations
@@ -74,6 +87,7 @@ from tss.l1_propagation.doppler import (
     doppler_shift_hz,
     refractive_index_at_platform,
 )
+from tss.l2_instrument.fading import halo_extent_m
 from tss.l3_signal.novel.route_one_estimator import (  # moved to L3 (code review F4)
     HALF_POWER_X,
     envelope_power,
@@ -468,8 +482,16 @@ def tilt_doppler_table(
 #: 5 MHz and 500 km in free space, above which a facet is not compact.
 FACETS_KM = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 3.9)
 
-#: Fading cases: label and correlation time, s.
-FADING_CASES = (("none", None), ("tau_0p1", 0.1), ("tau_0p5", 0.5))
+#: Fading cases of the compact-facet Monte Carlo: label and correlation time, s.
+FADING_CASES = (("none", None), ("tau_0p5", 0.5))
+
+#: Code of each case in the CSV's ``fading_case`` column, which also sets its
+#: seed.  Kept from the three-case run of 2026-10-06 so the numbers reproduce.
+FADING_CASE_CODE = {"none": 0, "tau_0p1": 1, "tau_0p5": 2}
+
+#: Cases moved to the extended reflector on 2026-11-24 (see the module
+#: docstring).  Not run by this study.
+EXTENDED_FADING_CASES = (("tau_0p1", 0.1),)
 
 #: Rows of the budget table: frequency in MHz and apparent range in km.
 BUDGET_CASES = ((3.0, 500.0), (3.0, 1000.0), (5.0, 500.0), (5.0, 1000.0), (10.0, 500.0), (10.0, 1000.0))
@@ -495,7 +517,8 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
     mc_rows = []
     for d_km in FACETS_KM:
         width = float(envelope_width_s(f_ref, p_ref, d_km * 1e3))
-        for j, (_label, tau) in enumerate(FADING_CASES):
+        for label, tau in FADING_CASES:
+            j = FADING_CASE_CODE[label]
             sig = overflight_time_sigma_s(
                 width, n_trials=n_trials, seed=seed + 100 * j + int(round(100 * d_km)), fading_tau_s=tau
             )
@@ -544,6 +567,11 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
         "drift_error_mps_no_fading_min": float(mc[mc[:, 1] == 0][:, 4].min()),
         "drift_error_mps_no_fading_max": float(mc[mc[:, 1] == 0][:, 4].max()),
         "drift_error_mps_tau_0p5_max": float(mc[mc[:, 1] == 2][:, 4].max()),
+        "kappa_tau_0p5_min": float(mc[mc[:, 1] == 2][:, 5].min()),
+        "kappa_tau_0p5_max": float(mc[mc[:, 1] == 2][:, 5].max()),
+        "halo_km_tau_0p5_5mhz_500km": halo_extent_m(0.5, f_ref, p_ref) / 1e3,
+        "halo_km_tau_0p1_5mhz_500km": halo_extent_m(0.1, f_ref, p_ref) / 1e3,
+        "extended_fading_cases": ",".join(label for label, _ in EXTENDED_FADING_CASES),
     }
 
     summary = f"""
@@ -558,6 +586,10 @@ For a 2 km facet at 10 dB per sweep and 45 Hz the total drift error is
 {metrics["total_mps_fading_min"]:.1f} to {metrics["total_mps_fading_max"]:.1f} m/s with fading at a correlation time of
 0.5 s, over 3 to 10 MHz and 500 to 1000 km.  The oscillator allocation of
 INS-26 dominates the first figure and the overflight time dominates the second.
+
+A fading case at 0.1 s is not run: in the spacecraft frame it is a randomly
+phased patch about {metrics["halo_km_tau_0p1_5mhz_500km"]:.0f} km long at 5 MHz and 500 km, an extended
+reflector that route one declines (0.5 s is about {metrics["halo_km_tau_0p5_5mhz_500km"]:.1f} km).
 
 The envelope is an ideal sinc, the signal-to-noise ratio is assumed, and the
 fading model is a choice.  {n_trials} trials per case, seed {seed}.
