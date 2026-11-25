@@ -1,11 +1,12 @@
 {
   "seed": 20261124,
-  "n_scenes": 115,
+  "n_scenes": 117,
   "groups": [
     "A_untilted",
     "B_tilted",
     "C_extended",
     "D_length",
+    "E_budget",
     "S_sheet"
   ],
   "budget_cases": [
@@ -69,6 +70,9 @@
       -87.0
     ],
     "sheet_assume_abs_err_plasma_meridian_mps": 2.6,
+    "E_pass": 2,
+    "E_n": 2,
+    "E_group_path_tol_km": 1.0,
     "budget_total_mps": {
       "3MHz_500km": [
         12.2,
@@ -140,6 +144,10 @@
         "extended"
       ]
     },
+    "E_pass": 2,
+    "E_n": 2,
+    "E_max_abs_drift_err_mps": 0.015699435479827883,
+    "E_max_abs_group_path_dev_km": 0.0003792286610746487,
     "sheet_given_max_abs_err_free_mps": 0.1466606580057821,
     "sheet_assume_err_psi15_phi5_mps": -166.5431397866928,
     "sheet_assume_err_psi45_phi5_mps": -464.9409786069608,
@@ -167,7 +175,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x0_v0",
@@ -184,7 +194,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x0_v25",
@@ -201,7 +213,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x0_v100",
@@ -218,7 +232,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x5_v-50",
@@ -235,7 +251,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x5_v0",
@@ -252,7 +270,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x5_v25",
@@ -269,7 +289,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_3MHz_500km_x5_v100",
@@ -286,7 +308,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x0_v-50",
@@ -303,7 +327,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x0_v0",
@@ -320,7 +346,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x0_v25",
@@ -337,7 +365,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x0_v100",
@@ -354,7 +384,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x5_v-50",
@@ -371,7 +403,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x5_v0",
@@ -388,7 +422,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x5_v25",
@@ -405,7 +441,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_500km_x5_v100",
@@ -422,7 +460,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x0_v-50",
@@ -439,7 +479,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x0_v0",
@@ -456,7 +498,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x0_v25",
@@ -473,7 +517,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x0_v100",
@@ -490,7 +536,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x5_v-50",
@@ -507,7 +555,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x5_v0",
@@ -524,7 +574,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x5_v25",
@@ -541,7 +593,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_10MHz_500km_x5_v100",
@@ -558,7 +612,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x0_v-50",
@@ -575,7 +631,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x0_v0",
@@ -592,7 +650,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x0_v25",
@@ -609,7 +669,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x0_v100",
@@ -626,7 +688,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x5_v-50",
@@ -643,7 +707,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x5_v0",
@@ -660,7 +726,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x5_v25",
@@ -677,7 +745,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_free_5MHz_1000km_x5_v100",
@@ -694,7 +764,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x0_v-50",
@@ -711,7 +783,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x0_v0",
@@ -728,7 +802,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x0_v25",
@@ -745,7 +821,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x0_v100",
@@ -762,7 +840,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x5_v-50",
@@ -779,7 +859,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x5_v0",
@@ -796,7 +878,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x5_v25",
@@ -813,7 +897,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_3MHz_mu0.5_x5_v100",
@@ -830,7 +916,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x0_v-50",
@@ -847,7 +935,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x0_v0",
@@ -864,7 +954,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x0_v25",
@@ -881,7 +973,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x0_v100",
@@ -898,7 +992,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x5_v-50",
@@ -915,7 +1011,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x5_v0",
@@ -932,7 +1030,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x5_v25",
@@ -949,7 +1049,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_5MHz_mu0.5_x5_v100",
@@ -966,7 +1068,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x0_v-50",
@@ -983,7 +1087,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x0_v0",
@@ -1000,7 +1106,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x0_v25",
@@ -1017,7 +1125,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x0_v100",
@@ -1034,7 +1144,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x5_v-50",
@@ -1051,7 +1163,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x5_v0",
@@ -1068,7 +1182,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x5_v25",
@@ -1085,7 +1201,9 @@
       "degeneracy": true,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "A_plasma_10MHz_mu0.8_x5_v100",
@@ -1102,7 +1220,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.1_v0",
@@ -1119,7 +1239,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.1_v25",
@@ -1136,7 +1258,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.25_v0",
@@ -1153,7 +1277,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.25_v25",
@@ -1170,7 +1296,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.5_v0",
@@ -1187,7 +1315,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t0.5_v25",
@@ -1204,7 +1334,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t1_v0",
@@ -1221,7 +1353,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_5MHz_500km_t1_v25",
@@ -1238,7 +1372,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.1_v0",
@@ -1255,7 +1391,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.1_v25",
@@ -1272,7 +1410,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.25_v0",
@@ -1289,7 +1429,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.25_v25",
@@ -1306,7 +1448,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.5_v0",
@@ -1323,7 +1467,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t0.5_v25",
@@ -1340,7 +1486,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t1_v0",
@@ -1357,7 +1505,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_free_3MHz_500km_t1_v25",
@@ -1374,7 +1524,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.1_v0",
@@ -1391,7 +1543,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.1_v25",
@@ -1408,7 +1562,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.25_v0",
@@ -1425,7 +1581,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.25_v25",
@@ -1442,7 +1600,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.5_v0",
@@ -1459,7 +1619,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t0.5_v25",
@@ -1476,7 +1638,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t1_v0",
@@ -1493,7 +1657,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_5MHz_mu0.5_t1_v25",
@@ -1510,7 +1676,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.1_v0",
@@ -1527,7 +1695,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.1_v25",
@@ -1544,7 +1714,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.25_v0",
@@ -1561,7 +1733,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.25_v25",
@@ -1578,7 +1752,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.5_v0",
@@ -1595,7 +1771,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t0.5_v25",
@@ -1612,7 +1790,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t1_v0",
@@ -1629,7 +1809,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "B_plasma_3MHz_mu0.5_t1_v25",
@@ -1646,7 +1828,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t0_v0",
@@ -1663,7 +1847,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t0_v25",
@@ -1680,7 +1866,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t0.5_v0",
@@ -1697,7 +1885,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t0.5_v25",
@@ -1714,7 +1904,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t1_v0",
@@ -1731,7 +1923,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_free_5MHz_500km_t1_v25",
@@ -1748,7 +1942,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t0_v0",
@@ -1765,7 +1961,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t0_v25",
@@ -1782,7 +1980,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t0.5_v0",
@@ -1799,7 +1999,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t0.5_v25",
@@ -1816,7 +2018,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t1_v0",
@@ -1833,7 +2037,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "C_plasma_5MHz_mu0.5_t1_v25",
@@ -1850,7 +2056,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L0.5",
@@ -1867,7 +2075,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L1",
@@ -1884,7 +2094,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L2",
@@ -1901,7 +2113,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L4",
@@ -1918,7 +2132,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L8",
@@ -1935,7 +2151,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L16",
@@ -1952,7 +2170,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "D_free_5MHz_500km_L32",
@@ -1969,7 +2189,9 @@
       "degeneracy": false,
       "dip_deg": 0.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi0_phi0",
@@ -1986,7 +2208,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 0.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi0_phi5",
@@ -2003,7 +2227,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 0.0,
-      "rotation_deg": 5.0
+      "rotation_deg": 5.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi15_phi0",
@@ -2020,7 +2246,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 15.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi15_phi5",
@@ -2037,7 +2265,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 15.0,
-      "rotation_deg": 5.0
+      "rotation_deg": 5.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi45_phi0",
@@ -2054,7 +2284,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 45.0,
-      "rotation_deg": 0.0
+      "rotation_deg": 0.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_free_dip10_psi45_phi5",
@@ -2071,7 +2303,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 45.0,
-      "rotation_deg": 5.0
+      "rotation_deg": 5.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_plasma_dip10_psi0_phi5",
@@ -2088,7 +2322,9 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 0.0,
-      "rotation_deg": 5.0
+      "rotation_deg": 5.0,
+      "mu_facet": null,
+      "p_target_km": null
     },
     {
       "scene_id": "S_plasma_dip10_psi15_phi5",
@@ -2105,7 +2341,47 @@
       "degeneracy": false,
       "dip_deg": 10.0,
       "heading_deg": 15.0,
-      "rotation_deg": 5.0
+      "rotation_deg": 5.0,
+      "mu_facet": null,
+      "p_target_km": null
+    },
+    {
+      "scene_id": "E_plasma_5MHz_P500km_v25",
+      "group": "E_budget",
+      "echo_class_truth": "compact_facet",
+      "medium": "plasma",
+      "f_mhz": 5.0,
+      "environment": "plasma_5MHz_P500km",
+      "x_m": 0.0,
+      "tilt_deg": 0.0,
+      "drift_mps": 25.0,
+      "plate_m": 2000.0,
+      "half_window_s": null,
+      "degeneracy": false,
+      "dip_deg": 0.0,
+      "heading_deg": 0.0,
+      "rotation_deg": 0.0,
+      "mu_facet": 0.553782,
+      "p_target_km": 500.0
+    },
+    {
+      "scene_id": "E_plasma_10MHz_P500km_v25",
+      "group": "E_budget",
+      "echo_class_truth": "compact_facet",
+      "medium": "plasma",
+      "f_mhz": 10.0,
+      "environment": "plasma_10MHz_P500km",
+      "x_m": 0.0,
+      "tilt_deg": 0.0,
+      "drift_mps": 25.0,
+      "plate_m": 2000.0,
+      "half_window_s": null,
+      "degeneracy": false,
+      "dip_deg": 0.0,
+      "heading_deg": 0.0,
+      "rotation_deg": 0.0,
+      "mu_facet": 0.870368,
+      "p_target_km": 500.0
     }
   ]
 }

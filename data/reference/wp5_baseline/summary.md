@@ -6,12 +6,13 @@ Status: **implemented**.  Work packages: WP5.  Claims: C3.  Requirements: SCI-15
 
 # wp5_campaign: WP5 Phase 0 baseline (parameter level), seed 20261124
 
-115 scenes; budget 12 rows at 1000 trials.
+117 scenes; budget 12 rows at 1000 trials.
 Reproduced: **True**.
 
 - A_pass: 56/56
 - B_flagged: 0/32
 - C_declined: 12/12
+- E_pass: 2/2
 - A_max_abs_drift_err_mps: 0.03003
 - A_degeneracy_max_ratio: 2.223e-17
 - B_err_over_predicted_min: 0.9994
@@ -24,6 +25,8 @@ Reproduced: **True**.
 - sheet_assume_abs_err_meridian_dip10_phi5_mps: 5.021
 - sheet_assume_err_plasma_psi15_mps: -87.34
 - sheet_assume_abs_err_plasma_meridian_mps: 2.557
+- E_max_abs_drift_err_mps: 0.0157
+- E_max_abs_group_path_dev_km: 0.0003792
 - budget_max_abs_deviation: 0.004261
 - D (slope ratio, class): {'0.5km': [1.0, 'compact_facet'], '1km': [0.999, 'compact_facet'], '2km': [0.985, 'compact_facet'], '4km': [0.766, 'extended'], '8km': [0.084, 'extended'], '16km': [-0.006, 'extended'], '32km': [-0.006, 'extended']}
 
@@ -44,4 +47,4 @@ Reproduced: **True**.
 
 ---
 
-Run 2026-11-25T01:18:25+00:00.  Provenance is in `manifest.json` next to this file.  Rerunning `tss study wp5_campaign` from the same commit and the same configuration reproduces it.
+Run 2026-11-25T02:25:03+00:00.  Provenance is in `manifest.json` next to this file.  Rerunning `tss study wp5_campaign` from the same commit and the same configuration reproduces it.

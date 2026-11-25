@@ -23,6 +23,10 @@
     "C_declined": 12,
     "C_n": 12,
     "C_max_abs_slope_ratio": 0.0006037647044698467,
+    "E_pass": 2,
+    "E_n": 2,
+    "E_max_abs_drift_err_mps": 0.015699435479827883,
+    "E_max_abs_group_path_dev_km": 0.0003792286610746487,
     "sheet_given_max_abs_err_free_mps": 0.1466606580057821,
     "sheet_assume_err_psi15_phi5_mps": -166.5431397866928,
     "sheet_assume_err_psi45_phi5_mps": -464.9409786069608,
@@ -33,7 +37,7 @@
     "budget_max_abs_deviation": 0.004260559391326857,
     "mismatches": [],
     "reproduced": true,
-    "n_scenes": 115,
+    "n_scenes": 117,
     "seed": 20261124
   },
   "work_packages": [

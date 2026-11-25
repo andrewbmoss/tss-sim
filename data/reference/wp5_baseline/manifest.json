@@ -91,7 +91,7 @@
   },
   "config_sha256": "3b9908d0774d80e7805f59905c5adcb1ea1a9289b6d88550b4413961bd56fe5e",
   "configuration": "",
-  "created_utc": "2026-11-25T01:12:57+00:00",
+  "created_utc": "2026-11-25T02:19:52+00:00",
   "environment": {
     "host": "HeartOfGold",
     "platform": "Windows-10-10.0.26300-SP0",
@@ -101,7 +101,7 @@
   "error": null,
   "git": {
     "branch": "master",
-    "commit": "fe5dd5d6aa1f41cddf24ec9237a357452db8a539",
+    "commit": "6a5f9f2a61936f49e51c405afd6b03cefacda991",
     "dirty": false,
     "dirty_files": []
   },
@@ -239,6 +239,8 @@
       "D_free_5MHz_500km_L32": 20261217418264,
       "D_free_5MHz_500km_L4": 20264331031554,
       "D_free_5MHz_500km_L8": 20264174381033,
+      "E_plasma_10MHz_P500km_v25": 20263321175798,
+      "E_plasma_5MHz_P500km_v25": 20264798401882,
       "S_free_dip10_psi0_phi0": 20261568483291,
       "S_free_dip10_psi0_phi5": 20262907872076,
       "S_free_dip10_psi15_phi0": 20262468875992,
