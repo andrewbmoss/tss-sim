@@ -86,6 +86,8 @@ __all__ = [
     "plate_points",
     "echo_free_space",
     "echo_stratified",
+    "TrackEcho",
+    "echo_track",
 ]
 
 
@@ -288,6 +290,94 @@ def echo_stratified(
         )
         group[j] = float(gc[0])
     return PlateEcho(t_s=t, field=field, group_path_m=group, mu_sat=mu_sat)
+
+
+@dataclass(frozen=True)
+class TrackEcho:
+    """What :func:`echo_track` returns: :class:`PlateEcho` plus the phase path.
+
+    ``phase_path_m`` is the phase path of the ray to the plate's centre, one
+    way; in free space it equals ``group_path_m``.
+    """
+
+    t_s: np.ndarray
+    field: np.ndarray
+    group_path_m: np.ndarray
+    phase_path_m: np.ndarray
+    mu_sat: float
+
+
+def echo_track(
+    t_s: np.ndarray,
+    f_hz: float,
+    plate: Plate,
+    profile: object | None = None,
+    *,
+    along_m: np.ndarray | None = None,
+    extra_depth_m: np.ndarray | None = None,
+    v_s_mps: float = 7600.0,
+    n_nodes: int = 64,
+    newton_iterations: int = 8,
+) -> TrackEcho:
+    """The general entry (WP5 Phase 2): the platform's track given per time.
+
+    ``along_m`` is the platform's along-track position and ``extra_depth_m``
+    its depth below its height at ``t = 0`` (positive when it has descended),
+    both at each time of ``t_s``.  By default they are ``v_s t`` and zero, the
+    straight level track of :func:`echo_free_space` (``profile`` None) and
+    :func:`echo_stratified` (``profile`` given), which this reproduces exactly
+    (``tests/unit/test_plate_echo_track.py``).  Those two are left as they
+    were (D4).  ``profile`` is anything with the ``mu_squared(f, depth)`` of
+    :class:`ExponentialTopside`.
+    """
+    t = np.asarray(t_s, dtype=float)
+    along = float(v_s_mps) * t if along_m is None else np.asarray(along_m, dtype=float)
+    extra = np.zeros_like(t) if extra_depth_m is None else np.asarray(extra_depth_m, dtype=float)
+    if along.shape != t.shape or extra.shape != t.shape:
+        raise ValueError("along_m and extra_depth_m must match t_s")
+    f = float(f_hz)
+    s, w = plate_points(plate, f)
+    xi, di = _point_coordinates(plate, s)
+    field = np.empty(t.size, dtype=complex)
+    group = np.empty(t.size, dtype=float)
+    phase_c = np.empty(t.size, dtype=float)
+    if profile is None:
+        k = 2.0 * np.pi * f / C_LIGHT
+        for j, tj in enumerate(t):
+            dx = along[j] - xi - float(plate.drift_x_mps) * tj
+            dz = di - float(plate.drift_mps) * tj
+            if extra[j] != 0.0:
+                dz = dz - extra[j]
+            r = np.hypot(dx, dz)
+            field[j] = np.sum(w * np.exp(-2j * k * r))
+            dzc = plate.depth_m - plate.drift_mps * tj
+            if extra[j] != 0.0:
+                dzc = dzc - extra[j]
+            group[j] = float(np.hypot(along[j] - plate.x_m - plate.drift_x_mps * tj, dzc))
+        phase_c[:] = group
+        return TrackEcho(t_s=t, field=field, group_path_m=group, phase_path_m=phase_c, mu_sat=1.0)
+
+    k0 = 2.0 * np.pi * f / C_LIGHT
+    span = float(np.ptp(t)) if t.size else 0.0
+    if np.any(profile.mu_squared(f, di.max() + abs(plate.drift_mps) * span) <= 0.05):
+        raise ValueError("the plate reaches the reflection level of this frequency")
+    nodes, weights = np.polynomial.legendre.leggauss(int(n_nodes))
+    mu_sat = float(np.sqrt(profile.mu_squared(f, 0.0)))
+    xc, dc = np.array([plate.x_m]), np.array([plate.depth_m])
+    for j, tj in enumerate(t):
+        d_sat = float(plate.drift_mps) * tj  # the medium has risen past the platform
+        if extra[j] != 0.0:
+            d_sat = d_sat + extra[j]
+        u_t = float(plate.drift_x_mps) * tj
+        phase, _ = _solve(along[j] - xi - u_t, d_sat, di, f, profile, nodes, weights, newton_iterations)
+        field[j] = np.sum(w * np.exp(-2j * k0 * phase))
+        pc, gc = _solve(
+            np.array([along[j] - xc[0] - u_t]), d_sat, dc, f, profile, nodes, weights,
+            newton_iterations,
+        )
+        group[j] = float(gc[0])
+        phase_c[j] = float(pc[0])
+    return TrackEcho(t_s=t, field=field, group_path_m=group, phase_path_m=phase_c, mu_sat=mu_sat)
 
 
 def _solve(
