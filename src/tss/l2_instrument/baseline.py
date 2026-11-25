@@ -146,6 +146,16 @@ echo at another beat, which is not modelled, and a processor must gate it out
 impairment draw that spans the whole sequence, so the oscillator's phase is
 continuous from sweep to sweep (:meth:`receive_sequence`).
 
+Geometry time and receive time (WP5 Phase 3, 2026-11-25).  An echo received
+at ``t`` was reflected at ``t - tau / 2``, so the echo set L1 evaluates for the
+sweep's centre ``T/2`` describes what arrives at ``T/2 + tau / 2``; the
+Doppler turns each row's phase about that receive time
+(``SequenceContext.geometry_delay_fraction``).  Phase 2 turned it about
+``T/2``, which put an echo's phase half a delay early against its amplitude;
+route one read that as a drift of ``v^2 / (mu_sat c)``, about 0.2 m/s at any
+range.  A processor that time-stamps an echo measured at receive time ``t``
+with ``t - tau / 2`` recovers the geometry's time.
+
 ``thermal_noise=False`` leaves the thermal noise out, for noise-free checks.
 It is a verification switch; every campaign keeps the default.
 
@@ -290,10 +300,18 @@ class SequenceContext:
     #: Entries added to the record's flags (the sequence's own bookkeeping).
     extra_flags: Mapping[str, Any] | None = None
     #: Time in the record, s, at which the echo set was evaluated: the Doppler
-    #: turns the phase by ``-2 pi f_d (t - doppler_reference_s)``.  A sequence
-    #: evaluates L1 at each sweep's centre, so its phase there is exact and the
-    #: error of holding the Doppler fixed is second order about the centre.
+    #: turns the phase by ``-2 pi f_d (t - t_row)`` with
+    #: ``t_row = doppler_reference_s + geometry_delay_fraction * tau_g``.  A
+    #: sequence evaluates L1 at each sweep's centre, so its phase there is exact
+    #: and the error of holding the Doppler fixed is second order about it.
     doppler_reference_s: float = 0.0
+    #: An echo received at ``t`` left at ``t - tau`` and was reflected at
+    #: ``t - tau / 2``, so the echo set evaluated for the platform and medium
+    #: at a time describes what arrives half a delay later.  A sequence sets 0.5
+    #: (WP5 Phase 3, 2026-11-25): with 0, the phase of an echo stood half a
+    #: delay early against its amplitude, which biased route one by
+    #: ``v^2 / (mu_sat c)``, about 0.2 m/s.
+    geometry_delay_fraction: float = 0.0
 
 
 class RealizationWindow:
@@ -837,7 +855,9 @@ class BaselineInstrument:
             if dopp is not None and np.isfinite(dopp[row]):
                 # A closing echo beats at f_R - f_d on an up-sweep and
                 # -(f_R + f_d) on a down-sweep (tss.l1_propagation.doppler).
-                t_ref = 0.0 if sequence is None else float(sequence.doppler_reference_s)
+                t_ref = 0.0 if sequence is None else (
+                    float(sequence.doppler_reference_s) + float(sequence.geometry_delay_fraction) * tau
+                )
                 imp_phase = imp_phase - 2.0 * np.pi * float(dopp[row]) * (tt - t_ref)
                 rows_doppler += 1
             if phase_delay is not None and np.isfinite(phase_delay[row]):
@@ -1129,8 +1149,9 @@ class BaselineInstrument:
 
         ``echo_sets[n]`` is the echo set of the sweep starting at ``t_s[n]``,
         evaluated at that sweep's centre, ``t_s[n] + T/2`` (module docstring,
-        SEQUENCES).  Each record blanks the first group delay of its echoes.
-        Inputs are never modified.
+        SEQUENCES); an echo of delay ``tau`` carries that geometry at receive
+        time ``T/2 + tau/2`` in its record.  Each record blanks the first group
+        delay of its echoes.  Inputs are never modified.
         """
         t = np.asarray(t_s, dtype=float)
         if len(echo_sets) != t.size:
@@ -1151,7 +1172,8 @@ class BaselineInstrument:
         for e, win in zip(sets, windows, strict=True):
             extra = {"oscillator_continuous": win is not None, "fading": fading_info}
             ctx = SequenceContext(realization=win, blank_first_delay=True, apply_doppler=True,
-                                  extra_flags=extra, doppler_reference_s=0.5 * float(sweep.sweep_period_s))
+                                  extra_flags=extra, doppler_reference_s=0.5 * float(sweep.sweep_period_s),
+                                  geometry_delay_fraction=0.5)
             out.append(self.receive(e, sweep, rng, sequence=ctx))
         return out
 

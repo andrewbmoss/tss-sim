@@ -49,7 +49,7 @@ def _run(n=91, t0=-1.0, **l2kw):
 
 
 def _carrier_phase(rec, echo, sweep):
-    """Phase 2 pi f tau_p at the record centre, from the samples."""
+    """Phase 2 pi f tau_p at the record centre, from the samples, and its geometry time."""
     x = rec.samples[0]
     fs = rec.fs_hz
     tt = np.arange(x.size) / fs
@@ -61,8 +61,9 @@ def _carrier_phase(rec, echo, sweep):
     z = np.sum(x[live] * np.exp(-2j * np.pi * (k * tau - fd) * (tt[live] - tc)))
     f0 = sweep.f_start_hz
     beat = 2 * np.pi * (f0 * tau + k * tau * tc - k * tau**2 / 2 - F * tau)
-    # What is left is 2 pi f tau_p(t_n) - 2 pi f_d tc ~ 2 pi f tau_p(t_n + tc).
-    return float(np.angle(z)) - beat, tc
+    # What is left is 2 pi f tau_p at the geometry time of the record centre:
+    # received at tc, reflected at tc - tau/2 (L2, geometry time and receive time).
+    return float(np.angle(z)) - beat, tc - tau / 2
 
 
 def test_run_sequence_returns_a_received_sequence():
@@ -109,9 +110,10 @@ def test_exit_doppler_to_1e3():
                                                                     strict=True)])
     T = sweep.sweep_period_s
     est = -(ph[i0 + 1] - ph[i0 - 1]) / (2 * np.pi * 2 * T)
-    tc = 0.5 * res.sequence.records[0].samples.shape[1] / res.sequence.records[0].fs_hz
-    # The pair is centred on the record centre tc, within a sample of the
-    # overflight sweep's centre T/2; the platform term there is (tc - T/2) times the slope.
+    tc = _carrier_phase(res.sequence.records[i0], res.echoes[i0], sweep)[1]  # its geometry time
+    # The pair is centred on the geometry time tc of the record centre, within
+    # a sample and half a delay of the overflight sweep's centre T/2; the platform
+    # term there is (tc - T/2) times the slope.
     slope = 2 * F * 7600.0**2 / (299_792_458.0 * float(res.echoes[i0].group_delay_s[0]) * 299_792_458.0 / 2)
     assert est + slope * (tc - T / 2) == pytest.approx(want, rel=1e-3)
 

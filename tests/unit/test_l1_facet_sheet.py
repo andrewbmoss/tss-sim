@@ -74,7 +74,7 @@ def test_straight_sheet_rows_are_the_sheet_model():
 
 
 def _carrier_phase(rec, echo, sweep):
-    """As in test_run_sequence: 2 pi f tau_p at the record centre, from the samples."""
+    """As in test_run_sequence: 2 pi f tau_p at the record centre and its geometry time."""
     x = rec.samples[0]
     fs = rec.fs_hz
     tt = np.arange(x.size) / fs
@@ -86,7 +86,7 @@ def _carrier_phase(rec, echo, sweep):
     live = np.abs(x) > 0
     z = np.sum(x[live] * np.exp(-2j * np.pi * (k * tau - fd) * (tt[live] - tc)))
     beat = 2 * np.pi * (sweep.f_start_hz * tau + k * tau * tc - k * tau**2 / 2 - F * tau)
-    return float(np.angle(z)) - beat, tc
+    return float(np.angle(z)) - beat, tc - tau / 2  # the geometry time: reflected half a delay earlier
 
 
 # For the exit the platform crosses the sheet's normal plane square on, so the
