@@ -68,6 +68,10 @@ IMPLEMENTED: dict[str, tuple[str, ...]] = {
 STUBS: dict[tuple[str, str], str] = {
     ("l1", "raytrace"): "WP2",
 }
+#: Tiers on the drift-mode sequence path (WP5 Phase 3).  They take a
+#: ReceivedSequence, not the single-sweep chain, so rule 1 is checked on a
+#: short sequence below; the rest is in their unit tests.
+SEQUENCE: tuple[tuple[str, str], ...] = (("l3", "drift"),)
 #: Tiers that need software this suite cannot assume (the IRI Fortran
 #: wrapper, MATLAB).  Only their description is checked here.
 EXTERNAL: tuple[tuple[str, str], ...] = (
@@ -205,7 +209,7 @@ def _all_implemented():
 def test_every_registered_tier_is_covered_by_these_contracts():
     """A tier added to the registry has to be added here, as implemented, stub
     or external, so that it is held to the rules from its first commit."""
-    known = set(_all_implemented()) | set(STUBS) | set(EXTERNAL)
+    known = set(_all_implemented()) | set(STUBS) | set(EXTERNAL) | set(SEQUENCE)
     registered = {(layer, name) for layer, names in available().items() for name in names}
     assert registered - known == set(), "registered but not covered by the contract tests"
     assert known - registered == set(), "covered here but no longer registered"
@@ -293,6 +297,27 @@ def test_rule1_a_tier_leaves_its_inputs_as_it_found_them(chain, layer, name):
     _call(layer, tier, chain, np.random.default_rng(1), frozen=False)
     for i, (arg, snap) in enumerate(zip(args, snaps, strict=True)):
         _assert_unchanged(arg, snap, f"{layer}/{name} argument {i}")
+
+
+@pytest.mark.parametrize("layer,name", SEQUENCE)
+def test_rule1_a_sequence_tier_leaves_its_sequence_as_it_found_it(layer, name):
+    from tss import sweep_law
+    from tss.interfaces import PlatformState
+    from tss.pipeline import Pipeline
+
+    tiers = {"l0": build("l0", "chapman"), "l1": build("l1", "facet"), "l2": build("l2", "baseline")}
+    sweep = sweep_law.drift_mode(5.0e6)
+    t = sweep_law.drift_mode_times(3)
+    seq = Pipeline(tiers, seed=1).run_sequence(
+        "contract", sweep=sweep, t_s=t, platforms=[PlatformState(alt_m=600e3, lat_deg=0.0, lon_deg=0.0)] * 3,
+        alt_m=np.linspace(100e3, 600e3, 101), epoch=EPOCH,
+    ).sequence
+    for r in seq.records:
+        r.samples.setflags(write=False)
+    snaps = [_snapshot(r) for r in seq.records]
+    _build(layer, name).process_sequence(seq)
+    for r, s in zip(seq.records, snaps, strict=True):
+        _assert_unchanged(r, s, f"{layer}/{name} record")
 
 
 # ---------------------------------------------------------------------------

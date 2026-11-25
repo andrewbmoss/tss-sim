@@ -26,6 +26,9 @@ Module                  Status    Note
                                   data.  The robust extractor is WP4.
 ``ionogram``            partial   Registered as ``l3/baseline``.  No O and X
                                   labelling, no Doppler.
+``drift``               partial   Registered as ``l3/drift``: route one at
+                                  signal level on a drift-mode sequence
+                                  (WP5 Phase 3).
 ``vector``              stub      Three-channel separation and arrival
                                   angle, WP11, C5, goal level.
 ``novel/``              partial   The C3 estimators (parameter level) and
@@ -63,6 +66,7 @@ from __future__ import annotations
 # ``import`` statement.
 from tss.l3_signal import (  # noqa: F401
     base,
+    drift,
     ionogram,
     novel,
     trace_extract,
