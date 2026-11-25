@@ -1,10 +1,9 @@
 # tss-sim: where things stand
 
-Updated 2026-11-06, after WP4 (M2 met; master 9039ec5, 857 tests pass,
-1 skipped; 858 pass after the INS-32 catalogue update).  WP0, WP3 and WP4 are
-complete (the Rev G amendment adding INS-32, the SRM and the TV M2 update were
-accepted 2026-11-06); WP5 and WP6 are next and are now on the critical path;
-WP9 depends on funding.  The history of what was built and why is in the git log,
+Updated 2026-11-24, after WP5 Phase 0 (master 438f124, 897 tests pass).
+WP0, WP3 and WP4 are complete; WP5 is in progress (Phase 0 done, see the last
+section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
+on funding.  The history of what was built and why is in the git log,
 the phase log below and the project notes; this file says what the code does
 today, what it does not, and what comes next.
 
@@ -508,3 +507,34 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   81.8 / 87.6 % off; Chapman all goal.  M2 met.  `scripts/isis_model_check.py`
   (`wp4_m2_models`): IRI-2020 against ISIS-1 and the coverage of the data.
   The `l4_retrieval.base` starting-value docstring had the bias sign wrong.
+
+## WP5 Phase 0 (2026-11-24): stubs retired, the contract, the harness
+
+* Decisions and plan: project notes `wp5-plan-draft`,
+  `wp5-decisions-and-p0-start-2026-11-24`.  C3 by three routes; route one is
+  the best solution with one receive channel; M3 is route one alone at signal
+  level.
+* D9 (ff9ecf1): `motion_compensation`, `aperture_synthesis`, `leakage_cancel`,
+  the `motion_separated` tier, `c3_doppler.yaml` and the `doppler_separation`
+  study retired; `novel/sweep_pairing` kept as the Phase 5 INS-09 stub.
+* `docs/drift-mode.md`: the single-node output contract (every echo, compact
+  facets with the several-frequency lever, field-aligned sheets, the extended
+  layer, the ionogram-mode INS-09 correction), SCI-15 scored against the
+  plasma's own rate (`requirements.yaml` notes), the D8 and C4 screens.
+* Study `wp5_campaign` (fe5dd5d), the WP5 harness: 115 scenes by echo class
+  (c3_verify's grids A 56, B 32, C 12, D 7; eight field-aligned sheets, two in
+  the plasma) through the parameter-level code, and the route-one budget with
+  the `route_one` study's seeds.  Each scene has its own seed (campaign seed and
+  a checksum of its id) in `manifest.seeds`.  Expected values are pinned in
+  `EXPECTED` from the TV; mismatches are listed, not tolerated.  Rows use the
+  contract's names; products with no parameter-level logic are listed in
+  `not_evaluated`.  Sheets are at 5 MHz and 500 km only (the forward model
+  fixes them); plasma facets are placed by `mu_f`, with `P'` recorded.
+* Reference run `data/reference/wp5_baseline` (438f124; from fe5dd5d, clean,
+  `--strict`): reproduced.  A 56/56; B 0/32 flagged, error 0.9994-1.001 of the
+  predicted tilt bias; C 12/12 declined; D compact to 2 km, extended from 4 km;
+  sheets to TV Table `c3sheet`; budget within 0.4 % of TV Table `c3r1budget`.
+  About 7 minutes; the plasma extended plates (about 20 s each) and the two
+  plasma sheets (about 70 s each) dominate.
+* Next: Phase 1, the decorrelation-time source or bound and the L2 fading
+  model (gate G1), then Phase 2, the drift-mode sequence path.
