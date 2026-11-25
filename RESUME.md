@@ -1,8 +1,8 @@
 # tss-sim: where things stand
 
-Updated 2026-11-24, after WP5 Phase 1 (959 tests pass; baseline 236bb86).
-WP0, WP3 and WP4 are complete; WP5 is in progress (Phase 0 done, see the last
-section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
+Updated 2026-11-25, after WP5 Phase 2 (the drift-mode sequence path).
+WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, see the
+last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
 the phase log below and the project notes; this file says what the code does
 today, what it does not, and what comes next.
@@ -558,3 +558,28 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   117 scenes reproduced, the 115 Phase 0 rows and the budget unchanged,
   E_budget 2/2 at 0.016 m/s.
 * Next: Phase 2, the drift-mode sequence path, which wires `fading` in.
+
+## WP5 Phase 2 (2026-11-25): the drift-mode sequence path
+
+* `docs/drift-sequence.md`; project note `wp5-p2-sequence-path`.  Decisions
+  (Andrew, 2026-11-25): `EchoSet.phase_delay_s`; the orbit and the L0 profile
+  now; the specular fading gain, oscillator continuity and the layer echo in
+  this phase; a 150 kHz chirp at 45 Hz (`sweep_law.drift_mode`).
+* `Pipeline.run_sequence`: L0 once, L1 per sweep at the sweep's centre, L2
+  `receive_sequence` (Doppler inside each sweep, the first group delay
+  blanked, one impairment draw over the sequence, specular fading per facet).
+  L2 carrier phase follows the phase path (D8 condition 1).
+* L1 tier `facet` (`l1_propagation/facet.py`): the plate model per sweep on a
+  straight track or on the orbit by Earth flattening, in an exponential or a
+  tabulated L0 topside; the layer echo on request.
+  `plate_echo.echo_track` is the general entry; `echo_free_space` and
+  `echo_stratified` are unedited and reproduced exactly.
+* Exit met: noise-free L2 phase against `echo_stratified` to 1.3e-9 rad over
+  the window (0.01 rad asked), the Doppler to 1e-3, the orbit + L0 chain to
+  0.01 rad; smoke and `wp4_campaign` unchanged.
+* For Phase 3: on the orbit the range curvature near overflight is
+  `v^2 r_f / r_p / D`, about 7 % under the flat value at 300 km below a
+  600 km orbit, so route one needs the effective speed; the blanked first
+  `tau_g` costs 15 to 30 % of each record.  Not done: `sheet_echo`, the
+  diffuse halo, any study driving `run_sequence`.
+* Next: Phase 3, the drift tier and the Cramer-Rao harness.

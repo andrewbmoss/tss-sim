@@ -145,6 +145,7 @@ at one frequency returns three rows; the analytic tier returns one.
 | `magnetoionic` | `src/tss/l1_propagation/magnetoionic.py` | O and X mode separation and the X-mode cutoff shift. | Delivered |
 | `raytrace` | `src/tss/l1_propagation/raytrace.py` | Three-dimensional numerical ray tracing through PHaRLAP, including off-vertical returns and horizontal gradients.  MATLAB-side, read back through the file bridge. | Planned, WP2 |
 | `doppler` | `src/tss/l1_propagation/doppler.py` | Platform-motion Doppler per ray, which is the input C3 has to work from. | Implemented (28386d6), WP2 and WP5 |
+| `facet` | `src/tss/l1_propagation/facet.py` | Compact facets by the plate model (`plate_echo.echo_track`), one call per sweep of a drift-mode sequence: group and phase delay, Doppler, rows flagged `facet:<id>`; straight track or the orbit by Earth flattening, exponential or tabulated L0 topside; optional O-mode layer echo (`layer:O`).  Two-dimensional (cross-track ignored).  See `docs/drift-sequence.md`. | Implemented, WP5 Phase 2 |
 
 **Fidelity ladder at L1.**  `analytic` is fast enough to sweep large campaigns
 and is exactly the thing V2 checks against `raytrace`.  The analytic tier cannot
