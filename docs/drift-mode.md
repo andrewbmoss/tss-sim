@@ -137,11 +137,25 @@ set where it is only a bound.
 
 The L5 truth for SCI-15 is the plasma's own velocity along the echo's true wave
 normal at the spacecraft, in the Earth-fixed frame (decision of 2026-11-24).
-For a reflector tilted by `alpha` along track that is `w cos(alpha) +
-u sin(alpha)`.  The combined rate `los_rate_mps` is instead
-`w cos(alpha) + v_s (mu_f/mu_sat) sin(alpha)`: its tilt term is the platform's
-motion projected on the tilt, so against this truth it is an error of about
-133 m/s per degree of tilt at `mu_f/mu_sat` = 1.  The consequences:
+The derivation is TV section 8.10.4 (`sec:c3sci15`, figure `fig:c3sci15`).  In
+short, with `x` along track and `z` up, spacecraft velocity
+`V_s = (v_s, 0, v_z)`, plasma velocity `U = (u, 0, w)` and wave normal at the
+spacecraft `k = (sin th, 0, -cos th)`, `th` = `theta_sat`:
+
+    f_D    = (2 f mu_sat / c) k . (V_s - U)                 (eikonal)
+    V_meas = c (f_D - f_D,plat) / (2 f mu_sat)
+           = -k . U  +  (k - k0) . V_s                       (k0 = local down)
+    V_true = -k . U = w cos(th) - u sin(th)                  (SCI-15 truth)
+    eps    = v_s sin(th) + v_z (1 - cos th)  ~  v_s sin(th)
+           = v_s (mu_f / mu_sat) sin(alpha)                   (Snell: mu sin(th) conserved)
+
+So `los_rate_mps` = `V_true + eps`, and against this truth `eps` is an error
+of 132.6 m/s per degree of `theta_sat`.  The goal (50 m/s) is used up at
+0.38 degrees and the threshold (100 m/s) at 0.75 degrees.  A product that uses
+a predicted or estimated wave normal `k_p` in place of `k0` leaves
+`v_s (sin th - sin th_p)`, so SCI-15 is met to the extent the along-track wave
+normal is known.  A bias `b` left in a product counts with its random part as
+`sqrt(sigma^2 + b^2)`.  The consequences:
 
 | Product | Scores SCI-15? |
 |---|---|
