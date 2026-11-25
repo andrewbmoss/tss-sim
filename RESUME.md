@@ -538,3 +538,20 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   plasma sheets (about 70 s each) dominate.
 * Next: Phase 1, the decorrelation-time source or bound and the L2 fading
   model (gate G1), then Phase 2, the drift-mode sequence path.
+
+## WP5 Phase 1 (2026-11-24 evening): decorrelation time and fading
+
+* `docs/decorrelation.md`; project note `wp5-p1-decorrelation`.  No orbit
+  measurement exists; ground-based values (ITU-R F.1487, Digisonde practice,
+  Ganguly 2001) bound the intrinsic term only.
+* G1 (Andrew): ground literature at low confidence and high variance; diffuse
+  decorrelation tied to the facet (`tau_d / W = 0.79 D / L`); intrinsic times
+  0.1, 0.5, 1.0 s; the route-one 0.1 s case moved to the extended reflector.
+* `l2_instrument/fading.py`: Rician two-time-scale gain, exp or gauss ACF,
+  per-echo log-normal intrinsic time, halo-derived diffuse time and coherence
+  bandwidth, per-echo spawned streams.  Standalone until Phase 2.
+* `route_one`: `FADING_CASES` is none and 0.5 s (seed codes kept, numbers
+  unchanged); `EXTENDED_FADING_CASES` holds 0.1 s.
+* `wp5_campaign`: group `E_budget`, the two budget points a facet can reach in
+  the reference profile (5 and 10 MHz at 500 km); the other four are listed
+  as unreachable.  `wp5_baseline` re-run.
