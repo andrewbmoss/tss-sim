@@ -1,6 +1,6 @@
 # tss-sim: where things stand
 
-Updated 2026-11-24, after WP5 Phase 0 (master 438f124, 897 tests pass).
+Updated 2026-11-24, after WP5 Phase 1 (master 236bb86, 938 tests pass).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phase 0 done, see the last
 section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -554,4 +554,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   unchanged); `EXTENDED_FADING_CASES` holds 0.1 s.
 * `wp5_campaign`: group `E_budget`, the two budget points a facet can reach in
   the reference profile (5 and 10 MHz at 500 km); the other four are listed
-  as unreachable.  `wp5_baseline` re-run.
+  as unreachable.  `wp5_baseline` re-run (236bb86, from 6a5f9f2, `--strict`):
+  117 scenes reproduced, the 115 Phase 0 rows and the budget unchanged,
+  E_budget 2/2 at 0.016 m/s.
+* Next: Phase 2, the drift-mode sequence path, which wires `fading` in.
