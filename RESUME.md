@@ -1,6 +1,6 @@
 # tss-sim: where things stand
 
-Updated 2026-11-24, after WP5 Phase 1 (master 236bb86, 938 tests pass).
+Updated 2026-11-24, after WP5 Phase 1 (959 tests pass; baseline 236bb86).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phase 0 done, see the last
 section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -547,7 +547,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 * G1 (Andrew): ground literature at low confidence and high variance; diffuse
   decorrelation tied to the facet (`tau_d / W = 0.79 D / L`); intrinsic times
   0.1, 0.5, 1.0 s; the route-one 0.1 s case moved to the extended reflector.
-* `l2_instrument/fading.py`: Rician two-time-scale gain, exp or gauss ACF,
+* `l2_instrument/fading.py`: Rician two-time-scale gain (specular part a phase wander by default, so K holds for any intrinsic time; `specular="rayleigh"` for the route-one gain), exp or gauss ACF exact at any time,
   per-echo log-normal intrinsic time, halo-derived diffuse time and coherence
   bandwidth, per-echo spawned streams.  Standalone until Phase 2.
 * `route_one`: `FADING_CASES` is none and 0.5 s (seed codes kept, numbers

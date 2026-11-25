@@ -64,12 +64,14 @@ The 0.1 s case is an extended reflector (2026-11-24)
 ----------------------------------------------------
 Until 2026-11-24 the Monte Carlo also ran a fading case at 0.1 s.  In the
 spacecraft frame a randomly phased patch decorrelates on the time the facet
-envelope of a patch of its size takes, so a Rayleigh echo that decorrelates in
-0.1 s at 5 MHz and 500 km is a patch about 14 km long
-(:func:`tss.l2_instrument.fading.halo_extent_m`).  That is past the 2 to 4 km
-at which the WP5 length scenes become extended, so the case belongs with the
-extended reflector, which route one declines, and not in a compact-facet
-budget (gate G1, docs/decorrelation.md).  It is listed in
+envelope of a patch of its size takes, so read as motion past random scatter a
+Rayleigh echo that decorrelates in 0.1 s at 5 MHz and 500 km is a patch about
+14 km long (:func:`tss.l2_instrument.fading.halo_extent_m`).  That is past the
+2 to 4 km at which the WP5 length scenes become extended, so the case is
+treated as an extended reflector, which route one is expected to decline (not
+yet run), and not as a compact-facet budget case (gate G1,
+docs/decorrelation.md).  Intrinsic decorrelation of the medium is carried
+separately by the fading model.  The case is listed in
 :data:`EXTENDED_FADING_CASES` and no longer run here.  The other cases keep
 their seeds and case codes, so their numbers are unchanged.
 """
@@ -587,9 +589,9 @@ For a 2 km facet at 10 dB per sweep and 45 Hz the total drift error is
 0.5 s, over 3 to 10 MHz and 500 to 1000 km.  The oscillator allocation of
 INS-26 dominates the first figure and the overflight time dominates the second.
 
-A fading case at 0.1 s is not run: in the spacecraft frame it is a randomly
-phased patch about {metrics["halo_km_tau_0p1_5mhz_500km"]:.0f} km long at 5 MHz and 500 km, an extended
-reflector that route one declines (0.5 s is about {metrics["halo_km_tau_0p5_5mhz_500km"]:.1f} km).
+A fading case at 0.1 s is not run: read as the spacecraft's motion past random
+scatter it is a patch about {metrics["halo_km_tau_0p1_5mhz_500km"]:.0f} km long at 5 MHz and 500 km, an
+extended reflector (0.5 s is about {metrics["halo_km_tau_0p5_5mhz_500km"]:.1f} km).
 
 The envelope is an ideal sinc, the signal-to-noise ratio is assumed, and the
 fading model is a choice.  {n_trials} trials per case, seed {seed}.
