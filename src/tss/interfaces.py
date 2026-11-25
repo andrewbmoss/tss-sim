@@ -67,12 +67,15 @@ __all__ = [
     "Ionogram",
     "DensityProfile",
     "Assessment",
+    "ReceivedSequence",
+    "DriftProduct",
     "L0Ionosphere",
     "L1Propagation",
     "L2Instrument",
     "L3SignalProcessing",
     "L4Retrieval",
     "L5Assessment",
+    "L3DriftProcessing",
     "Tier",
     "MeasuresTruthEchoSNR",
     "ReportsGroupIndex",
@@ -156,6 +159,10 @@ class PlatformState:
     velocity_ned_mps: np.ndarray | None = None
     attitude_quat: np.ndarray | None = None
     epoch: str = ""
+    #: Seconds from the start of a drift-mode sequence (WP5 Phase 2), or None.
+    #: ``epoch`` is the sequence's start; a tier that models motion through a
+    #: sequence reads the time from here rather than parsing ``epoch``.
+    t_s: float | None = None
 
 
 @dataclass(frozen=True)
@@ -176,6 +183,16 @@ class EchoSet:
     carriers that reach the antenna from elsewhere (keys ``freq_hz``,
     ``power_dbm_iso``, ``phase_rad``), which L2 adds at the receiver input; it is
     ``None`` when there are none.
+
+    ``phase_delay_s`` is the two-way phase path over ``c`` (WP5 Phase 2, D8
+    condition 1).  L2 takes the echo's carrier phase from it and its beat and
+    envelope from ``group_delay_s``; in a plasma the two differ, and a drift
+    measured from sweep-to-sweep phase must follow the phase path.  ``None``,
+    the default, or a NaN row means the carrier phase follows the group delay,
+    which is what every tier did before 2026-11-25.  Rows flagged
+    ``"facet:<id>"`` come from the facet tier (:mod:`tss.l1_propagation.facet`):
+    they never join a dispersion trace, and ``<id>`` names the echo across the
+    sweeps of a sequence.
     """
 
     freq_hz: np.ndarray
@@ -189,6 +206,7 @@ class EchoSet:
     flags: np.ndarray | None = None
     source: str = ""
     interference: Mapping[str, np.ndarray] | None = None
+    phase_delay_s: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -295,6 +313,46 @@ class DensityProfile:
 
 
 @dataclass(frozen=True)
+class ReceivedSequence:
+    """The records of a drift-mode sequence.  Output of the sequence path.
+
+    WP5 Phase 2.  ``records[n]`` is the de-chirped baseband of the sweep that
+    started at ``t_s[n]`` (seconds from the start of the sequence), received
+    from the platform state ``platforms[n]``.  ``echoes``, when kept, is the
+    truth echo set of each sweep, for verification only; a processor must not
+    read it.
+    """
+
+    records: Sequence[ReceivedSignal]
+    t_s: np.ndarray
+    platforms: Sequence[PlatformState]
+    echoes: Sequence[EchoSet] | None = None
+    flags: Mapping[str, Any] = field(default_factory=dict)
+    source: str = ""
+
+
+@dataclass(frozen=True)
+class DriftProduct:
+    """Drift-mode products of one sequence.  Output of an L3 drift tier.
+
+    WP5 Phase 2 defines the object; the drift tier that fills it is Phase 3.
+    ``products`` maps the names of the single-node output contract
+    (``docs/drift-mode.md``: ``range_m``, ``los_rate_mps``, ``drift_mps``,
+    ``drift_sigma_mps``, ``t_pk_s``, ``tau_c_s``, ``facet_size_m``,
+    ``echo_class`` and the rest) to arrays with one entry per echo in
+    ``echo_id``, or per echo and sweep where the contract says per sweep.
+    NaN is "no result"; ``flags`` carries the contract's flags and says what
+    was not done.
+    """
+
+    t_s: np.ndarray
+    echo_id: Sequence[str]
+    products: Mapping[str, np.ndarray]
+    flags: Mapping[str, Any] = field(default_factory=dict)
+    source: str = ""
+
+
+@dataclass(frozen=True)
 class Assessment:
     """Scored result.  Output of L5.
 
@@ -376,6 +434,13 @@ class L3SignalProcessing(Tier, Protocol):
         signal: ReceivedSignal,
         platform: PlatformState | None = None,
     ) -> Ionogram: ...
+
+
+@runtime_checkable
+class L3DriftProcessing(Tier, Protocol):
+    """Forms drift-mode products from a sequence of records (WP5 Phase 3)."""
+
+    def process_sequence(self, sequence: ReceivedSequence) -> DriftProduct: ...
 
 
 @runtime_checkable

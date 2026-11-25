@@ -257,10 +257,16 @@ class TransmitImpairments:
         *,
         t0_s: float = 0.0,
         max_delay_s: float = 0.0,
+        carrier: Any = None,
     ) -> ImpairmentRealization:
-        """One draw of every random term, for a record of ``n_samples`` from ``t0_s``."""
+        """One draw of every random term, for a record of ``n_samples`` from ``t0_s``.
+
+        ``carrier``, a function of time returning the transmitted frequency, Hz,
+        replaces the sweep's own law when the record spans more than one sweep
+        (a drift-mode sequence repeats its chirp; WP5 Phase 2).
+        """
         return ImpairmentRealization(
-            self, sweep, fs_hz, n_samples, rng, t0_s=t0_s, max_delay_s=max_delay_s
+            self, sweep, fs_hz, n_samples, rng, t0_s=t0_s, max_delay_s=max_delay_s, carrier=carrier
         )
 
 
@@ -317,8 +323,10 @@ class ImpairmentRealization:
         *,
         t0_s: float = 0.0,
         max_delay_s: float = 0.0,
+        carrier: Any = None,
     ) -> None:
         self.imp = imp
+        self._carrier_fn = carrier
         self.sweep = sweep
         self.fs = float(fs_hz)
         self.n = int(n)
@@ -330,7 +338,7 @@ class ImpairmentRealization:
         self.f = np.fft.rfftfreq(self.m, 1.0 / self.fs)
         fpos = self.f.copy()
         fpos[0] = np.inf
-        self._fc = _carrier_hz(sweep, self.t_ext)
+        self._fc = self.carrier_hz_at(self.t_ext)
 
         def _osc_spec() -> np.ndarray | None:
             if imp.oscillator is None:
@@ -362,6 +370,13 @@ class ImpairmentRealization:
             self._spur_phase_ref = [float(rng.uniform(0.0, 2.0 * np.pi)) for _ in imp.spurs]
         self._betas = [pm_spur_beta(s.level_dbc) if s.kind == "pm" else 0.0 for s in imp.spurs]
         self._m_am = [am_spur_index(s.level_dbc) if s.kind == "am" else 0.0 for s in imp.spurs]
+
+    def carrier_hz_at(self, t_s: np.ndarray) -> np.ndarray:
+        """The transmitted frequency the oscillator noise is scaled to, Hz."""
+        t = np.asarray(t_s, dtype=float)
+        if self._carrier_fn is not None:
+            return np.asarray(self._carrier_fn(t), dtype=float)
+        return _carrier_hz(self.sweep, t)
 
     # -- helpers ---------------------------------------------------------------
 

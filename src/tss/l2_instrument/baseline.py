@@ -114,6 +114,41 @@ other draw as it was, and a record with all three off is the record this tier
 made before 2026-11-08, when one stream served every draw in turn (code review
 F3).  ``flags["l2_substreams"]`` records whether the generator could spawn.
 
+THE PHASE PATH (WP5 PHASE 2)
+----------------------------
+An echo row may carry ``phase_delay_s``, its two-way phase path over ``c``
+(:class:`tss.interfaces.EchoSet`).  The beat and the envelope follow the group
+delay ``tau_g`` as above, and the carrier phase follows the phase delay
+``tau_p``: by stationary phase, with ``d(f tau_p)/df = tau_g`` across the
+sub-band, the echo's phase is the group-delay form plus
+
+    2 pi f_k (tau_p - tau_g)
+
+at the row's frequency ``f_k``, a constant over the sweep.  A drift measured
+from the sweep-to-sweep phase then follows the phase path, which is D8's
+condition 1 (without it the error is 183, 54 and 12.7 m/s at 3, 5 and 10 MHz in
+the reference case).  A row without the field, or with it equal to the group
+delay, gives the samples this tier always gave.  The sign is this tier's:
+phase ``+2 pi f tau``, so a closing echo's phase falls from sweep to sweep, as
+its Doppler ``-2 pi f_d t`` makes it fall within a sweep.
+
+Rows flagged ``facet:<id>`` (the facet tier) never join a dispersion trace.
+
+SEQUENCES (WP5 PHASE 2)
+-----------------------
+:meth:`BaselineInstrument.receive` takes an optional :class:`SequenceContext`
+when it is called for one sweep of a drift-mode sequence.  Its
+``apply_doppler`` applies each row's Doppler within the sweep whatever the
+impairments say (a drift-mode record always carries it); ``blank_first_delay``
+leaves the first ``tau_g`` of each echo empty on a uniform sweep: in a repeated chirp that interval holds the previous sweep's
+echo at another beat, which is not modelled, and a processor must gate it out
+(``flags["first_delay_blanked"]``).  Its ``realization`` is a window on one
+impairment draw that spans the whole sequence, so the oscillator's phase is
+continuous from sweep to sweep (:meth:`receive_sequence`).
+
+``thermal_noise=False`` leaves the thermal noise out, for noise-free checks.
+It is a verification switch; every campaign keeps the default.
+
 WHAT IS NOT IN IT YET
 ---------------------
 Transmit-to-receive leakage.  :mod:`tss.l2_instrument.leakage` models it (WP3
@@ -128,6 +163,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from dataclasses import dataclass
 from dataclasses import replace as _replace
 from typing import Any
 
@@ -157,6 +193,7 @@ from tss.units import db, undb, w_to_dbm
 
 __all__ = [
     "BaselineInstrument",
+    "SequenceContext",
     "DEFAULT_DESIGN_RANGE_M",
     "DEFAULT_POLARIZATION_LOSS_DB",
     "DelayTrace",
@@ -233,6 +270,72 @@ def _traces_by_mode(
             continue
         out[label] = DelayTrace(f, delay[sel])
     return out
+
+
+@dataclass(frozen=True)
+class SequenceContext:
+    """How one sweep sits in a drift-mode sequence (module docstring, SEQUENCES).
+
+    ``realization`` is an impairment realization (or a window on one) for this
+    sweep's record, used in place of a fresh draw; ``blank_first_delay``
+    leaves the first group delay of each echo empty on a uniform sweep.
+    """
+
+    realization: Any = None
+    blank_first_delay: bool = False
+    #: Apply ``EchoSet.doppler_hz`` inside the sweep whatever the impairments
+    #: say.  The drift mode always does: a sequence without it would carry the
+    #: Doppler between sweeps and not within them.
+    apply_doppler: bool = False
+    #: Entries added to the record's flags (the sequence's own bookkeeping).
+    extra_flags: Mapping[str, Any] | None = None
+    #: Time in the record, s, at which the echo set was evaluated: the Doppler
+    #: turns the phase by ``-2 pi f_d (t - doppler_reference_s)``.  A sequence
+    #: evaluates L1 at each sweep's centre, so its phase there is exact and the
+    #: error of holding the Doppler fixed is second order about the centre.
+    doppler_reference_s: float = 0.0
+
+
+class RealizationWindow:
+    """One sweep's record on an impairment draw that spans a sequence.
+
+    Gives the methods :meth:`BaselineInstrument.receive` and the leakage use,
+    on samples ``offset`` to ``offset + n`` of the sequence's draw, so that
+    the oscillator's phase runs on from one sweep into the next (WP5 Phase 2).
+    """
+
+    def __init__(self, realization: Any, offset: int, n: int) -> None:
+        self.base = realization
+        self.offset = int(offset)
+        self.n = int(n)
+        self.fs = realization.fs
+        self.t0 = 0.0  # each record's own time starts at zero
+        self.imp = realization.imp
+
+    def _cut(self, x: np.ndarray) -> np.ndarray:
+        return np.asarray(x)[self.offset : self.offset + self.n]
+
+    def ref_phase(self) -> np.ndarray:
+        return self._cut(self.base.ref_phase())
+
+    def tx_phase(self, tau_s: float = 0.0) -> np.ndarray:
+        return self._cut(self.base.tx_phase(tau_s))
+
+    def tx_amplitude(self, tau_s: float = 0.0) -> np.ndarray:
+        return self._cut(self.base.tx_amplitude(tau_s))
+
+    def residual_phase(self, tau_s: float) -> np.ndarray:
+        return self._cut(self.base.residual_phase(tau_s))
+
+    def tx_phase_window(self, tau_s: float, lo: int, hi: int) -> np.ndarray:
+        return self.base.tx_phase_window(tau_s, lo + self.offset, hi + self.offset)
+
+    def tx_amplitude_window(self, tau_s: float, lo: int, hi: int) -> np.ndarray:
+        return self.base.tx_amplitude_window(tau_s, lo + self.offset, hi + self.offset)
+
+
+def _is_facet(flag: Any) -> bool:
+    return str(flag).startswith("facet:")
 
 
 def _substreams(rng: np.random.Generator, n: int) -> list[np.random.Generator]:
@@ -368,6 +471,8 @@ class BaselineInstrument:
         resources: Mapping[str, Any] | None = None,
         configuration_name: str = "",
         configuration_notes: tuple[str, ...] = (),
+        thermal_noise: bool = True,
+        fading: Any = None,
     ) -> None:
         if tx_power_w <= 0.0:
             raise ValueError("tx_power_w must be positive")
@@ -426,6 +531,10 @@ class BaselineInstrument:
         self.resources = dict(resources or {})
         self.configuration_name = str(configuration_name)
         self.configuration_notes = tuple(str(n) for n in configuration_notes)
+        self.thermal_noise = bool(thermal_noise)
+        # WP5 Phase 2: the fading model applied by receive_sequence to facet
+        # rows, or None (tss.l2_instrument.fading.FadingModel).
+        self.fading = fading
 
     # -- configuration -------------------------------------------------------
 
@@ -528,9 +637,17 @@ class BaselineInstrument:
         echoes: EchoSet,
         sweep: SweepSchedule,
         rng: np.random.Generator,
+        *,
+        sequence: SequenceContext | None = None,
     ) -> ReceivedSignal:
-        """De-chirped baseband for one sweep.  Inputs are never modified."""
+        """De-chirped baseband for one sweep.  Inputs are never modified.
+
+        ``sequence`` is given when the sweep is one of a drift-mode sequence
+        (module docstring, SEQUENCES); without it the record is the one this
+        tier always made.
+        """
         validate_schedule(sweep)
+        blank_first = bool(sequence is not None and sequence.blank_first_delay)
         imp = self.impairments
         # Each L2 sub-model draws from a stream of its own (module docstring,
         # RANDOM STREAMS; code review F3, 2026-11-08).
@@ -616,8 +733,14 @@ class BaselineInstrument:
         # it, and a trace with two delays at one frequency is not a trace.
         is_clutter = np.array([str(f).startswith("clutter:") for f in flags_in.ravel()[: freq.size]],
                               dtype=bool)
+        is_facet = np.array([_is_facet(f) for f in flags_in.ravel()[: freq.size]], dtype=bool)
+        pd_in = getattr(echoes, "phase_delay_s", None)
+        phase_delay = (
+            np.asarray(pd_in, dtype=float) if pd_in is not None and np.shape(pd_in) == freq.shape else None
+        )
+        rows_phase_path = 0
         traces = (
-            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable & ~is_clutter)
+            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable & ~is_clutter & ~is_facet)
             if self.in_dwell_dispersion
             else {}
         )
@@ -647,15 +770,19 @@ class BaselineInstrument:
         # the leakage of the same record must share (Phase 3).
         realization = None
         ref_noise = None
-        if imp.needs_realization:
+        if sequence is not None and sequence.realization is not None:
+            realization = sequence.realization
+            ref_noise = realization.ref_phase()
+        elif imp.needs_realization:
             realization = imp.realize(
                 sweep, fs_hz, n_samples, imp_rng, max_delay_s=1.2 * max_delay + 1.0e-3
             )
             ref_noise = realization.ref_phase()
         dopp_in = getattr(echoes, "doppler_hz", None)
+        want_doppler = imp.doppler or bool(sequence is not None and sequence.apply_doppler)
         dopp = (
             np.asarray(dopp_in, dtype=float)
-            if imp.doppler and dopp_in is not None and np.shape(dopp_in) == freq.shape
+            if want_doppler and dopp_in is not None and np.shape(dopp_in) == freq.shape
             else None
         )
         rows_doppler = 0
@@ -710,9 +837,17 @@ class BaselineInstrument:
             if dopp is not None and np.isfinite(dopp[row]):
                 # A closing echo beats at f_R - f_d on an up-sweep and
                 # -(f_R + f_d) on a down-sweep (tss.l1_propagation.doppler).
-                imp_phase = imp_phase - 2.0 * np.pi * float(dopp[row]) * tt
+                t_ref = 0.0 if sequence is None else float(sequence.doppler_reference_s)
+                imp_phase = imp_phase - 2.0 * np.pi * float(dopp[row]) * (tt - t_ref)
                 rows_doppler += 1
-            trace = None if is_clutter[row] else traces.get(str(row_mode[row]))
+            if phase_delay is not None and np.isfinite(phase_delay[row]):
+                # The carrier follows the phase path (module docstring, THE
+                # PHASE PATH).  Zero when the two delays are equal.
+                d_path = float(phase_delay[row]) - tau
+                if d_path != 0.0:
+                    imp_phase = imp_phase + 2.0 * np.pi * f_k * d_path
+                rows_phase_path += 1
+            trace = None if (is_clutter[row] or is_facet[row]) else traces.get(str(row_mode[row]))
             if trace is not None:
                 # The delay follows the trace through the dwell.  Find when each
                 # received sample left the antenna, t = t_e + tau_g(f(t_e)), and
@@ -757,7 +892,11 @@ class BaselineInstrument:
                 phase = 2.0 * np.pi * (
                     f0 * tau + direction * k * tau * tt - direction * k * tau**2 / 2.0
                 )
-            samples[lo:hi] += amplitude * imp_amp * np.exp(1j * (phase + imp_phase))
+            if blank_first:
+                live = tt >= tau
+                samples[lo:hi] += np.where(live, amplitude * imp_amp * np.exp(1j * (phase + imp_phase)), 0.0)
+            else:
+                samples[lo:hi] += amplitude * imp_amp * np.exp(1j * (phase + imp_phase))
             rows_used += 1
 
         # Echoes beyond the unambiguous range fold back into the record, as they
@@ -832,7 +971,10 @@ class BaselineInstrument:
         # The noise-free input is kept for the extra receive channels below,
         # each of which adds its own noise to it (code review F1, 2026-11-08).
         clean = samples
-        samples = clean + rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
+        if self.thermal_noise:
+            samples = clean + rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
+        else:
+            samples = clean.copy()
 
         # Receive chain.  Front end (bandpass-equivalent compression of the
         # composite), the leakage high-pass after the de-chirp (WP3 Phase 3),
@@ -860,7 +1002,7 @@ class BaselineInstrument:
         # 2026-11-08 it was added to channel 1's noisy samples, which gave the
         # extra channels +3 dB of noise correlated with channel 1 (review F1).
         for _ in range(channels - 1):
-            extra_noise = rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)
+            extra_noise = (rng.normal(0.0, sigma) + 1j * rng.normal(0.0, sigma)) if self.thermal_noise else 0.0
             chain = self.receiver.apply_gain(
                 self._analog(clean + extra_noise, sweep, fs_hz, state=hp_state)
             )
@@ -957,7 +1099,15 @@ class BaselineInstrument:
             "vector_channels_are_placeholders": channels > 1,
             "l2_substreams": bool(substreams),
             "absorption_db_carried_not_applied": True,
+            # WP5 Phase 2.
+            "rows_phase_path": rows_phase_path,
+            "facet_rows_used": int(np.count_nonzero(usable & is_facet)),
+            "first_delay_blanked": blank_first,
+            "thermal_noise": self.thermal_noise,
+            "oscillator_continuous": False,
         }
+        if sequence is not None and sequence.extra_flags:
+            flags.update(dict(sequence.extra_flags))
 
         return ReceivedSignal(
             samples=block,
@@ -967,6 +1117,126 @@ class BaselineInstrument:
             flags=flags,
             source=self.source_label(),
         )
+
+    def receive_sequence(
+        self,
+        echo_sets: list[EchoSet],
+        sweep: SweepSchedule,
+        t_s: np.ndarray,
+        rng: np.random.Generator,
+    ) -> list[ReceivedSignal]:
+        """De-chirped baseband for every sweep of a drift-mode sequence.
+
+        ``echo_sets[n]`` is the echo set of the sweep starting at ``t_s[n]``,
+        evaluated at that sweep's centre, ``t_s[n] + T/2`` (module docstring,
+        SEQUENCES).  Each record blanks the first group delay of its echoes.
+        Inputs are never modified.
+        """
+        t = np.asarray(t_s, dtype=float)
+        if len(echo_sets) != t.size:
+            raise ValueError("one echo set per sweep is needed")
+        sets = list(echo_sets)
+        fading_info: dict[str, Any] = {}
+        if self.fading is not None:
+            gains = self.fading_gains(sets, t, _substreams(rng, 1)[0])
+            sets = [self._apply_gains(e, gains, n) for n, e in enumerate(sets)]
+            fading_info = {k: {"tau_i_s": d.tau_i_s, "specular": self.fading.specular,
+                               "kind": self.fading.kind} for k, d in gains.items()}
+        windows: list[Any] = [None] * len(sets)
+        if self.impairments.needs_realization:
+            real, offsets = self.sequence_realization(sets, sweep, t, _substreams(rng, 1)[0])
+            n = self._record_length(sweep)
+            windows = [RealizationWindow(real, off, n) for off in offsets]
+        out = []
+        for e, win in zip(sets, windows, strict=True):
+            extra = {"oscillator_continuous": win is not None, "fading": fading_info}
+            ctx = SequenceContext(realization=win, blank_first_delay=True, apply_doppler=True,
+                                  extra_flags=extra, doppler_reference_s=0.5 * float(sweep.sweep_period_s))
+            out.append(self.receive(e, sweep, rng, sequence=ctx))
+        return out
+
+    def _record_length(self, sweep: SweepSchedule) -> int:
+        """Samples in one record, as :meth:`receive` makes it."""
+        fs = self.sample_rate_for(sweep)
+        n_full = int(np.floor(sweep_duration_s(sweep) * fs))
+        return int(min(max(n_full, 16), self.max_samples))
+
+    def sequence_realization(
+        self,
+        echo_sets: list[EchoSet],
+        sweep: SweepSchedule,
+        t_s: np.ndarray,
+        rng: np.random.Generator,
+    ) -> tuple[Any, list[int]]:
+        """One impairment draw spanning a sequence, and each record's offset on it.
+
+        The carrier the oscillator noise is scaled to is the repeated chirp,
+        ``f0 + K mod(t, T)``.  Record ``n`` starts ``round(t_n fs)`` samples in.
+        """
+        t = np.asarray(t_s, dtype=float)
+        fs = self.sample_rate_for(sweep)
+        n = self._record_length(sweep)
+        offsets = [int(round((tn - t[0]) * fs)) for tn in t]
+        total = offsets[-1] + n
+        delays = [float(np.nanmax(np.asarray(e.group_delay_s, dtype=float)))
+                  for e in echo_sets if np.size(e.group_delay_s) and np.any(np.isfinite(e.group_delay_s))]
+        max_delay = max(delays) if delays else 0.0
+        period = float(sweep.sweep_period_s)
+        d = 1.0 if int(sweep.direction) >= 0 else -1.0
+        f0 = float(sweep.f_start_hz) if d > 0 else float(sweep.f_stop_hz)
+        k = float(sweep.k_f_hz_per_s)
+
+        def carrier(x: np.ndarray) -> np.ndarray:
+            return f0 + d * k * np.mod(np.asarray(x, dtype=float), period)
+
+        real = self.impairments.realize(
+            sweep, fs, total, rng, max_delay_s=1.2 * max_delay + 1.0e-3, carrier=carrier
+        )
+        return real, offsets
+
+    def fading_gains(
+        self, echo_sets: list[EchoSet], t_s: np.ndarray, rng: np.random.Generator
+    ) -> dict[str, Any]:
+        """The specular fading of each facet across the sequence, keyed by its id.
+
+        One stream per facet, spawned in the sorted order of the ids, so a
+        facet's draw does not depend on which other facets are present in
+        which row.  Only the specular part: a diffuse halo wider than the facet
+        does not share its envelope and cannot be a gain on it (Phase 3).
+        """
+        from tss.l2_instrument.fading import echo_streams
+
+        model = self.fading
+        if model is None:
+            return {}
+        if not math.isinf(float(model.k_factor)):
+            raise ValueError("the diffuse part of the fading is not a gain on the facet (Phase 3); "
+                             "use k_factor=inf here")
+        ids = sorted({str(fl).split(";")[0][len("facet:"):]
+                      for e in echo_sets for fl in (e.flags if e.flags is not None else [])
+                      if _is_facet(fl)})
+        t = np.asarray(t_s, dtype=float)
+        streams = echo_streams(rng, len(ids))
+        return {fid: model.realise_parts(t, s) for fid, s in zip(ids, streams, strict=True)}
+
+    @staticmethod
+    def _apply_gains(e: EchoSet, gains: Mapping[str, Any], n: int) -> EchoSet:
+        """A copy of ``e`` with each facet row's gain at sweep ``n`` applied."""
+        if not gains or e.flags is None:
+            return e
+        amp = np.array(e.amplitude_db, dtype=float, copy=True)
+        freq = np.asarray(e.freq_hz, dtype=float)
+        base_pd = e.phase_delay_s if e.phase_delay_s is not None else e.group_delay_s
+        pd = np.array(base_pd, dtype=float, copy=True)
+        for i, fl in enumerate(e.flags):
+            if not _is_facet(fl):
+                continue
+            fid = str(fl).split(";")[0][len("facet:"):]
+            g = complex(gains[fid].gain[n])
+            if abs(g) > 0.0:
+                amp[i] = amp[i] + 20.0 * math.log10(abs(g))
+            pd[i] = pd[i] + math.atan2(g.imag, g.real) / (2.0 * math.pi * freq[i])
+        return _replace(e, amplitude_db=amp, phase_delay_s=pd)
 
     def _front(self, x: np.ndarray) -> np.ndarray:
         if self.front_end_enabled and not self.front_end.linear:

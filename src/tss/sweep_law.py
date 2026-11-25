@@ -87,6 +87,10 @@ __all__ = [
     "step_index",
     "step_centres_hz",
     "stepped_schedule",
+    "DRIFT_MODE_BANDWIDTH_HZ",
+    "DRIFT_MODE_REPETITION_HZ",
+    "drift_mode",
+    "drift_mode_times",
 ]
 
 _RATE_TOLERANCE = 1.0e-6
@@ -342,3 +346,45 @@ def stepped_schedule(
         narrow_lo_hz=float(narrow_lo_hz), narrow_hi_hz=float(narrow_hi_hz),
         narrow_cap_hz=float(narrow_cap_hz),
     )
+
+
+#: Drift-mode sub-band, Hz (D8 screen of 2026-11-24: 150 kHz recommended).
+DRIFT_MODE_BANDWIDTH_HZ = 150.0e3
+
+#: Drift-mode sweep repetition, Hz (TV Chapter 8; 71 Hz is the cap).
+DRIFT_MODE_REPETITION_HZ = 45.0
+
+
+def drift_mode(
+    f_centre_hz: float,
+    *,
+    bandwidth_hz: float = DRIFT_MODE_BANDWIDTH_HZ,
+    repetition_hz: float = DRIFT_MODE_REPETITION_HZ,
+    direction: int = 1,
+) -> SweepSchedule:
+    """The drift-mode sweep: one linear chirp over a narrow sub-band (WP5 Phase 2).
+
+    The chirp covers ``bandwidth_hz`` centred on ``f_centre_hz`` in one
+    repetition period and is repeated with no dead time, a continuous FMCW
+    sawtooth (INS-27 drift-mode setting).  At the defaults the rate is
+    6.75 MHz/s and the range cell about 1 km.  The schedule describes one
+    sweep; :func:`drift_mode_times` gives the start of each.
+    """
+    b = float(bandwidth_hz)
+    rep = float(repetition_hz)
+    if not (b > 0.0 and rep > 0.0):
+        raise ValueError("bandwidth_hz and repetition_hz must be positive")
+    fc = float(f_centre_hz)
+    if fc - b / 2.0 <= 0.0:
+        raise ValueError("the drift-mode sub-band must lie above 0 Hz")
+    return SweepSchedule(
+        f_start_hz=fc - b / 2.0, f_stop_hz=fc + b / 2.0, k_f_hz_per_s=b * rep,
+        sweep_period_s=1.0 / rep, direction=int(direction),
+    )
+
+
+def drift_mode_times(
+    n_sweeps: int, *, repetition_hz: float = DRIFT_MODE_REPETITION_HZ, t0_s: float = 0.0
+) -> np.ndarray:
+    """Start time of each sweep of a drift-mode sequence, s."""
+    return float(t0_s) + np.arange(int(n_sweeps), dtype=float) / float(repetition_hz)
