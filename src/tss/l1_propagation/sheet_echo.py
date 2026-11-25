@@ -76,6 +76,8 @@ __all__ = [
     "echo_free_space",
     "echo_stratified",
     "specular_point",
+    "SheetTrackEcho",
+    "echo_track",
 ]
 
 EARTH_RADIUS_M = 6371.2e3
@@ -297,6 +299,68 @@ def echo_stratified(
         field[j] = np.sum(w * np.exp(-2j * k0 * phase))
         group[j] = float(np.min(pg))
     return SheetEcho(t_s=t, field=field, group_path_m=group, mu_sat=mu_sat)
+
+
+@dataclass(frozen=True)
+class SheetTrackEcho:
+    """What :func:`echo_track` returns: :class:`SheetEcho` plus a reference phase path.
+
+    ``phase_path_m`` is the phase path of the sheet's shortest ray (in free
+    space the specular range), one way: the path the field's phase follows to
+    within a fraction of a cycle, which the facet tier needs to turn the phase
+    of the field into a phase delay.
+    """
+
+    t_s: np.ndarray
+    field: np.ndarray
+    group_path_m: np.ndarray
+    phase_path_m: np.ndarray
+    mu_sat: float
+
+
+def echo_track(
+    t_s: np.ndarray, f_hz: float, sheet: FieldAlignedSheet, profile: ExponentialTopside | None = None, *,
+    height_m: float, heading_rad: float, v_s_mps: float = 7600.0, n_nodes: int = 48,
+    newton_iterations: int = 6,
+) -> SheetTrackEcho:
+    """The entry the facet tier calls (WP5 Phase 3): the field, the group path and a phase path.
+
+    ``profile`` None is :func:`echo_free_space` and a profile is
+    :func:`echo_stratified`; both are reproduced exactly (the same operations
+    in the same order; ``tests/unit/test_l1_facet_sheet.py``) and left as they
+    were (D4).  What is added is the reference phase path of
+    :class:`SheetTrackEcho`.
+    """
+    t = np.asarray(t_s, dtype=float)
+    if profile is None:
+        e = echo_free_space(t, f_hz, sheet, height_m=height_m, heading_rad=heading_rad, v_s_mps=v_s_mps)
+        return SheetTrackEcho(t_s=t, field=e.field, group_path_m=e.group_path_m,
+                              phase_path_m=e.group_path_m.copy(), mu_sat=1.0)
+    f = float(f_hz)
+    k0 = 2.0 * np.pi * f / C_LIGHT
+    pts, w = sheet_points(sheet, f)
+    vel = sheet_velocity(sheet)
+    p0 = platform_start_stratified(sheet, height_m, profile, f)
+    th = heading_vector(heading_rad)
+    nodes, weights = np.polynomial.legendre.leggauss(int(n_nodes))
+    mu_sat = float(np.sqrt(profile.mu_squared(f, 0.0)))
+    if np.any(profile.mu_squared(f, (p0[2] - pts[:, 2]).max() + 5e3) <= 0.05):
+        raise ValueError("the sheet reaches the reflection level of this frequency")
+    field = np.empty(t.size, dtype=complex)
+    group = np.empty(t.size)
+    phase_ref = np.empty(t.size)
+    q_prev = None
+    for j, tj in enumerate(t):
+        plat = p0 + (v_s_mps * th - vel) * tj  # medium frame
+        d_top = float(p0[2] - plat[2])
+        d_pts = p0[2] - pts[:, 2]
+        rho = np.hypot(plat[0] - pts[:, 0], plat[1] - pts[:, 1])
+        iters = newton_iterations if q_prev is None else max(3, newton_iterations // 2)
+        phase, pg, q_prev = _rays(rho, d_top, d_pts, f, profile, nodes, weights, iters, q_prev)
+        field[j] = np.sum(w * np.exp(-2j * k0 * phase))
+        group[j] = float(np.min(pg))
+        phase_ref[j] = float(np.min(phase))
+    return SheetTrackEcho(t_s=t, field=field, group_path_m=group, phase_path_m=phase_ref, mu_sat=mu_sat)
 
 
 def _rays(rho, d_top, d_bot, f, profile, nodes, weights, iterations, q0):
