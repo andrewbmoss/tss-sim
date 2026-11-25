@@ -39,11 +39,21 @@ so its mean power is one for every ``K``.
 
 ``s``, the specular part, is the facet's own reflection.  With no intrinsic
 time it is the constant 1, and ``K -> inf`` with no intrinsic time is no
-fading at all.  With an intrinsic time ``tau_i`` it is a complex Gaussian
-process of that correlation time, so over times short against ``tau_i`` the
-echo is Rician and over long times the specular part wanders too.  ``K -> inf``
-with ``tau_i = 0.5 s`` is the Rayleigh model the route-one budget has used
-since October.
+fading at all.  With an intrinsic time ``tau_i`` it is, by default
+(``specular="phase"``), a unit-amplitude phase wander ``exp(j phi(t))``: the
+reflection point moving at random, which changes the phase of a specular
+echo far more than its strength.  For the ``"exp"`` kind ``phi`` is a Wiener
+process with variance ``2 |tau| / tau_i`` across a lag, so the correlation is
+exactly ``exp(-|tau| / tau_i)``.  For the ``"gauss"`` kind ``phi`` is a
+stationary Gaussian process of variance ``S = 16`` and correlation
+``exp(-tau^2 / tau_phi^2)``, which gives ``exp(-S (1 - exp(-tau^2 / tau_phi^2)))``;
+``tau_phi`` is chosen so that this is ``1/e`` at ``tau_i``, and it stays within
+0.02 of ``exp(-tau^2 / tau_i^2)`` at every lag.  Because ``|s| = 1`` the
+amplitude is Rician with factor ``K`` whatever ``tau_i`` is.  The
+alternative, ``specular="rayleigh"``, makes ``s`` a zero-mean complex Gaussian
+process, so the amplitude is Rayleigh for every ``K``; with ``K -> inf``,
+``tau_i = 0.5 s`` and no spread (``tau_log_sigma=0``) it is the gain the
+route-one budget has used since October.
 
 ``d``, the diffuse part, is the randomly phased scatter around the facet.  Its
 decorrelation is tied to the facet (G1 decision 2).  A randomly phased patch of
@@ -65,15 +75,18 @@ diffuse halo wider than about 0.8 D decorrelates faster than the facet's
 envelope.  This is the van Cittert-Zernike duality: motion past a randomly
 phased patch and motion past a coherent facet of the same size take the same
 time.  It is why the 0.1 s case that the route-one budget carried until
-2026-11-24 is an extended reflector (a halo of about 14 km at 5 MHz and
-500 km) and not a compact facet.
+2026-11-24 is treated as an extended reflector: read as the spacecraft's
+motion past randomly phased scatter it is a halo of about 14 km at 5 MHz and
+500 km, not a compact facet.  Decorrelation that the medium itself causes is
+the intrinsic time of the specular part, and is carried separately.
 
 The ``"exp"`` kind gives both parts the correlation ``exp(-|tau| / tau_c)``,
 realised exactly on any increasing time grid as a first-order autoregression.
-The ``"gauss"`` kind gives ``exp(-tau^2 / tau_c^2)``, realised on a uniform
-grid by filtering white noise with a Gaussian kernel of standard deviation
-``tau_c / 2``.  Either way ``tau_c`` is the field 1/e time.  A part whose time
-is shorter than the grid step, or is ``None`` for the diffuse part, is white.
+The ``"gauss"`` kind gives ``exp(-tau^2 / tau_c^2)``, realised exactly on a
+uniform grid by circulant embedding.  Either way ``tau_c`` is the field 1/e
+time, and a time shorter than the grid step is realised as it is, not
+replaced by white noise (with the ln 3 spread about 9 % of 0.1 s echoes fall
+below one 45 Hz sweep).  A diffuse part with no time is white.
 
 ACROSS FREQUENCY
 ----------------
@@ -86,7 +99,8 @@ part a bandwidth from the spread of its excess delays: for a uniform patch the
 two-way excess delay ``x^2 / (c P')`` has standard deviation
 ``L^2 / (6 sqrt 5 c P')``, and ``B_c = 1 / (2 pi sigma_tau)``
 (:func:`halo_coherence_bandwidth_hz`).  That is an order-of-magnitude figure;
-nothing has measured it.
+nothing has measured it.  A bandwidth on the specular part needs
+``specular="rayleigh"``; the phase wander is one draw for all frequencies.
 
 RANDOM STREAMS
 --------------
@@ -142,6 +156,14 @@ LOW_CONFIDENCE_LOG_SIGMA = math.log(3.0)
 DEFAULT_V_S_MPS = 7600.0
 
 _KINDS = ("exp", "gauss")
+_SPECULAR = ("phase", "rayleigh")
+
+#: Variance of the phase of the ``gauss`` phase wander, rad^2.
+_PHASE_VAR = 16.0
+
+#: ``tau_phi / tau_i`` for the ``gauss`` phase wander, chosen so that
+#: ``exp(-S (1 - exp(-1 / ratio^2))) = 1/e``.
+_PHASE_TAU_RATIO = 1.0 / math.sqrt(-math.log(1.0 - 1.0 / _PHASE_VAR))
 
 #: Root of sin(x)/x = 1/e: the 1/e point of a uniform patch's field correlation.
 _X_E = float(brentq(lambda x: math.sin(x) / x - math.exp(-1.0), 1.5, 3.0, xtol=1e-14))
@@ -149,8 +171,6 @@ _X_E = float(brentq(lambda x: math.sin(x) / x - math.exp(-1.0), 1.5, 3.0, xtol=1
 #: Root of sin(x)/x = 1/sqrt(2): the half-power point of a facet's envelope.
 _X_H = float(brentq(lambda x: math.sin(x) / x - math.sqrt(0.5), 1.0, 2.0, xtol=1e-14))
 
-#: Kernel half-length in kernel standard deviations for the Gaussian kind.
-_KERNEL_SIGMAS = 4.0
 
 
 # ---------------------------------------------------------------------------
@@ -214,13 +234,33 @@ def _uniform_step(t: np.ndarray) -> float | None:
     return None
 
 
+def _gauss_circulant(n: int, step: float, tau: float, rng: np.random.Generator) -> np.ndarray:
+    """Unit-power complex Gaussian process with ACF ``exp(-(k step / tau)^2)``.
+
+    Exact on the grid by circulant embedding; negative eigenvalues of the
+    embedding (round-off, or a correlation not decayed within the padding)
+    are clipped to zero.
+    """
+    reach = int(math.ceil(6.0 * float(tau) / step)) + 1
+    m = 1 << int(math.ceil(math.log2(2 * max(n, reach, 2))))
+    k = np.arange(m)
+    lag = np.minimum(k, m - k) * step
+    c = np.exp(-((lag / float(tau)) ** 2))
+    lam = np.clip(np.fft.fft(c).real, 0.0, None)
+    x = np.fft.fft(np.sqrt(lam / m) * _white(rng, m))
+    return x[:n]
+
+
 def _process(t: np.ndarray, tau: float | None, kind: str, rng: np.random.Generator) -> np.ndarray:
-    """Unit-power complex Gaussian process on ``t`` with field 1/e time ``tau``."""
+    """Unit-power complex Gaussian process on ``t`` with field 1/e time ``tau``.
+
+    ``tau=None`` is white.  No other time is replaced by white noise.
+    """
     n = t.size
     if n == 0:
         return np.zeros(0, dtype=complex)
     d = np.diff(t)
-    if tau is None or (d.size and float(np.min(d)) > float(tau)):
+    if tau is None:
         return _white(rng, n)
     if kind == "exp":
         w = _white(rng, n)
@@ -243,13 +283,27 @@ def _process(t: np.ndarray, tau: float | None, kind: str, rng: np.random.Generat
         if n == 1:
             return _white(rng, 1)
         raise ValueError("the gauss kind needs a uniform time grid")
-    s = 0.5 * float(tau) / step  # kernel standard deviation in samples
-    m = int(math.ceil(_KERNEL_SIGMAS * s))
-    k = np.arange(-m, m + 1, dtype=float)
-    h = np.exp(-0.5 * (k / s) ** 2)
-    h /= math.sqrt(float(np.sum(h * h)))
-    w = _white(rng, n + 2 * m)
-    return np.convolve(w, h, mode="valid")
+    return _gauss_circulant(n, step, float(tau), rng)
+
+
+def _phase_wander(t: np.ndarray, tau: float, kind: str, rng: np.random.Generator) -> np.ndarray:
+    """Unit-amplitude ``exp(j phi)`` whose correlation has 1/e time ``tau``."""
+    n = t.size
+    if n == 0:
+        return np.zeros(0, dtype=complex)
+    if kind == "exp":
+        # Wiener phase: increments of variance 2 dt / tau.
+        d = np.diff(t)
+        inc = rng.standard_normal(n - 1) * np.sqrt(2.0 * d / float(tau))
+        phi = np.concatenate([[0.0], np.cumsum(inc)])
+        return np.exp(1j * phi)
+    step = _uniform_step(t)
+    if step is None:
+        if n == 1:
+            return np.ones(1, dtype=complex)
+        raise ValueError("the gauss kind needs a uniform time grid")
+    x = math.sqrt(2.0) * _gauss_circulant(n, step, float(tau) * _PHASE_TAU_RATIO, rng).real
+    return np.exp(1j * math.sqrt(_PHASE_VAR) * x)
 
 
 def _over_frequency(
@@ -285,12 +339,17 @@ def _over_frequency(
     return out
 
 
-def _rho(lag: np.ndarray, tau: float | None, kind: str, *, white_if_none: bool) -> np.ndarray:
+def _rho(
+    lag: np.ndarray, tau: float | None, kind: str, *, white_if_none: bool, phase: bool = False
+) -> np.ndarray:
     lag = np.abs(np.asarray(lag, dtype=float))
     if tau is None:
         return (lag == 0.0).astype(float) if white_if_none else np.ones_like(lag)
     if kind == "exp":
         return np.exp(-lag / float(tau))
+    if phase:
+        tau_phi = float(tau) * _PHASE_TAU_RATIO
+        return np.exp(-_PHASE_VAR * (1.0 - np.exp(-((lag / tau_phi) ** 2))))
     return np.exp(-((lag / float(tau)) ** 2))
 
 
@@ -321,6 +380,8 @@ class FadingModel:
     ``specular_coherence_bw_hz``: 1/e bandwidths across frequency of the
     diffuse and specular parts; ``None`` is one draw for all frequencies.
     ``tau_log_sigma``: spread of ``ln tau_i`` across echoes.
+    ``specular``: ``"phase"`` (unit-amplitude phase wander, Rician for any
+    ``K``) or ``"rayleigh"`` (complex Gaussian, the route-one gain).
     """
 
     tau_i_s: float | None = None
@@ -330,6 +391,7 @@ class FadingModel:
     coherence_bw_hz: float | None = None
     specular_coherence_bw_hz: float | None = None
     tau_log_sigma: float = LOW_CONFIDENCE_LOG_SIGMA
+    specular: str = "phase"
     halo_m: float | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
@@ -343,6 +405,10 @@ class FadingModel:
             raise ValueError(f"kind must be one of {_KINDS}, got {self.kind!r}")
         if not (float(self.tau_log_sigma) >= 0.0):
             raise ValueError(f"tau_log_sigma must be >= 0, got {self.tau_log_sigma!r}")
+        if self.specular not in _SPECULAR:
+            raise ValueError(f"specular must be one of {_SPECULAR}, got {self.specular!r}")
+        if self.specular == "phase" and self.specular_coherence_bw_hz is not None:
+            raise ValueError("specular_coherence_bw_hz needs specular='rayleigh'")
 
     @classmethod
     def from_halo(
@@ -388,7 +454,7 @@ class FadingModel:
         a, b = self._weights()
         lag = np.asarray(lag_s, dtype=float)
         df = np.abs(np.asarray(df_hz, dtype=float))
-        rs = _rho(lag, self.tau_i_s, self.kind, white_if_none=False)
+        rs = _rho(lag, self.tau_i_s, self.kind, white_if_none=False, phase=self.specular == "phase")
         rd = _rho(lag, self.tau_d_s, self.kind, white_if_none=True)
         fs = np.ones_like(df) if self.specular_coherence_bw_hz is None else np.exp(
             -df / float(self.specular_coherence_bw_hz)
@@ -427,6 +493,9 @@ class FadingModel:
 
         if a == 0.0 or self.tau_i_s is None:
             spec = np.ones(shape, dtype=complex)
+        elif self.specular == "phase":
+            one = _phase_wander(t, float(tau_i), self.kind, s_spec)
+            spec = one if f is None else np.tile(one, (f.size, 1))
         else:
             spec = _over_frequency(t, tau_i, self.kind, f, self.specular_coherence_bw_hz, s_spec)
         if b == 0.0:
@@ -450,5 +519,6 @@ class FadingModel:
             "coherence_bw_hz": self.coherence_bw_hz,
             "specular_coherence_bw_hz": self.specular_coherence_bw_hz,
             "tau_log_sigma": self.tau_log_sigma,
+            "specular": self.specular,
             "halo_m": self.halo_m,
         }

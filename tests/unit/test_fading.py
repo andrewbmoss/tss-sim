@@ -77,17 +77,42 @@ def test_closed_forms():
     assert two.acf(0.2) == pytest.approx(0.5 * math.exp(-0.2) + 0.5 * math.exp(-4.0))
 
 
+def test_gauss_phase_wander_stays_close_to_a_gaussian_acf():
+    m = fd.FadingModel(tau_i_s=0.5, kind="gauss", tau_log_sigma=0.0)
+    lags = np.linspace(0.0, 3.0, 601)
+    assert m.acf(0.5) == pytest.approx(math.exp(-1.0))
+    assert np.max(np.abs(m.acf(lags) - np.exp(-((lags / 0.5) ** 2)))) < 0.02
+
+
 def test_two_time_scale_acf_is_realised():
     m = fd.FadingModel(tau_i_s=1.0, k_factor=1.0, tau_d_s=0.05, kind="exp", tau_log_sigma=0.0)
     est = _acf_estimate(_many(m, 200, 12), 50)
     assert np.max(np.abs(est[1:] - m.acf(np.arange(1, 51) * DT))) < 0.05
 
 
-def test_diffuse_part_shorter_than_a_sweep_is_white():
+def test_diffuse_part_much_shorter_than_a_sweep_is_nearly_white():
     for kind in ("exp", "gauss"):
         m = fd.FadingModel(k_factor=0.0, tau_d_s=0.005, kind=kind, tau_log_sigma=0.0)
         est = _acf_estimate(_many(m, 100, 13, n=1024), 3)
         assert abs(est[1]) < 0.05
+
+
+@pytest.mark.parametrize("kind", ["exp", "gauss"])
+@pytest.mark.parametrize("tau", [0.02, 0.03, 0.045])
+def test_times_near_one_sweep_are_realised_exactly(kind, tau):
+    # No whitening shortcut: about 9 % of tau_i = 0.1 s echoes fall below one
+    # sweep with the ln 3 spread, and their correlation must still be right.
+    m = fd.FadingModel(k_factor=0.0, tau_d_s=tau, kind=kind, tau_log_sigma=0.0)
+    est = _acf_estimate(_many(m, 200, 17, n=1024), 4)
+    assert np.max(np.abs(est[1:] - m.acf(np.arange(1, 5) * DT))) < 0.05
+    if kind == "exp" and tau == 0.02:
+        assert est[1] == pytest.approx(math.exp(-DT / 0.02), abs=0.05)  # about 0.33
+
+
+def test_a_ninth_of_0p1_s_echoes_fall_below_one_sweep():
+    m = fd.FadingModel(tau_i_s=0.1)
+    taus = np.array([m.draw_tau_i_s(s) for s in fd.echo_streams(np.random.default_rng(31), 4000)])
+    assert np.mean(taus < DT) == pytest.approx(0.0855, abs=0.015)
 
 
 # --------------------------------------------------------------------------
@@ -122,12 +147,36 @@ def test_k_zero_is_rayleigh():
     assert np.mean(p**2) == pytest.approx(2.0, abs=0.1)
 
 
+@pytest.mark.parametrize("tau_i", [None, 0.5])
+@pytest.mark.parametrize("kind", ["exp", "gauss"])
 @pytest.mark.parametrize("k", [1.0, 3.0, 10.0])
-def test_steady_specular_with_diffuse_is_rician(k):
-    g = _many(fd.FadingModel(tau_i_s=None, k_factor=k, tau_d_s=None, tau_log_sigma=0.0), 50, 16)
+def test_specular_with_diffuse_is_rician_whatever_the_intrinsic_time(k, kind, tau_i):
+    # The specular part wanders in phase only, so K sets the amplitude
+    # statistics even when the intrinsic time is finite.
+    m = fd.FadingModel(tau_i_s=tau_i, k_factor=k, tau_d_s=None, kind=kind, tau_log_sigma=0.0)
+    g = _many(m, 50, 16)
     p = np.abs(g) ** 2
     want = (k * k + 4.0 * k + 2.0) / (k + 1.0) ** 2
-    assert np.mean(p**2) == pytest.approx(want, rel=0.05)
+    assert np.mean(p**2) == pytest.approx(want, rel=0.06)
+
+
+@pytest.mark.parametrize("kind", ["exp", "gauss"])
+def test_phase_specular_has_unit_amplitude(kind):
+    d = fd.FadingModel(tau_i_s=0.5, kind=kind, tau_log_sigma=0.0).realise_parts(
+        _t(512), np.random.default_rng(6)
+    )
+    assert np.allclose(np.abs(d.specular), 1.0)
+
+
+def test_rayleigh_specular_is_the_route_one_model():
+    # specular="rayleigh", K = inf, 0.5 s, no spread: the complex Gaussian
+    # AR(1) gain route_one has used since October.
+    m = fd.FadingModel(tau_i_s=0.5, specular="rayleigh", tau_log_sigma=0.0)
+    g = _many(m, 100, 18)
+    p = np.abs(g) ** 2
+    assert np.mean(p**2) == pytest.approx(2.0, abs=0.15)
+    est = _acf_estimate(g, 20)
+    assert np.max(np.abs(est[1:] - np.exp(-np.arange(1, 21) * DT / 0.5))) < 0.05
 
 
 # --------------------------------------------------------------------------
@@ -249,6 +298,7 @@ def test_extended_class_threshold():
         dict(kind="lorentz"),
         dict(coherence_bw_hz=-1.0),
         dict(tau_log_sigma=-0.1),
+        dict(specular="lognormal"),
     ],
 )
 def test_bad_parameters_are_refused(kw):
@@ -258,8 +308,9 @@ def test_bad_parameters_are_refused(kw):
 
 def test_gaussian_needs_a_uniform_grid():
     t = np.array([0.0, 0.02, 0.05, 0.07])
-    with pytest.raises(ValueError):
-        fd.FadingModel(tau_i_s=0.5, kind="gauss").realise(t, np.random.default_rng(0))
+    for spec in ("phase", "rayleigh"):
+        with pytest.raises(ValueError):
+            fd.FadingModel(tau_i_s=0.5, kind="gauss", specular=spec).realise(t, np.random.default_rng(0))
     # The exponential kind takes any increasing grid.
     g = fd.FadingModel(tau_i_s=0.5, kind="exp").realise(t, np.random.default_rng(0))
     assert g.shape == (4,)
