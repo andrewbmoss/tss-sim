@@ -81,13 +81,20 @@ Noise-free, `quantise=False`, 5 MHz, reference plasma, a 2 km facet with
 * **Finding for Phase 3.**  Near overflight the range's second derivative is
   `v^2 (r_f / r_p) / D`, not the flat `v^2 / D`: 4.3 % less for a facet
   300 km below a 600 km orbit (`r_f / r_p = 0.957`; the tier matches the
-  formula to 0.5 % on a point-like 50 m plate).  Route one's estimator, which
-  uses `v_s^2 / (mu_sat P')`, would read the drift about 4 % wrong (about
-  1.1 m/s on 25 m/s, at the edge of M3's 1 m/s noise-free criterion, and
-  larger for deeper facets) unless it uses the effective speed
-  `v_eff = v sqrt(r_f / r_p)`, that is `v_eff^2 = v^2 r_f / r_p`.  A 2 km plate, part
-  mirror, has a smaller slope than a point; that is the envelope physics route
-  one already handles.
+  formula to 0.5 % on a point-like 50 m plate).  In a plasma the factor is
+  `P' / P'_flat` with `P'_flat = int (r_p / r)^2 dz / mu`.  A 2 km plate,
+  part mirror, has a smaller slope than a point; that is the envelope physics
+  route one already handles.
+* **Corrected 2026-11-25 (Phase 3, measured).**  This note said route one
+  would read the drift about 4 % wrong without the effective speed.  It does
+  not: `estimate_route_one` takes the zero crossing with the ephemeris slope
+  `S`, so its drift `v^2 (t_zc - t_pk) / (mu_sat P')` is the Doppler at the
+  power peak converted to a velocity, and `v^2` cancels to first order.  On the
+  orbit at signal level the drift with and without `v_eff` differs by 0.0004
+  m/s (`tests/unit/test_l3_drift.py`).  What the curvature moves is the slope
+  ratio, the compact-facet test of `docs/drift-mode.md` section 3, by
+  `(v_eff / v)^2` (0.956 here: 0.965 with `v_eff` against 0.922 without).  The
+  drift tier uses `v_eff` for that reason.
 * **Limits.**  The plate is two-dimensional: the facet is taken in the track
   plane and the cross-track offset is ignored (largest seen in
   `FacetTier.max_cross_track_m`; under 50 m over +/-1 s in the tests).  The

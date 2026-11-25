@@ -145,7 +145,7 @@ at one frequency returns three rows; the analytic tier returns one.
 | `magnetoionic` | `src/tss/l1_propagation/magnetoionic.py` | O and X mode separation and the X-mode cutoff shift. | Delivered |
 | `raytrace` | `src/tss/l1_propagation/raytrace.py` | Three-dimensional numerical ray tracing through PHaRLAP, including off-vertical returns and horizontal gradients.  MATLAB-side, read back through the file bridge. | Planned, WP2 |
 | `doppler` | `src/tss/l1_propagation/doppler.py` | Platform-motion Doppler per ray, which is the input C3 has to work from. | Implemented (28386d6), WP2 and WP5 |
-| `facet` | `src/tss/l1_propagation/facet.py` | Compact facets by the plate model (`plate_echo.echo_track`), one call per sweep of a drift-mode sequence: group and phase delay, Doppler, rows flagged `facet:<id>`; straight track or the orbit by Earth flattening, exponential or tabulated L0 topside; optional O-mode layer echo (`layer:O`).  Two-dimensional (cross-track ignored).  See `docs/drift-sequence.md`. | Implemented, WP5 Phase 2 |
+| `facet` | `src/tss/l1_propagation/facet.py` | Compact facets by the plate model (`plate_echo.echo_track`), one call per sweep of a drift-mode sequence: group and phase delay, Doppler, rows flagged `facet:<id>`; straight track or the orbit by Earth flattening, exponential or tabulated L0 topside; optional O-mode layer echo (`layer:O`).  Phase 3: field-aligned sheets (`kind: sheet`), and on the orbit 3-D plates and sheets by `sphere.py` (each ray flattened in its own plane).  See `docs/drift-sequence.md`, `docs/drift-tier.md`. | Implemented, WP5 Phases 2 and 3 |
 
 **Fidelity ladder at L1.**  `analytic` is fast enough to sweep large campaigns
 and is exactly the thing V2 checks against `raytrace`.  The analytic tier cannot
@@ -201,7 +201,7 @@ that leaves it `None` is saying it did not, and L5 will record INS-09 as
 | Tier | Module | Fidelity | Status |
 | --- | --- | --- | --- |
 | `baseline` | `src/tss/l3_signal/dechirp.py`, `transform.py`, `ionogram.py`, `detect.py` | De-chirp, windowed transform, bin-to-range mapping, CFAR-style trace extraction. | Not started.  Next package, WP4 |
-| `drift` | `src/tss/l3_signal/drift.py` | Drift mode over a sequence of sweeps (`Pipeline.run_sequence`): the ephemeris platform Doppler removed, the facet echo range-gated per sweep, Doppler from phase steps, route one's power peak against Doppler zero crossing, with the extended-reflector refusal.  One receive channel.  Up and down sweep pairing is not the contribution; it is the ionogram-mode INS-09 check (`novel/sweep_pairing.py`, WP5 Phase 5). | Planned, WP5 Phase 3, C3 |
+| `drift` | `src/tss/l3_signal/drift.py` | Drift mode over a sequence of sweeps (`Pipeline.run_sequence`): the ephemeris platform Doppler removed, the facet echo range-gated per sweep, Doppler from phase steps, route one's power peak against Doppler zero crossing, with the extended-reflector refusal; the first delay of each record gated out, velocities converted at the gate's transmitted frequency, an explicit N(h) prior.  One receive channel.  Up and down sweep pairing is not the contribution; it is the ionogram-mode INS-09 check (`novel/sweep_pairing.py`, WP5 Phase 5).  See `docs/drift-tier.md`. | Implemented in part (no halo, no sigma yet), WP5 Phase 3, C3 |
 | `aoa` | `src/tss/l3_signal/aoa.py` | Arrival angle and polarization mode separation from the vector channels. | Not started, WP11, C5, goal level |
 
 **Bin index to apparent range.**  This mapping is where the FMCW-specific

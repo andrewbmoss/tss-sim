@@ -1,9 +1,9 @@
 # tss-sim: where things stand
 
-Updated 2026-11-25, after WP5 Phase 2 (the drift-mode sequence path; 1000
-tests pass).
-WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, see the
-last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
+Updated 2026-11-25, during WP5 Phase 3 (curved-Earth facets, the sheet wrap
+and the drift tier done; the halo, the Cramer-Rao harness and the study next).
+WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
+under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
 the phase log below and the project notes; this file says what the code does
 today, what it does not, and what comes next.
@@ -586,3 +586,25 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   `tau_g` costs 15 to 30 % of each record.  Not done: `sheet_echo`, the
   diffuse halo, any study driving `run_sequence`.
 * Next: Phase 3, the drift tier and the Cramer-Rao harness.
+
+## WP5 Phase 3 (2026-11-25, part 1): curved Earth, the sheet wrap, the drift tier
+
+* `docs/drift-tier.md`; project notes `wp5-p3-decisions-2026-11-25`,
+  `wp5-p3-part1`.  Decisions (a) to (h) of 2026-11-25 09:01.
+* `l1_propagation/sphere.py`: each ray flattened in its own plane through
+  the Earth's centre; held to Bouguer's law in radius to 1e-9 m.
+* Facet tier: 3-D plates (default on the orbit; `plate_model`), sheets
+  (`kind: sheet`; straight track = `sheet_echo.echo_track`, orbit = the 3-D
+  engine with IGRF dip and declination).  Sheet exit met: 1.2e-10 rad, Doppler
+  1e-10; `field_aligned_verify` unchanged.
+* L2: an echo set's geometry arrives half a delay later
+  (`geometry_delay_fraction` 0.5 in a sequence); Phase 2's convention biased
+  route one by `v^2 / (mu_sat c)`, 0.2 m/s.
+* L3 tier `drift` (`l3/drift`): route one at signal level, first delay gated
+  out, `f_eff` conversion, platform Doppler removed, explicit N(h) prior.
+  Noise-free: 25 -> 24.997 (straight), 50 -> 49.996 (orbit, 3-D plate),
+  -60 -> -60.35 (facet 2 km along track: the envelope fit), extended declined.
+* Correction to Phase 2: without `v_eff` the drift is unchanged (0.0004 m/s);
+  the curvature moves the slope ratio by `(v_eff/v)^2` (0.956).
+* Next: the diffuse halo (scatterer field), the Cramer-Rao harness, the study
+  `wp5_route_one` with the SNR grid, Poole's comparator.
