@@ -163,6 +163,17 @@ note on the four budget points the reference profile cannot reach.
 
 * Wiring into the drift-mode sequence path (Phase 2), and the `tau_c_s` data
   product's estimator.
-* TV Table `c3nodeproducts` quotes the `tau_c_s` product's accuracy at
-  0.1 s, and the C4 null-scan screen ran 0.1 to 2 s.  Both are left as they
-  are; they measure or tolerate a time, not a compact-facet budget.
+
+## Screening numbers re-run at the carried times (2026-11-24, 21:00)
+
+At Andrew's request the TV's other 0.1 s and 0.1-2 s references were moved to
+0.1, 0.5 and 1.0 s (`Plans\wp5_screening\decorrelation_update.py`):
+
+* `tau_c_s` product, 10 dB, Rayleigh: 0.69-1.38 at 0.1 s, 0.37-2.4 at 0.5 s,
+  a lower bound at 1.0 s over 1.15 s; 0.79-1.27, 0.55-1.66, 0.45-2.8 over
+  3 s.  Phase-wandering specular echo: 0.82-1.38, 0.66-2.3 (1.15 s);
+  0.88-1.19, 0.78-1.53, 0.65-2.1 (3 s).
+* Facet size with fading at 0.1-1.0 s: 14-51 % (was 14-48 % at 0.1-0.5 s).
+* C4 null scan, fading columns of TV Table `c3nullscan`: +/-2 deg at 0.05 Hz
+  23-26 / 8-9 m/s (20 / 30 dB); +/-5 deg at 0.05 Hz 23-32 / 9-10; at 0.2 Hz
+  49-59 / 17-24; at 1 Hz 125-167 / 48-59; spin 36 deg/s 58-62 / 21-28.
