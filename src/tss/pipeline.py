@@ -25,6 +25,13 @@ the configuration's main stream.  Until 2026-11-08 L1 and L2 shared one
 generator, so an L1 tier that drew would have changed L2's noise (code review
 F3); the analytic L1 tier draws nothing, so no earlier result depends on it.
 
+Drift-mode sequences (WP5 Phase 2) run through :meth:`Pipeline.run_sequence`:
+L0 once, L1 once per sweep with the platform state of that sweep (its
+``t_s`` set), and L2 over the whole sequence through ``receive_sequence``
+when the L2 tier has it, so the oscillator and the fading can be continuous
+from sweep to sweep.  An L2 tier without it is called per sweep and the result
+says so (``flags["l2_sequence"]``).  The ionogram path is not touched.
+
 The optional hooks the pipeline uses beyond the tier protocols (L3 ``snr_at``,
 L5 ``l2_metrics``, L1 ``group_index_used``, the clutter generator) are declared
 in :mod:`tss.interfaces`, and every run records which it found in
@@ -48,6 +55,7 @@ from tss.interfaces import (
     IonosphereState,
     MeasuresTruthEchoSNR,
     PlatformState,
+    ReceivedSequence,
     ReceivedSignal,
     ReportsGroupIndex,
     SweepSchedule,
@@ -56,7 +64,7 @@ from tss.interfaces import (
 )
 from tss.registry import build
 
-__all__ = ["Pipeline", "RunResult", "build_tiers"]
+__all__ = ["Pipeline", "RunResult", "SequenceResult", "build_tiers"]
 
 
 @dataclass
@@ -73,6 +81,18 @@ class RunResult:
     timing_s: dict[str, float] = field(default_factory=dict)
     flags: dict[str, Any] = field(default_factory=dict)
     truth_echo_snr: dict[str, Any] | None = None
+
+
+@dataclass
+class SequenceResult:
+    """Everything one drift-mode sequence produced (WP5 Phase 2)."""
+
+    configuration: str
+    sequence: ReceivedSequence | None = None
+    truth: IonosphereState | None = None
+    echoes: list[EchoSet] = field(default_factory=list)
+    timing_s: dict[str, float] = field(default_factory=dict)
+    flags: dict[str, Any] = field(default_factory=dict)
 
 
 def build_tiers(tiers: Mapping[str, Any]) -> dict[str, Any]:
@@ -239,6 +259,77 @@ class Pipeline:
             result.signal = signal
             result.ionogram = ionogram
             result.retrieved = retrieved
+        return result
+
+    def run_sequence(
+        self,
+        configuration: str,
+        *,
+        sweep: SweepSchedule,
+        t_s: np.ndarray,
+        platforms: list[PlatformState],
+        alt_m: np.ndarray,
+        epoch: str,
+        freq_hz: np.ndarray | None = None,
+        truth_at: tuple[float, float] | None = None,
+    ) -> SequenceResult:
+        """Run one drift-mode sequence through L0 to L2 (module docstring).
+
+        ``t_s[n]`` is the start of sweep ``n`` from the start of the sequence
+        and ``platforms[n]`` the platform state at that sweep's centre,
+        ``t_s[n] + T/2``; its ``t_s`` is set to that time here, and L1 is
+        evaluated there, so that L2 holds the phase exactly at the centre and
+        the Doppler fixed about it.
+        The truth state is taken once, at ``truth_at`` (latitude, longitude;
+        the facet's sub-point, say) or else at the first platform state; the
+        medium is horizontally stratified over a sequence.  ``freq_hz``
+        defaults to the centre of the sweep.
+        """
+        import time
+
+        t = np.asarray(t_s, dtype=float)
+        if len(platforms) != t.size:
+            raise ValueError("one platform state per sweep is needed")
+        rng = self._rng(configuration)
+        l1_rng = self._l1_rng(configuration)
+        result = SequenceResult(configuration=configuration)
+        timing: dict[str, float] = {}
+        freq = (np.array([0.5 * (sweep.f_start_hz + sweep.f_stop_hz)]) if freq_hz is None
+                else np.atleast_1d(np.asarray(freq_hz, dtype=float)))
+
+        t0 = time.perf_counter()
+        p0 = platforms[0]
+        lat0, lon0 = (p0.lat_deg, p0.lon_deg) if truth_at is None else (float(truth_at[0]), float(truth_at[1]))
+        truth = self.tiers["l0"].state_at(lat0, lon0, epoch, alt_m)
+        result.flags["truth_at"] = [float(lat0), float(lon0)]
+        timing["l0"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        half = 0.5 * float(sweep.sweep_period_s)
+        plats = [replace(p, t_s=float(tn) + half) for p, tn in zip(platforms, t, strict=True)]
+        echo_sets = [self.tiers["l1"].echoes(truth, p, freq, l1_rng) for p in plats]
+        timing["l1"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        l2 = self.tiers["l2"]
+        if hasattr(l2, "receive_sequence"):
+            records = list(l2.receive_sequence(echo_sets, sweep, t, rng))
+            result.flags["l2_sequence"] = True
+        else:
+            records = [l2.receive(e, sweep, rng) for e in echo_sets]
+            result.flags["l2_sequence"] = False
+        timing["l2"] = time.perf_counter() - t0
+
+        result.sequence = ReceivedSequence(
+            records=records, t_s=t, platforms=plats,
+            echoes=echo_sets if self.keep_intermediates else None,
+            flags={"l2_sequence": result.flags["l2_sequence"], "n_sweeps": int(t.size)},
+            source="pipeline.run_sequence",
+        )
+        result.timing_s = timing
+        if self.keep_intermediates:
+            result.truth = truth
+            result.echoes = echo_sets
         return result
 
     def describe(self) -> dict[str, Any]:
