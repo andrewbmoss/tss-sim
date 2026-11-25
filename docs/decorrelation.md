@@ -49,6 +49,11 @@ RRI is mostly Faraday fading and is not a source for `tau_c`.
    compact facet (the disturbed ground values reach 45 ms) and is carried as
    the intrinsic time of the specular part.  That route one declines a randomly
    phased patch is expected, not yet run.
+5. (20:46) Decorrelation can come from either the spacecraft's motion or the
+   medium; the model carries both (diffuse halo, intrinsic specular time).
+   The 0.1 s medium-caused case on a compact facet returns in Phase 2 through
+   the model, not as the removed Rayleigh row.
+6. (20:46) The budget's 0.5 s is read as the medium's own decorrelation.
 
 ## The tie to the facet
 
@@ -142,8 +147,10 @@ At 5 MHz and 500 km the harness switches to extended between 0.5 and 1.0
 Fresnel radii (2 to 4 km).  So under the motion reading the 0.5 s rows at
 3 MHz (500 and 1000 km) and 5 MHz at 1000 km are at or past the compact limit,
 and the 33.7 m/s headline of TV Table `c3r1budget` comes from 3 MHz at 500 km.
-Under the intrinsic reading they stand.  Andrew to decide which reading the
-budget quotes.
+Under the intrinsic reading they stand.  **Decided (Andrew, 2026-11-24 20:46):
+the budget's 0.5 s is the medium's own decorrelation**, so the rows stand; the
+motion reading is stated beside TV Table `c3r1budget`, which also carries a
+note on the four budget points the reference profile cannot reach.
 
 ## Not yet done
 
