@@ -33,13 +33,23 @@ class, so that every scene has a published number to reproduce:
   degrees, track heading psi 0, 15 and 45 degrees from magnetic north,
   rotation phi about B 0 and 5 degrees, in free space; and psi 0 and 15 at
   phi 5 inside the plasma.  8 scenes.
+* ``E_budget``    added in Phase 1 (2026-11-24): an untilted 2 km facet at
+  nadir, 25 m/s, inside the reference plasma at an apparent range of a
+  budget point, so the budget has a forward-model check.  2 scenes.
 
-Two items of the WP5 plan's scene list cannot be run as written without
-new, unverified points, and Phase 0 does not add any.  The sheet's forward
-model fixes 5 MHz and 500 km, so the sheets are at 5 MHz only.  Plasma facets
-are placed by their refractive index mu_f, not by apparent range, so their
-``P'`` is recorded rather than set.  The budget below covers 3, 5 and 10 MHz at
-500 and 1000 km.
+The sheet's forward model fixes 5 MHz and 500 km, so the sheets are at 5 MHz
+only.  Plasma facets in groups A to C are placed by their refractive index
+mu_f, so their ``P'`` is recorded rather than set.  The ``E_budget`` facets are
+placed by apparent range instead: mu_f is solved from
+``P' = int_0^d dz / mu(z)`` in the c3_verify profile (f_N,sat 1.5 MHz,
+exponential, H = 200 km).  Only two of the six budget points can be reached.
+A facet below the reflection level is seen at no more than 527 km at 3 MHz,
+750 km at 5 MHz and 1034 km at 10 MHz, so 3 MHz and 5 MHz at 1000 km do not
+exist in this profile, and 3 MHz at 500 km and 10 MHz at 1000 km fall at the
+reflection level (mu_f 0.07 and 0.08), where the plate model refuses to run.
+Those four are listed in :data:`BUDGET_POINTS_UNREACHABLE` and not added
+(decision of 2026-11-24 evening).  The analytic budget below still covers all
+six, because it treats ``P'`` and ``mu_sat`` as independent.
 
 Each scene draws from its own generator, seeded from the campaign seed and a
 checksum of the scene's id, so a scene gives the same row alone, in a subset or
@@ -111,7 +121,15 @@ __all__ = [
 DEFAULT_SEED = 20261124
 ROUTE_ONE_SEED = 20261006
 ROUTE_ONE_TRIALS = 1000
-GROUPS = ("A_untilted", "B_tilted", "C_extended", "D_length", "S_sheet")
+GROUPS = ("A_untilted", "B_tilted", "C_extended", "D_length", "S_sheet", "E_budget")
+
+#: Budget points a facet can reach in the reference profile, and those it cannot.
+BUDGET_POINTS_REACHABLE = ((5.0, 500.0), (10.0, 500.0))
+BUDGET_POINTS_UNREACHABLE = ((3.0, 500.0), (3.0, 1000.0), (5.0, 1000.0), (10.0, 1000.0))
+
+#: Smallest facet refractive index accepted for a budget-point scene.  Below
+#: it the facet is at the reflection level and the plate model refuses it.
+MIN_MU_FACET = 0.2
 
 #: Products of the contract with no parameter-level logic in Phase 0.
 NOT_EVALUATED_FACET = "tau_c_s;facet_size_m;drift_mf_mps;doppler_spread_hz"
@@ -148,6 +166,12 @@ EXPECTED: dict[str, Any] = {
     "sheet_assume_abs_err_meridian_dip10_phi5_mps": 5.0,
     "sheet_assume_err_plasma_psi15_mps": (-90.0, -87.0),
     "sheet_assume_abs_err_plasma_meridian_mps": 2.6,
+    # E_budget: new points (2026-11-24), not in the TV.  Expected from the
+    # route-one acceptance rule (drift within 1 m/s) and from a screening
+    # trial of the same evening (5 and 10 MHz at 500 km: pass, 0.001 m/s).
+    "E_pass": 2,
+    "E_n": 2,
+    "E_group_path_tol_km": 1.0,
 }
 
 
@@ -170,6 +194,45 @@ class Scene:
     dip_deg: float = 0.0
     heading_deg: float = 0.0
     rotation_deg: float = 0.0
+    mu_facet: float | None = None
+    p_target_km: float | None = None
+
+
+def _group_path_m(f_hz: float, depth_m: float) -> float:
+    """Vertical apparent range to ``depth_m`` in the reference profile, m."""
+    from scipy.integrate import quad
+
+    from tss.studies.c3_verify import PROFILE
+
+    def inv_mu(z: float) -> float:
+        return 1.0 / math.sqrt(max(float(PROFILE.mu_squared(f_hz, np.array([z]))[0]), 1e-30))
+
+    return float(quad(inv_mu, 0.0, float(depth_m), limit=200)[0])
+
+
+def max_facet_group_path_m(f_hz: float) -> float:
+    """Apparent range of the reflection level in the reference profile, m."""
+    from tss.studies.c3_verify import PROFILE
+
+    return _group_path_m(f_hz, PROFILE.depth_for_mu(f_hz, 1e-9) * (1.0 - 1e-12))
+
+
+def budget_point_mu(f_hz: float, p_group_m: float) -> float | None:
+    """Facet refractive index that puts a facet at apparent range ``p_group_m``.
+
+    ``None`` when no facet below the reflection level is that far, or when
+    the facet would sit below :data:`MIN_MU_FACET`.
+    """
+    from scipy.optimize import brentq
+
+    from tss.studies.c3_verify import PROFILE
+
+    if float(p_group_m) >= max_facet_group_path_m(f_hz):
+        return None
+    d_ref = PROFILE.depth_for_mu(f_hz, 1e-9) * (1.0 - 1e-12)
+    depth = brentq(lambda d: _group_path_m(f_hz, d) - float(p_group_m), 0.0, d_ref, xtol=1e-3)
+    mu = math.sqrt(float(PROFILE.mu_squared(f_hz, np.array([depth]))[0]))
+    return mu if mu >= MIN_MU_FACET else None
 
 
 def _build_scenes() -> tuple[Scene, ...]:
@@ -208,6 +271,13 @@ def _build_scenes() -> tuple[Scene, ...]:
     for heading in (0.0, 15.0):
         out.append(Scene(f"S_plasma_dip10_psi{heading:g}_phi5", "S_sheet", "field_aligned", "plasma",
                          5.0, dip_deg=10.0, heading_deg=heading, rotation_deg=5.0))
+    for f_mhz, p_km in BUDGET_POINTS_REACHABLE:
+        mu = budget_point_mu(f_mhz * 1e6, p_km * 1e3)
+        if mu is None:  # pragma: no cover - guarded by the tests
+            raise RuntimeError(f"budget point {f_mhz} MHz {p_km} km is out of reach")
+        name = f"plasma_{f_mhz:g}MHz_P{p_km:g}km"
+        out.append(Scene(f"E_{name}_v25", "E_budget", "compact_facet", "plasma", f_mhz, name,
+                         drift_mps=25.0, mu_facet=round(mu, 6), p_target_km=p_km))
     return tuple(out)
 
 
@@ -220,11 +290,16 @@ def scene_seed(scene: Scene, campaign_seed: int) -> int:
 
 
 def _facet_row(scene: Scene, seed: int) -> dict[str, Any]:
-    from tss.studies.c3_verify import ENVIRONMENTS, run_trial
+    from tss.studies.c3_verify import ENVIRONMENTS, Environment, run_trial
 
-    env = {e.name: e for e in ENVIRONMENTS}[scene.environment]
+    known = {e.name: e for e in ENVIRONMENTS}
+    if scene.environment in known:
+        env = known[scene.environment]
+    else:
+        env = Environment(scene.environment, scene.f_mhz * 1e6, scene.medium == "plasma",
+                          mu_facet=float(scene.mu_facet))
     case = {"A_untilted": "A_untilted", "B_tilted": "B_tilted", "C_extended": "C_extended",
-            "D_length": "D_length"}[scene.group]
+            "D_length": "D_length", "E_budget": "E_budget"}[scene.group]
     r = run_trial(
         case, env, plate_m=scene.plate_m, x_m=scene.x_m, tilt_deg=scene.tilt_deg,
         drift_mps=scene.drift_mps, extended=(scene.group == "C_extended"),
@@ -380,6 +455,17 @@ def check_reproduction(rows: list[dict[str, Any]], budget: list[dict[str, Any]])
         for r in d:
             if r["echo_class"] != r["echo_class_truth"]:
                 bad.append(f"D: {r['plate_km']:g} km classed {r['echo_class']}")
+    if g["E_budget"]:
+        eb = g["E_budget"]
+        target = {s.scene_id: s.p_target_km for s in SCENES if s.group == "E_budget"}
+        m["E_pass"], m["E_n"] = sum(r["verdict"] == "pass" for r in eb), len(eb)
+        m["E_max_abs_drift_err_mps"] = float(np.nanmax([abs(r["drift_err_mps"]) for r in eb]))
+        m["E_max_abs_group_path_dev_km"] = float(max(abs(r["group_path_km"] - target[r["scene_id"]])
+                                                     for r in eb))
+        if m["E_pass"] != m["E_n"]:
+            bad.append(f"E: {m['E_pass']}/{m['E_n']} pass")
+        if m["E_max_abs_group_path_dev_km"] > e["E_group_path_tol_km"]:
+            bad.append(f"E: apparent range off by {m['E_max_abs_group_path_dev_km']:.2f} km")
     if g["S_sheet"]:
         s = g["S_sheet"]
         free = [r for r in s if r["medium"] == "free"]
@@ -513,7 +599,7 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
     lines = [f"# wp5_campaign: WP5 Phase 0 baseline (parameter level), seed {seed}", "",
              f"{len(rows)} scenes; budget {len(budget)} rows at {n_trials} trials.",
              f"Reproduced: **{repro['reproduced']}**.", ""]
-    for k in ("A_pass", "B_flagged", "C_declined"):
+    for k in ("A_pass", "B_flagged", "C_declined", "E_pass"):
         if k in repro:
             n = repro[k.split("_")[0] + "_n"]
             lines.append(f"- {k}: {repro[k]}/{n}")
@@ -522,7 +608,7 @@ def run(out_dir: Path, *, config: dict[str, Any], manifest: Any) -> StudyResult:
               "sheet_given_max_abs_err_plasma_mps", "sheet_assume_err_psi15_phi5_mps",
               "sheet_assume_err_psi45_phi5_mps", "sheet_assume_abs_err_meridian_dip10_phi5_mps",
               "sheet_assume_err_plasma_psi15_mps", "sheet_assume_abs_err_plasma_meridian_mps",
-              "budget_max_abs_deviation"):
+              "E_max_abs_drift_err_mps", "E_max_abs_group_path_dev_km", "budget_max_abs_deviation"):
         if k in repro:
             lines.append(f"- {k}: {repro[k]:.4g}")
     if "D" in repro:

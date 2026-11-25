@@ -143,3 +143,42 @@ def test_run_records_every_seed_in_the_manifest(tmp_path):
 def test_unknown_group_is_refused(bad, tmp_path):
     with pytest.raises(ValueError, match="group"):
         w.run(tmp_path, config={"wp5_campaign": bad}, manifest=SimpleNamespace(seeds={}))
+
+
+# --------------------------------------------------------------------------
+# Budget-point facets (WP5 P1, decision of 2026-11-24 evening): only the two
+# budget points a facet can reach in the reference profile are added.
+# --------------------------------------------------------------------------
+
+
+def test_budget_point_scenes_are_the_two_reachable_points():
+    e = [s for s in w.SCENES if s.group == "E_budget"]
+    assert [(s.f_mhz, s.p_target_km) for s in e] == [(5.0, 500.0), (10.0, 500.0)]
+    for s in e:
+        assert s.medium == "plasma" and s.echo_class_truth == "compact_facet"
+        assert s.plate_m == 2.0e3 and s.drift_mps == 25.0 and s.x_m == 0.0
+    assert e[0].mu_facet == pytest.approx(0.554, abs=0.002)
+    assert e[1].mu_facet == pytest.approx(0.870, abs=0.002)
+    assert "E_budget" in w.GROUPS
+
+
+def test_the_other_budget_points_are_out_of_reach_of_the_profile():
+    assert w.BUDGET_POINTS_UNREACHABLE == ((3.0, 500.0), (3.0, 1000.0), (5.0, 1000.0), (10.0, 1000.0))
+    assert w.max_facet_group_path_m(3.0e6) == pytest.approx(527e3, rel=0.01)
+    assert w.max_facet_group_path_m(5.0e6) == pytest.approx(750e3, rel=0.01)
+    assert w.max_facet_group_path_m(10.0e6) == pytest.approx(1034e3, rel=0.01)
+    for f, p in w.BUDGET_POINTS_UNREACHABLE:
+        assert w.budget_point_mu(f * 1e6, p * 1e3) is None
+    for f, p in w.BUDGET_POINTS_REACHABLE:
+        assert w.budget_point_mu(f * 1e6, p * 1e3) >= w.MIN_MU_FACET
+
+
+def test_budget_point_scene_runs_at_its_apparent_range_and_is_scored():
+    e = [s for s in w.SCENES if s.group == "E_budget"]
+    rows = [w.run_scene(s, campaign_seed=7) for s in e]
+    for s, r in zip(e, rows, strict=True):
+        assert r["group_path_km"] == pytest.approx(s.p_target_km, abs=1.0)
+        assert r["verdict"] == "pass" and abs(r["drift_err_mps"]) <= 1.0
+    m = w.check_reproduction(rows, [])
+    assert (m["E_pass"], m["E_n"]) == (2, 2) and m["reproduced"]
+    assert m["E_max_abs_group_path_dev_km"] <= 1.0
