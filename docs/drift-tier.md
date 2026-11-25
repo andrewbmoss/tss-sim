@@ -76,8 +76,13 @@ ray's (the stationary phase of a two-dimensional minimum), so it does not jump
 by a cycle during a pass.
 
 **Exit met** (`tests/unit/test_l1_facet_sheet.py`): a noise-free sequence
-reproduces the sheet model's phase to **1.2e-10 rad** (0.01 asked) and its
-Doppler to **1e-10** (1e-3 asked); `field_aligned_verify` unchanged.  The exit
+reproduces the sheet model's phase to **2.0e-5 rad** (0.01 asked) and its
+Doppler to **3.4e-7** (1e-3 asked), measured at 4208661 with the geometry-time
+correction of section 4 (1.2e-10 and 1e-10 before it); `field_aligned_verify`
+unchanged.  Rows are flagged `facet:<id>;sheet`, not `sheet:<id>` as the plan
+wrote, so that L2's fading and facet handling apply unchanged: a deviation to
+confirm.  IGRF is called with the spherical latitude of `tss.platform.orbits`
+where it expects a geodetic one (up to 0.19 degrees at mid-latitudes).  The exit
 track crosses the sheet's normal plane square on; along the normal's azimuth
 the platform's own Doppler is about 100 Hz, which 45 Hz sweeps sample only
 modulo 45 Hz (the echo set carries it exactly).
@@ -92,7 +97,12 @@ drift bias of `v^2 / (mu_sat c)`, **0.2 m/s at any range** (24.80 for 25 m/s
 before, 24.997 after).  `SequenceContext.geometry_delay_fraction` (0.5 in a
 sequence) fixes it, and the drift tier stamps each value with
 `t_n + t_ref - tau/2`.  Phase 2's exit tests compare at the geometry time
-now; their measured errors are unchanged.
+now.  Their errors grew but stay far inside the criterion, because the record
+centre is now about half a delay from the time the echo set describes and the
+fixed Doppler is extrapolated over it (second order): straight 5.4e-4 rad over
+the window (8.4e-5 over the main lobe; 1.3e-9 before), Doppler 5.9e-5; orbit
+(3-D plate since part 1) 1.9e-4 rad.  This changes Phase 2's pushed
+behaviour, for Andrew to accept.
 
 ## 5. The drift tier (`l3_signal/drift.py`, `l3/drift`)
 
@@ -114,7 +124,7 @@ Noise-free (`tests/unit/test_l3_drift.py`; 5 MHz, `mu_f` 0.5, 2 km plate):
 |---|---|---|
 | Straight, overflight | 25 m/s | 24.997 |
 | Straight, facet 2 km along track | -60 m/s | -60.35 |
-| Orbit, 3-D plate 300 km below 600 km, L0-style exponential profile | 50 m/s | 49.996 |
+| Orbit, 3-D plate 300 km below 600 km, exponential profile (not the L0 profile) | 50 m/s | 49.996 |
 | Extended plate (80 km, tapered) | declined | `extended` |
 
 All within D5's 1 m/s.  The 0.35 m/s at 2 km along track is the power-envelope
@@ -128,11 +138,37 @@ fixed.
 ### The effective speed: a correction to Phase 2
 
 Phase 2 said route one would read the drift about 4 % wrong on the orbit
-without `v_eff^2 = v^2 P'/P'_flat`.  Measured: it does not.  Route one's
-drift is the Doppler at the power peak converted to a velocity (the zero
-crossing is taken with the ephemeris slope, so `v^2` cancels to first order);
-with and without `v_eff` the orbit drift differs by 0.0004 m/s.  What the
-curvature moves is the **slope ratio**, the compact-facet test, by
-`(v_eff/v)^2`: 0.965 with `v_eff`, 0.922 without (0.956).  So decision (d)
-(the facet's true height from the onboard profile) matters to the
-classification, not to the drift.
+without `v_eff^2 = v^2 P'/P'_flat`.  Measured: noise-free, to first order, it
+does not.  Route one's drift is
+`(c / 2 f mu) [<f_D> + S (t_bar - t_pk)]`, with `t_bar` the power-weighted
+mean time of the Doppler samples; `v` enters only through the last term,
+which vanishes when the lobe is symmetric.  Noise-free on the orbit the drift
+with and without `v_eff` differs by 0.0004 m/s.  With the envelope made
+asymmetric (a per-sweep gain) it differs by 0.06 m/s (a +/-50 % ramp), 0.06
+(a 1.3 Hz fade) and 0.28 (a factor of 2 step), while those gains move the
+drift itself by up to 28 m/s: second order against the fading error.  What
+the curvature moves to first order is the **slope ratio**, the compact-facet
+test, by `(v_eff/v)^2`: 0.965 with `v_eff`, 0.922 without (0.956).  So
+decision (d) (the facet's true height from the onboard profile) matters to
+the classification first and to the drift only at second order.
+
+## 6. What is not yet known or done
+
+* **The drift tier has run noise-free only.**  A first look with noise added
+  to the records (SNR per sweep at the peak, coherent over the gate, five
+  seeds, straight track, 25 m/s): at 10, 5 and 0 dB per sweep the detector
+  finds nothing (0 of 5): its statistic is the spectrum summed over all 91
+  sweeps, of which the facet's lobe fills about 15, against a 13 dB threshold.
+  At 20 dB it detects 5 of 5 and the drifts are 12, 38, 36, 23 and 18 m/s, a
+  spread far above the parameter-level budget's 10.8 m/s at 10 dB.  Detection
+  over a sliding window (or a range prior from the ionogram, contract
+  section 1) and the SNR definitions are for the study.
+* Contract products not formed yet: per-sweep `range_m`, `power_db` and
+  `doppler_hz`; `snr_db`, `resolution_mps`, `v_unambiguous_mps`,
+  `range_debiased_m`, `los_rate_sigma_mps`, `tau_c_s`, `doppler_spread_hz`,
+  `drift_sigma_mps` (NaN).
+* The facet tier keeps state between calls (the latched plate azimuth, the
+  sheet's field direction, the surfaces and the Newton warm start), so a study
+  must build a tier per scene.
+* The halo, the Cramer-Rao harness, the study `wp5_route_one`, Poole's
+  comparator, an onboard prior from L4.

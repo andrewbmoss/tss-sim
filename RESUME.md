@@ -595,8 +595,8 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   the Earth's centre; held to Bouguer's law in radius to 1e-9 m.
 * Facet tier: 3-D plates (default on the orbit; `plate_model`), sheets
   (`kind: sheet`; straight track = `sheet_echo.echo_track`, orbit = the 3-D
-  engine with IGRF dip and declination).  Sheet exit met: 1.2e-10 rad, Doppler
-  1e-10; `field_aligned_verify` unchanged.
+  engine with IGRF dip and declination).  Sheet exit met: 2.0e-5 rad, Doppler
+  3.4e-7 (at 4208661); `field_aligned_verify` unchanged.
 * L2: an echo set's geometry arrives half a delay later
   (`geometry_delay_fraction` 0.5 in a sequence); Phase 2's convention biased
   route one by `v^2 / (mu_sat c)`, 0.2 m/s.
@@ -604,7 +604,10 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   out, `f_eff` conversion, platform Doppler removed, explicit N(h) prior.
   Noise-free: 25 -> 24.997 (straight), 50 -> 49.996 (orbit, 3-D plate),
   -60 -> -60.35 (facet 2 km along track: the envelope fit), extended declined.
-* Correction to Phase 2: without `v_eff` the drift is unchanged (0.0004 m/s);
-  the curvature moves the slope ratio by `(v_eff/v)^2` (0.956).
+  **Noise-free only**: with noise the detector (spectrum summed over the
+  whole sequence, 13 dB) finds nothing at 10 dB per sweep; open for the study.
+* Correction to Phase 2: noise-free, to first order, `v_eff` does not move the
+  drift (0.0004 m/s; 0.06 to 0.28 m/s with an asymmetric envelope); the
+  curvature moves the slope ratio by `(v_eff/v)^2` (0.956).
 * Next: the diffuse halo (scatterer field), the Cramer-Rao harness, the study
   `wp5_route_one` with the SNR grid, Poole's comparator.

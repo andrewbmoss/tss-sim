@@ -78,9 +78,13 @@ real: near overflight the range's second derivative is ``v^2 (r_f / r_p) / D``,
 not the flat ``v^2 / D``, 4.3 % less at 300 km below a 600 km orbit
 (``r_f / r_p = 0.957``; ``tests/unit/test_l1_facet_orbit.py``).  It moves
 route one's slope ratio, the compact-facet test, by that factor; the drift
-route one forms is the Doppler at the power peak and barely moves (measured,
-``tests/unit/test_l3_drift.py``; the Phase 2 note that it would be 4 % wrong
-was corrected on 2026-11-25).
+route one forms is, noise-free and to first order, the Doppler at the power
+peak and does not move (measured, ``tests/unit/test_l3_drift.py``; 0.06 to
+0.28 m/s with an asymmetric envelope; the Phase 2 note that it would be 4 %
+wrong was corrected on 2026-11-25).
+
+The tier keeps state between calls (the latched plate azimuth, the sheet's
+field direction, the surfaces and the Newton warm start): build one per scene.
 
 Drift is the strata moving as a whole: the profile rises radially at
 ``drift_mps`` and the plate with it (a sheet at the vertical part of its

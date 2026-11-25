@@ -43,7 +43,10 @@ Pipeline.run_sequence(configuration, sweep=, t_s=, platforms=, alt_m=, epoch=, t
   Phase 3.
 * **Evaluation at the sweep centre.**  L1 is evaluated at `t_s[n] + T/2` and L2
   holds the Doppler fixed about that time, so the phase is exact at the centre
-  and the error of a fixed Doppler is second order.  With L1 at the sweep start
+  and the error of a fixed Doppler is second order.  **Superseded in Phase 3
+  (2026-11-25, `docs/drift-tier.md` section 4):** an echo received at `t` was
+  reflected at `t - tau/2`, so L2 now holds the Doppler about
+  `T/2 + tau/2`, the receive time of the geometry L1 evaluated.  With L1 at the sweep start
   the error near the first nulls of the envelope reached 0.02 rad.
 * **Blanking.**  In a repeated chirp the first `tau_g` of each record holds the
   previous sweep's echo at another beat.  It is not modelled; L2 leaves it empty

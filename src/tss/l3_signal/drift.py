@@ -54,8 +54,14 @@ and ``v_eff`` is ``v_s_mps``.
 WHAT IS NOT DONE YET
 --------------------
 The diffuse halo, ``tau_c_s``, ``doppler_spread_hz``, the field-aligned and
-several-frequency products, and ``drift_sigma_mps`` (NaN until the
-Cramer-Rao harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
+several-frequency products, the per-sweep products and the rest listed in
+``flags["not_done"]``, and ``drift_sigma_mps`` (NaN until the Cramer-Rao
+harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
+
+**Run noise-free only so far.**  The detector's statistic is the spectrum
+summed over the whole sequence, of which a facet's lobe fills a few sweeps,
+so at 10 dB per sweep it finds nothing (``docs/drift-tier.md`` section 6);
+a windowed statistic or a range prior is for the study.
 """
 
 from __future__ import annotations
@@ -250,7 +256,9 @@ class DriftProcessing:
             "prior_source": None if prior is None else prior.source,
             "channel": 0, "n_sweeps": len(recs), "detected": len(beats),
             "not_done": ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
-                         "field_aligned", "several_frequency"],
+                         "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
+                         "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
+                         "range_debiased_m", "los_rate_sigma_mps", "windowed_detection"],
         }
         ids, rows = [], []
         for i, fb in enumerate(beats):

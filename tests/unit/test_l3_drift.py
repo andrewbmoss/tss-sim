@@ -2,8 +2,8 @@
 
 Noise-free, through L1 (facet) and L2 (baseline, quantisation and thermal
 noise off).  The pass criterion of D5 option A at noise-free level is drift
-within 1 m/s; on the orbit only with the effective speed (advisor,
-2026-11-25: the straight-track M3 runs never exercise it).
+within 1 m/s.  Nothing here runs with noise yet (docs/drift-tier.md,
+section 6).
 """
 
 from __future__ import annotations
@@ -148,11 +148,13 @@ def test_orbit_noise_free_drift_within_1_mps_with_the_effective_speed(orbit_run)
 
 
 def test_orbit_effective_speed_moves_the_slope_ratio_not_the_drift(orbit_run):
-    """Measured 2026-11-25: the drift route one forms is the Doppler at the power
-    peak over the ephemeris slope times that slope, so v^2 cancels to first order;
-    the curvature moves the slope ratio (the compact-facet test) by (v_eff / v)^2,
-    not the drift.  P2's note that the drift would be 4 % wrong was arithmetic on
-    an assumed estimator, and is corrected."""
+    """Measured 2026-11-25, noise-free: the drift route one forms is the Doppler
+    at the power peak plus S (t_bar - t_pk), and the last term, the only one v
+    enters, vanishes for a symmetric lobe; the curvature moves the slope ratio
+    (the compact-facet test) by (v_eff / v)^2, and the drift only at second
+    order (0.06 to 0.28 m/s with an asymmetric envelope, docs/drift-tier.md).
+    P2's note that the drift would be 4 % wrong was arithmetic on an assumed
+    estimator, and is corrected."""
     a = DriftProcessing(prior=PRIOR).process_sequence(orbit_run.sequence).products
     prod = DriftProcessing(prior=PRIOR, use_effective_speed=False).process_sequence(orbit_run.sequence)
     b = prod.products
