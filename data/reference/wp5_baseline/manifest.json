@@ -1,0 +1,262 @@
+{
+  "config": {
+    "clutter": {
+      "climatology": false,
+      "compression_image": {
+        "enabled": true
+      },
+      "enabled": true,
+      "ground_echo": {
+        "d_region_a_db_mhz2": 100.0,
+        "d_region_f_l_mhz": 1.2,
+        "enabled": true,
+        "surface_reflection_db": -3.0
+      },
+      "interference": {
+        "carriers_per_band": 3,
+        "enabled": true,
+        "only_above_fof2": true,
+        "power_dbm_iso": -70.0,
+        "raster_hz": 5000.0,
+        "sigma_db": 6.0
+      },
+      "plasma_resonances": {
+        "enabled": true,
+        "extent_km": 1000.0,
+        "fN": {
+          "decay_ms": 0.5,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "fUH": {
+          "decay_ms": 1.0,
+          "enabled": true,
+          "level_db": -70.0
+        },
+        "floor_db": 30.0,
+        "nfH": {
+          "decay_ms": 3.0,
+          "enabled": true,
+          "harmonics": 3,
+          "level_db": -70.0
+        },
+        "row_spacing_km": 3.0
+      },
+      "spread_f": {
+        "beyond_penetration_fraction": 0.05,
+        "enabled": true,
+        "extent_km": 100.0,
+        "level_db": -6.0,
+        "mean_km": 30.0,
+        "rows_per_echo": 12
+      }
+    },
+    "grid": {
+      "alt_max_m": 2000000.0,
+      "alt_min_m": 90000.0,
+      "alt_step_m": 5000.0
+    },
+    "instrument": "instrument/baseline_6u",
+    "name": "default",
+    "paths": {
+      "data_external": "data/external",
+      "data_reference": "data/reference",
+      "figures": "results/figures",
+      "results": "results"
+    },
+    "requirements": "requirements/requirements",
+    "run": {
+      "keep_intermediates": true,
+      "strict_provenance": false
+    },
+    "seed": 20260921,
+    "sweep": {
+      "direction": 1,
+      "f_start_hz": 330000.0,
+      "f_stop_hz": 20000000.0,
+      "nonlinearity_ppm": 0.0,
+      "step_cap_hz": 150000.0,
+      "step_dwell_s": 0.0268,
+      "step_fraction": 0.05,
+      "sweep_period_s": 0.0
+    },
+    "tiers": {
+      "l0": "chapman",
+      "l1": "analytic",
+      "l2": "baseline",
+      "l3": "baseline",
+      "l4": "lamination_magnetoionic",
+      "l5": "standard"
+    }
+  },
+  "config_sha256": "3b9908d0774d80e7805f59905c5adcb1ea1a9289b6d88550b4413961bd56fe5e",
+  "configuration": "",
+  "created_utc": "2026-11-25T01:12:57+00:00",
+  "environment": {
+    "host": "HeartOfGold",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.16",
+    "user": "Andrew"
+  },
+  "error": null,
+  "git": {
+    "branch": "master",
+    "commit": "fe5dd5d6aa1f41cddf24ec9237a357452db8a539",
+    "dirty": false,
+    "dirty_files": []
+  },
+  "inputs": [],
+  "notes": "WP5 evaluation harness: C3 scenes by echo class and the route-one budget (Phase 0 baseline)",
+  "outputs": [
+    "data\\reference\\wp5_baseline\\wp5_campaign_scenes.csv",
+    "data\\reference\\wp5_baseline\\wp5_campaign_budget.csv",
+    "data\\reference\\wp5_baseline\\wp5_campaign.json",
+    "data\\reference\\wp5_baseline\\summary.md"
+  ],
+  "seed": 20260921,
+  "seeds": {
+    "budget": {
+      "10MHz_1000km_fading0": 20262056,
+      "10MHz_1000km_fading1": 20262057,
+      "10MHz_500km_fading0": 20262046,
+      "10MHz_500km_fading1": 20262047,
+      "3MHz_1000km_fading0": 20262016,
+      "3MHz_1000km_fading1": 20262017,
+      "3MHz_500km_fading0": 20262006,
+      "3MHz_500km_fading1": 20262007,
+      "5MHz_1000km_fading0": 20262036,
+      "5MHz_1000km_fading1": 20262037,
+      "5MHz_500km_fading0": 20262026,
+      "5MHz_500km_fading1": 20262027
+    },
+    "budget_trials": 1000,
+    "campaign": 20261124,
+    "scenes": {
+      "A_free_10MHz_500km_x0_v-50": 20262903560334,
+      "A_free_10MHz_500km_x0_v0": 20265353888268,
+      "A_free_10MHz_500km_x0_v100": 20261423455967,
+      "A_free_10MHz_500km_x0_v25": 20264246573662,
+      "A_free_10MHz_500km_x5_v-50": 20262103329085,
+      "A_free_10MHz_500km_x5_v0": 20264668254782,
+      "A_free_10MHz_500km_x5_v100": 20262777851756,
+      "A_free_10MHz_500km_x5_v25": 20263309180206,
+      "A_free_3MHz_500km_x0_v-50": 20264332369976,
+      "A_free_3MHz_500km_x0_v0": 20264658913172,
+      "A_free_3MHz_500km_x0_v100": 20264738928265,
+      "A_free_3MHz_500km_x0_v25": 20262613685577,
+      "A_free_3MHz_500km_x5_v-50": 20265132790187,
+      "A_free_3MHz_500km_x5_v0": 20265359030214,
+      "A_free_3MHz_500km_x5_v100": 20263384328154,
+      "A_free_3MHz_500km_x5_v25": 20263832167001,
+      "A_free_5MHz_1000km_x0_v-50": 20264790068076,
+      "A_free_5MHz_1000km_x0_v0": 20262157959611,
+      "A_free_5MHz_1000km_x0_v100": 20264383982909,
+      "A_free_5MHz_1000km_x0_v25": 20265225271860,
+      "A_free_5MHz_1000km_x5_v-50": 20263435672287,
+      "A_free_5MHz_1000km_x5_v0": 20261417537961,
+      "A_free_5MHz_1000km_x5_v100": 20265184214158,
+      "A_free_5MHz_1000km_x5_v25": 20262127746404,
+      "A_free_5MHz_500km_x0_v-50": 20264236197045,
+      "A_free_5MHz_500km_x0_v0": 20263810575992,
+      "A_free_5MHz_500km_x0_v100": 20264903774980,
+      "A_free_5MHz_500km_x0_v25": 20265246960193,
+      "A_free_5MHz_500km_x5_v-50": 20265029743910,
+      "A_free_5MHz_500km_x5_v0": 20264059756138,
+      "A_free_5MHz_500km_x5_v100": 20263557112663,
+      "A_free_5MHz_500km_x5_v25": 20262174600529,
+      "A_plasma_10MHz_mu0.8_x0_v-50": 20262999087834,
+      "A_plasma_10MHz_mu0.8_x0_v0": 20263463393089,
+      "A_plasma_10MHz_mu0.8_x0_v100": 20261259213995,
+      "A_plasma_10MHz_mu0.8_x0_v25": 20264954634728,
+      "A_plasma_10MHz_mu0.8_x5_v-50": 20262206720905,
+      "A_plasma_10MHz_mu0.8_x5_v0": 20264138499859,
+      "A_plasma_10MHz_mu0.8_x5_v100": 20262604696888,
+      "A_plasma_10MHz_mu0.8_x5_v25": 20261861365432,
+      "A_plasma_3MHz_mu0.5_x0_v-50": 20264199119469,
+      "A_plasma_3MHz_mu0.5_x0_v0": 20264232753538,
+      "A_plasma_3MHz_mu0.5_x0_v100": 20264873718844,
+      "A_plasma_3MHz_mu0.5_x0_v25": 20261441959292,
+      "A_plasma_3MHz_mu0.5_x5_v-50": 20264999932894,
+      "A_plasma_3MHz_mu0.5_x5_v0": 20263373334864,
+      "A_plasma_3MHz_mu0.5_x5_v100": 20263519774095,
+      "A_plasma_3MHz_mu0.5_x5_v25": 20264535294476,
+      "A_plasma_5MHz_mu0.5_x0_v-50": 20264369809136,
+      "A_plasma_5MHz_mu0.5_x0_v0": 20265047556254,
+      "A_plasma_5MHz_mu0.5_x0_v100": 20264768557249,
+      "A_plasma_5MHz_mu0.5_x0_v25": 20264009681540,
+      "A_plasma_5MHz_mu0.5_x5_v-50": 20265162700643,
+      "A_plasma_5MHz_mu0.5_x5_v0": 20264706150572,
+      "A_plasma_5MHz_mu0.5_x5_v100": 20263421501714,
+      "A_plasma_5MHz_mu0.5_x5_v25": 20262803787028,
+      "B_free_3MHz_500km_t0.1_v0": 20261310713108,
+      "B_free_3MHz_500km_t0.1_v25": 20264277771427,
+      "B_free_3MHz_500km_t0.25_v0": 20263206646477,
+      "B_free_3MHz_500km_t0.25_v25": 20262704970800,
+      "B_free_3MHz_500km_t0.5_v0": 20263481369195,
+      "B_free_3MHz_500km_t0.5_v25": 20262491040355,
+      "B_free_3MHz_500km_t1_v0": 20264485352669,
+      "B_free_3MHz_500km_t1_v25": 20262385866218,
+      "B_free_5MHz_500km_t0.1_v0": 20261352372633,
+      "B_free_5MHz_500km_t0.1_v25": 20261814407056,
+      "B_free_5MHz_500km_t0.25_v0": 20265033001438,
+      "B_free_5MHz_500km_t0.25_v25": 20264921885181,
+      "B_free_5MHz_500km_t0.5_v0": 20263443392230,
+      "B_free_5MHz_500km_t0.5_v25": 20264674963792,
+      "B_free_5MHz_500km_t1_v0": 20263721016641,
+      "B_free_5MHz_500km_t1_v25": 20264953604834,
+      "B_plasma_3MHz_mu0.5_t0.1_v0": 20263496848609,
+      "B_plasma_3MHz_mu0.5_t0.1_v25": 20262270559283,
+      "B_plasma_3MHz_mu0.5_t0.25_v0": 20263339594365,
+      "B_plasma_3MHz_mu0.5_t0.25_v25": 20263617833812,
+      "B_plasma_3MHz_mu0.5_t0.5_v0": 20261296835470,
+      "B_plasma_3MHz_mu0.5_t0.5_v25": 20264225065715,
+      "B_plasma_3MHz_mu0.5_t1_v0": 20265430297933,
+      "B_plasma_3MHz_mu0.5_t1_v25": 20264265578831,
+      "B_plasma_5MHz_mu0.5_t0.1_v0": 20263461498972,
+      "B_plasma_5MHz_mu0.5_t0.1_v25": 20264899604288,
+      "B_plasma_5MHz_mu0.5_t0.25_v0": 20261683104110,
+      "B_plasma_5MHz_mu0.5_t0.25_v25": 20261539659433,
+      "B_plasma_5MHz_mu0.5_t0.5_v0": 20261332729619,
+      "B_plasma_5MHz_mu0.5_t0.5_v25": 20261871276544,
+      "B_plasma_5MHz_mu0.5_t1_v0": 20264114242737,
+      "B_plasma_5MHz_mu0.5_t1_v25": 20261463017047,
+      "C_free_5MHz_500km_t0.5_v0": 20261773309664,
+      "C_free_5MHz_500km_t0.5_v25": 20262109253599,
+      "C_free_5MHz_500km_t0_v0": 20264219646096,
+      "C_free_5MHz_500km_t0_v25": 20262743420493,
+      "C_free_5MHz_500km_t1_v0": 20261391890413,
+      "C_free_5MHz_500km_t1_v25": 20262821005309,
+      "C_plasma_5MHz_mu0.5_t0.5_v0": 20262902178898,
+      "C_plasma_5MHz_mu0.5_t0.5_v25": 20261878871285,
+      "C_plasma_5MHz_mu0.5_t0_v0": 20264199175130,
+      "C_plasma_5MHz_mu0.5_t0_v25": 20264588988792,
+      "C_plasma_5MHz_mu0.5_t1_v0": 20261370877111,
+      "C_plasma_5MHz_mu0.5_t1_v25": 20265337678056,
+      "D_free_5MHz_500km_L0.5": 20262950025605,
+      "D_free_5MHz_500km_L1": 20264606097285,
+      "D_free_5MHz_500km_L16": 20262068363939,
+      "D_free_5MHz_500km_L2": 20262575476431,
+      "D_free_5MHz_500km_L32": 20261217418264,
+      "D_free_5MHz_500km_L4": 20264331031554,
+      "D_free_5MHz_500km_L8": 20264174381033,
+      "S_free_dip10_psi0_phi0": 20261568483291,
+      "S_free_dip10_psi0_phi5": 20262907872076,
+      "S_free_dip10_psi15_phi0": 20262468875992,
+      "S_free_dip10_psi15_phi5": 20262206310991,
+      "S_free_dip10_psi45_phi0": 20261699740023,
+      "S_free_dip10_psi45_phi5": 20263044656624,
+      "S_plasma_dip10_psi0_phi5": 20262701485460,
+      "S_plasma_dip10_psi15_phi5": 20264026481667
+    }
+  },
+  "study": "wp5_campaign",
+  "tiers": {
+    "claims": [
+      "C3"
+    ],
+    "status": "implemented",
+    "work_packages": [
+      "WP5"
+    ]
+  }
+}

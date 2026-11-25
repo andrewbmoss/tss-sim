@@ -1,0 +1,45 @@
+{
+  "study": "wp5_campaign",
+  "status": "implemented",
+  "run_directory": "data\\reference\\wp5_baseline",
+  "manifest": "data\\reference\\wp5_baseline\\manifest.json",
+  "outputs": [
+    "data\\reference\\wp5_baseline\\wp5_campaign_scenes.csv",
+    "data\\reference\\wp5_baseline\\wp5_campaign_budget.csv",
+    "data\\reference\\wp5_baseline\\wp5_campaign.json",
+    "data\\reference\\wp5_baseline\\summary.md"
+  ],
+  "metrics": {
+    "A_pass": 56,
+    "A_n": 56,
+    "A_max_abs_drift_err_mps": 0.030029070388337686,
+    "A_max_abs_angle_err_deg": 0.00012644092989398442,
+    "A_degeneracy_max_ratio": 2.223149286920512e-17,
+    "B_pass": 0,
+    "B_flagged": 0,
+    "B_n": 32,
+    "B_err_over_predicted_min": 0.9993803033398039,
+    "B_err_over_predicted_max": 1.0006389830379627,
+    "C_declined": 12,
+    "C_n": 12,
+    "C_max_abs_slope_ratio": 0.0006037647044698467,
+    "sheet_given_max_abs_err_free_mps": 0.1466606580057821,
+    "sheet_assume_err_psi15_phi5_mps": -166.5431397866928,
+    "sheet_assume_err_psi45_phi5_mps": -464.9409786069608,
+    "sheet_assume_abs_err_meridian_dip10_phi5_mps": 5.021141117059411,
+    "sheet_given_max_abs_err_plasma_mps": 0.03392961038006703,
+    "sheet_assume_err_plasma_psi15_mps": -87.34452839331178,
+    "sheet_assume_abs_err_plasma_meridian_mps": 2.5567193692748624,
+    "budget_max_abs_deviation": 0.004260559391326857,
+    "mismatches": [],
+    "reproduced": true,
+    "n_scenes": 115,
+    "seed": 20261124
+  },
+  "work_packages": [
+    "WP5"
+  ],
+  "claims": [
+    "C3"
+  ]
+}
