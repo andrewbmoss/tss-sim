@@ -299,6 +299,14 @@ class DriftProcessing:
         fd_plat = 2.0 * f_eff * mu_sat * v_down / C_LIGHT
         ramp = 2.0 * math.pi * np.concatenate([[0.0], np.cumsum(0.5 * (fd_plat[1:] + fd_plat[:-1]) * np.diff(times))])
         field_e = np.conj(z) * np.exp(-1j * ramp)  # plate convention exp(-j 2 k0 P): closing -> +Doppler
+        # Scale to a unit peak.  The envelope fit (scipy least_squares, absolute
+        # gradient tolerance) stops early on powers of 1e-12 W and returns the
+        # width it started from: with noise that put t_pk's spread at 66 ms
+        # against the parameter-level 10 ms at 20 dB (2026-11-25).  A scale
+        # changes nothing else route one forms.
+        peak_power = float(np.max(np.abs(field_e) ** 2))
+        if peak_power > 0.0:
+            field_e = field_e / math.sqrt(peak_power)
         power = np.abs(field_e) ** 2
         ipk = int(np.argmax(power))
         # Apparent range at the peak, debiased for the Doppler (beat = K tau - f_D).
@@ -336,6 +344,6 @@ class DriftProcessing:
             "t_zc_s": est.t_zero_crossing_s, "slope_ratio": est.slope_ratio, "peak_contrast": est.peak_contrast,
             "along_track_m": v_eff * est.t_power_peak_s if est.separable else math.nan,
             "v_mps": v, "v_eff_mps": v_eff, "facet_depth_m": depth, "geometry": geometry,
-            "power_peak_db": 10.0 * math.log10(float(power.max())) if power.max() > 0 else -math.inf,
+            "power_peak_db": 10.0 * math.log10(peak_power) if peak_power > 0 else -math.inf,
             "echo_class": echo_class, "flags": echo_flags,
         }

@@ -154,15 +154,38 @@ the classification first and to the drift only at second order.
 
 ## 6. What is not yet known or done
 
-* **The drift tier has run noise-free only.**  A first look with noise added
-  to the records (SNR per sweep at the peak, coherent over the gate, five
-  seeds, straight track, 25 m/s): at 10, 5 and 0 dB per sweep the detector
-  finds nothing (0 of 5): its statistic is the spectrum summed over all 91
-  sweeps, of which the facet's lobe fills about 15, against a 13 dB threshold.
-  At 20 dB it detects 5 of 5 and the drifts are 12, 38, 36, 23 and 18 m/s, a
-  spread far above the parameter-level budget's 10.8 m/s at 10 dB.  Detection
-  over a sliding window (or a range prior from the ionogram, contract
-  section 1) and the SNR definitions are for the study.
+* **Noise.**  SNR per sweep is the budget's definition: the per-sweep
+  complex value at the envelope's peak over its noise, which is the value
+  coherent over the gate.  Straight track, 25 m/s, +/-2.5 envelope widths
+  (209 sweeps), 40 seeds, the beat given so the estimator is isolated:
+
+  | SNR/sweep | formed | drift median, robust sd | sd `t_pk` | sd `t_zc` | budget (overflight, Doppler) |
+  |---|---|---|---|---|---|
+  | 20 dB | 40/40 | 24.79, 1.36 m/s | 12.5 ms | 3.6 ms | 1.07, 1.11 m/s (sigma_t0 9.4 ms) |
+  | 10 dB | 11/40 | 19.45, 2.57 m/s | 51.5 ms | 90.9 ms | 3.43, 3.51 m/s (sigma_t0 30 ms) |
+
+  The right comparator is the budget's overflight and Doppler terms (RSS 1.5
+  m/s at 20 dB, 4.9 at 10 dB), not its full RSS (10.6 at 10 dB), which adds
+  the oscillator and range-scale terms the simulation does not include.  An
+  earlier first look (20 dB, drifts 12 to 38 m/s) was a bug: the envelope fit
+  (scipy `least_squares`, absolute tolerances) stopped early on powers of
+  1e-12 W.  The field is now scaled to a unit peak before the estimator
+  (`power_peak_db` keeps the scale), and a test pins `t_pk` to the
+  `route_one` Monte Carlo within a factor of 1.6.
+
+  **At 10 dB route one's compact-facet test rejects most facets**: 29 of 40
+  are declined as extended, the measured slope ratio having median 0.74
+  (16th to 84th percentile 0.51 to 1.17) against the tolerance 0.8 to 1.2.
+  The free Doppler-slope fit is the weak link at 10 dB, not the drift.  The
+  estimator is pinned by `wp5_baseline` and is not changed here; whether the
+  classification should use a slope fitted with the ephemeris slope as prior
+  is for the study.  The 11 formed drifts are low (median 19.45; 11 values,
+  so the 10 dB row is a small sample); selection on the slope could do this,
+  but it has not been tested.
+* **Detection at 10 dB.**  The summed-spectrum detector finds 0 of 5 at 10
+  dB: its statistic is the spectrum summed over all 91 sweeps, of which the
+  facet's lobe fills about 15, against a 13 dB threshold.  A windowed
+  detector is part 2's second item.
 * Contract products not formed yet: per-sweep `range_m`, `power_db` and
   `doppler_hz`; `snr_db`, `resolution_mps`, `v_unambiguous_mps`,
   `range_debiased_m`, `los_rate_sigma_mps`, `tau_c_s`, `doppler_spread_hz`,
@@ -171,4 +194,4 @@ the classification first and to the drift only at second order.
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
 * The halo, the Cramer-Rao harness, the study `wp5_route_one`, Poole's
-  comparator, an onboard prior from L4.
+  comparator, an onboard prior from L4 (part 2, Option A, in progress).

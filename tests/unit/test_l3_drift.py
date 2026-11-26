@@ -95,6 +95,46 @@ def test_without_a_prior_no_drift_is_formed(straight_run):
     assert math.isnan(prod.products["drift_mps"][0]) if "drift_mps" in prod.products else True
 
 
+def test_with_noise_the_envelope_fit_matches_the_parameter_level_monte_carlo():
+    """20 dB per sweep (the budget's definition: the per-sweep complex value at the
+    envelope's peak over its noise), +/-2.5 envelope widths, the beat given so the
+    estimator is isolated.  The spread of t_pk is the route_one Monte Carlo's
+    (9.4 ms at this width) within a factor of 1.6.  Before the field was scaled
+    to a unit peak it was 66 ms: the fit stopped on absolute tolerances."""
+    import dataclasses
+
+    from tss.studies import route_one as r1
+
+    width = 0.926  # r1.envelope_width_s(5 MHz, 529.8 km, 2 km)
+    n = int(2 * 2.5 * width * 45) | 1
+    run = _straight({"id": "f1", "depth_m": DEPTH, "drift_mps": 25.0}, n=n)
+    seq = run.sequence
+    tier = DriftProcessing(prior=PRIOR)
+    x = np.stack([q.samples[0] for q in seq.records])
+    rec = seq.records[0]
+    fb = tier._detect(x, rec.fs_hz, rec.sweep.k_f_hz_per_s)[0]
+    tt = np.arange(x.shape[1]) / rec.fs_hz
+    i0 = int(math.ceil(fb / rec.sweep.k_f_hz_per_s * rec.fs_hz)) + 3
+    z = x[:, i0:] @ np.exp(-2j * math.pi * fb * (tt[i0:] - tt[i0:].mean()))
+    sig2 = float(np.max(np.abs(z) ** 2)) / ((x.shape[1] - i0) * 100.0)
+    tpk, drift = [], []
+    for seed in range(20):
+        rng = np.random.default_rng(500 + seed)
+        recs = [dataclasses.replace(q, samples=q.samples + math.sqrt(sig2 / 2) * (
+            rng.standard_normal(q.samples.shape) + 1j * rng.standard_normal(q.samples.shape)))
+            for q in seq.records]
+        t2 = DriftProcessing(prior=PRIOR)
+        t2._detect = lambda *a, fb=fb: [fb]  # noqa: E731
+        p = t2.process_sequence(dataclasses.replace(seq, records=recs)).products
+        tpk.append(float(p["t_pk_s"][0]))
+        drift.append(float(p["drift_mps"][0]))
+    tpk = np.array(tpk)
+    spread = 1.4826 * np.median(np.abs(tpk - np.median(tpk)))
+    want = r1.overflight_time_sigma_s(width, snr_db=20.0, n_trials=200)
+    assert spread < 1.6 * want
+    assert np.median(drift) == pytest.approx(25.0, abs=1.0)
+
+
 def test_effective_speed_in_a_thin_plasma_is_the_radius_ratio():
     thin = OnboardPrior.exponential(f_n_sat_hz=1e3, scale_height_m=200e3, ref_alt_m=600e3)
     r_p = RE + 600e3
