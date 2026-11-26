@@ -314,3 +314,48 @@ to 319.  At 10 dB (30 seeds) the facet's excess over threshold rises from
 The gated drift equals the ungated one.  The gate is tested on this one
 consistent scene only; in the exponential straight-track scenes the
 ionogram's L0 is not the facet's medium, and the gate is not used.
+
+## 9. The Cramer-Rao bound (part 2, `l3_signal/novel/drift_crb.py`)
+
+The per-sweep samples of one compact facet, `y = A sinc(x) e^{j phi} g + w`,
+with route one's envelope (`x = 2 X (t - t0) / W`) and Doppler law
+(`phi = phi0 + 2 pi S [kappa v (t - t0) - (t - t0)^2 / 2]`, `kappa v =
+t_zc - t0`).  `fisher_route_one` gives the deterministic matrix (`g = 1`,
+parameters `A, phi0, t0, v, W`) and the zero-mean Gaussian one (Rayleigh
+`g` of correlation `exp(-|tau|/tau_c)`, parameters `P, t0, v, W`).  SNR per
+sweep `A^2`, the budget's definition.
+
+Checks (`tests/unit/test_l3_drift_crb.py`): the Doppler-sample model of the
+degeneracy note gives 0.4240 m/s with `t0` known and a singular matrix
+with it free; with `t0` known the drift bound is Stein's FDOA accuracy as
+Moss (2014, eqs. 2.25 to 2.28) gives it, for one noisy channel, to 1e-6;
+for a flat envelope Stein's form is the budget's `sqrt(6) / (2 pi T
+sqrt(rho N))`; a flat envelope (phase only) leaves `t0` and `v`
+inseparable (condition 1e16); both matrices match finite differences of
+the full model (the phase terms left to `phi0` kept in) to 1e-4 and 1e-3.
+Moss (2014) is Andrew's NPS thesis; only its Section 2.3 (Stein's TDOA and
+FDOA accuracies) is used.
+
+The straight scene of section 6 (4.988 MHz, P' 529.8 km, mu_sat 0.954,
+W 0.926 s, 209 sweeps):
+
+| SNR/sweep | CRB `sigma_v`, `t0` free (known) | CRB `sigma_t0` | corr(t0, v) | estimator `sigma_v` | estimator `sigma_t_pk` | (CRB / est.)^2 | CRB with fading, tau_c 0.5 s (0.1, 2.0) |
+|---|---|---|---|---|---|---|---|
+| 20 dB | 0.735 (0.108) m/s | 6.36 ms | -0.989 | 1.31 m/s | 11.0 ms | 0.31 | 4.30 (10.7, 2.40) m/s |
+| 10 dB | 2.33 (0.342) m/s | 20.1 ms | -0.989 | 6.67 m/s (92/200 formed) | 34.6 ms | 0.12 | 6.76 (15.2, 4.55) m/s |
+
+`W` free or known gives the same bound (the envelope's width and centre
+decouple for a window centred on the peak).  **The estimator is not
+efficient**: 1.8 times the bound at 20 dB and 2.9 times at 10 dB, against
+the plan's exit of 20 % (or the shortfall explained, TV risk 3).  The
+shortfall is in both halves: `t_pk` comes from a fit to the power alone
+(the budget's Monte Carlo of that fit gives 9.4 and 30 ms against the
+bound's 6.4 and 20), and the zero crossing from a power-weighted mean of
+phase steps.  The pilot of the motion-updated formulation reported 0.09
+to 0.46 of the bound (TV Section 8.22); this is 0.12 to 0.31.  The bound
+is not the budget: the budget adds the overflight and Doppler terms in
+quadrature (4.9 m/s at 10 dB), while the bound treats them jointly
+(their correlation is -0.989).  Not in the bound: the oscillator, the range
+scale, the ephemeris, a Rician `K`; the 10 dB estimator figure is over the
+formed drifts only.  `drift_sigma_mps` in the product stays NaN: the bound
+is not the estimator's error.
