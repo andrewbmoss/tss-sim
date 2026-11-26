@@ -13,11 +13,16 @@ WHAT IT DOES
 ``Pipeline.run_sequence`` and returns a :class:`DriftProduct` with the
 contract's names.  One receive channel (channel 0).  Steps:
 
-1.  **Detect.**  Each record is transformed over the samples after the longest
-    delay searched (``max_range_m``), the power spectra are summed over the
-    sequence, and up to ``max_echoes`` peaks above ``detect_db`` (over the
-    median) become echoes, nearest first.  The beat of each is refined by a
-    parabola through the zero-padded peak.
+1.  **Detect** (decision (j)).  Each record is transformed over the samples
+    after the longest delay searched (``max_range_m``, or a range gate from
+    the ionogram's trace, :func:`range_gate_from_ionogram`); the power is
+    summed over ``window_sweeps`` consecutive sweeps (21, sliding), and a
+    (window, range bin) cell is declared against a threshold set from the
+    noise in the negative-beat half for ``pfa`` per cell (1e-4, WP4's value).
+    The strongest ``max_echoes`` range peaks become echoes, sorted by range;
+    the beat of each is refined on the window that peaked.  The summed
+    detector of part 1 (the whole sequence, a 13 dB rule) is kept as
+    ``detector="summed"``.
 2.  **Gate.**  For each echo the first group delay of every record holds the
     previous sweep's echo at another beat; L2 leaves it empty and this tier
     drops it (decision (f), 2026-11-25): the gate starts ``guard_samples``
@@ -62,12 +67,12 @@ several-frequency products, the per-sweep products and the rest listed in
 ``flags["not_done"]``, and ``drift_sigma_mps`` (NaN until the Cramer-Rao
 harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
 
-**Noise** (``docs/drift-tier.md`` section 6).  With the beat given, 20 dB
-per sweep matches the parameter-level budget; at 10 dB most facets are
-declined as extended on the free Doppler slope.  The field is scaled to a
-unit peak before the estimator (its fit has absolute tolerances).  The
-detector's statistic is the spectrum summed over the whole sequence, of which
-a facet's lobe fills a few sweeps, so at 10 dB per sweep it finds nothing.
+**Noise** (``docs/drift-tier.md`` sections 6 to 8).  With the beat given,
+20 dB per sweep matches the parameter-level budget; at 10 dB route one's
+slope test declines about half the compact facets, on an ideal field too.
+The field is scaled to a unit peak before the estimator (its fit has absolute
+tolerances).  The windowed detector finds the facet at 10 dB in every trial;
+at 1e-4 per cell it also declares about one false echo per sequence.
 """
 
 from __future__ import annotations
@@ -85,7 +90,8 @@ from tss.l3_signal.novel.route_one_estimator import estimate_route_one
 from tss.platform.orbits import RE
 from tss.registry import register
 
-__all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio", "onboard_prior_from_ionogram"]
+__all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio", "onboard_prior_from_ionogram",
+           "range_gate_from_ionogram"]
 
 #: ``f_N^2 / N_e``, Hz^2 m^3.
 _FN2_PER_NE = 80.6163
@@ -239,6 +245,58 @@ def onboard_prior_from_ionogram(
     return prior, report
 
 
+def range_gate_from_ionogram(
+    ionogram: Any,
+    f_hz: float,
+    *,
+    margin_m: float = 20e3,
+    mode_index: int | None = None,
+) -> tuple[float | None, dict[str, Any]]:
+    """An upper bound on a facet echo's range at ``f_hz``, from the ionogram's trace.
+
+    A facet the wave reaches lies above the reflection level of ``f_hz``, so
+    its group path is shorter than the trace's virtual range there:
+    ``int_0^D dz / mu`` with ``D`` above the reflection level is less than
+    the same integral to it.  For each trace column (or only ``mode_index``)
+    the virtual range at ``f_hz`` is interpolated linearly between the two
+    detected columns either side, when they are at most two ionogram steps
+    apart; the gate is the largest of these plus ``margin_m``, and None (no
+    gate) when no column brackets ``f_hz``.  The largest, because the X trace
+    reflects higher (a shorter range) and the tracker's O/X labels can swap
+    near 5 MHz (seen on the Chapman scene, 2026-11-25): the O trace's range is
+    the bound, and taking the larger of the two keeps a mislabel from
+    tightening the gate.
+    """
+    freq = np.asarray(getattr(ionogram, "freq_hz", []), dtype=float)
+    vr = np.asarray(getattr(ionogram, "virtual_range_m", np.empty((0, 1))), dtype=float)
+    rep: dict[str, Any] = {"f_hz": float(f_hz), "margin_m": float(margin_m), "mode_index": mode_index}
+    if vr.ndim != 2 or vr.shape[0] != freq.size or freq.size < 2:
+        rep["reason"] = "no usable trace column"
+        return None, rep
+    cols = range(vr.shape[1]) if mode_index is None else [int(mode_index)]
+    grid = np.sort(freq[np.isfinite(freq)])
+    kk = int(np.clip(np.searchsorted(grid, float(f_hz)), 1, grid.size - 1))
+    step = float(grid[kk] - grid[kk - 1])  # the ionogram's step at f
+    ranges: dict[int, float] = {}
+    for c in cols:
+        if not 0 <= c < vr.shape[1]:
+            continue
+        ok = np.isfinite(vr[:, c]) & np.isfinite(freq)
+        f_ok, r_ok = freq[ok], vr[ok, c]
+        order = np.argsort(f_ok)
+        f_ok, r_ok = f_ok[order], r_ok[order]
+        j = int(np.searchsorted(f_ok, float(f_hz)))
+        if 0 < j < f_ok.size and f_ok[j] - f_ok[j - 1] <= 2.0 * step + 1.0:
+            ranges[c] = float(np.interp(float(f_hz), f_ok[j - 1: j + 1], r_ok[j - 1: j + 1]))
+    rep["virtual_range_by_column_m"] = {str(c): r for c, r in ranges.items()}
+    if not ranges:
+        rep["reason"] = "no trace column brackets the frequency without a gap"
+        return None, rep
+    r = max(ranges.values())
+    rep.update({"virtual_range_m": r, "reason": "gated"})
+    return r + float(margin_m), rep
+
+
 @register("l3", "drift")
 class DriftProcessing:
     """Route one at signal level on a drift-mode sequence.  See the module docstring."""
@@ -262,7 +320,20 @@ class DriftProcessing:
         slope_tolerance: float = 0.2,
         min_contrast: float = 4.0,
         use_effective_speed: bool = True,
+        detector: str = "windowed",
+        window_sweeps: int = 21,
+        pfa: float = 1.0e-4,
     ) -> None:
+        if detector not in ("windowed", "summed"):
+            raise ValueError("detector must be 'windowed' or 'summed'")
+        if not 0.0 < float(pfa) < 1.0:
+            raise ValueError("pfa must be in (0, 1)")
+        if int(window_sweeps) < 1:
+            raise ValueError("window_sweeps must be at least 1")
+        self.detector = detector
+        self.window_sweeps = int(window_sweeps)
+        self.pfa = float(pfa)
+        self.last_detection: dict[str, Any] = {}
         self.prior = prior
         self.max_range_m = float(max_range_m)
         self.min_range_m = float(min_range_m)
@@ -283,12 +354,16 @@ class DriftProcessing:
                 "guard_samples": self.guard_samples, "zero_pad": self.zero_pad, "v_s_mps": self.v_s_mps,
                 "earth_radius_m": self.earth_radius_m, "slope_tolerance": self.slope_tolerance,
                 "min_contrast": self.min_contrast, "use_effective_speed": self.use_effective_speed,
+                "detector": self.detector, "window_sweeps": self.window_sweeps, "pfa": self.pfa,
                 "prior_source": None if self.prior is None else self.prior.source}
 
     # -- steps 1 to 3 ----------------------------------------------------------------
 
-    def _detect(self, x: np.ndarray, fs: float, k: float) -> list[float]:
+    def _detect(self, x: np.ndarray, fs: float, k: float, max_range_m: float | None = None) -> list[float]:
         """Beats of the echoes, Hz, nearest first (step 1)."""
+        if self.detector == "windowed":
+            return self._detect_windowed(x, fs, k, self.max_range_m if max_range_m is None else max_range_m)
+        self.last_detection = {"method": "summed"}
         n = x.shape[1]
         i0 = min(n - 8, int(math.ceil(2.0 * self.max_range_m / C_LIGHT * fs)))
         seg = x[:, i0:]
@@ -317,9 +392,106 @@ class DriftProcessing:
             pp[max(0, j - cell): j + cell + 1] = 0.0
         return sorted(found)
 
+    def _detect_windowed(self, x: np.ndarray, fs: float, k: float, max_range_m: float) -> list[float]:
+        """The windowed detector with a stated false-alarm probability (decision (j)).
+
+        Each sweep's samples after ``2 max_range / c`` (so every echo nearer
+        than ``max_range`` is present in all of them) are Hann windowed and
+        transformed without padding; one bin is one range cell.  The power is
+        summed over ``window_sweeps`` consecutive sweeps, sliding by one; a
+        cell is a (window position, range bin) pair between ``min_range`` and
+        ``max_range``.  The noise reference is the negative-beat half, where no
+        echo falls (WP4's practice, :mod:`tss.l3_signal.detect`): its median
+        over all sweeps and bins, over ``ln 2``, is the mean noise power per
+        bin.  Under noise alone a cell is the sum of ``L`` independent
+        exponential powers, so the threshold is the mean times the Gamma(L)
+        quantile at ``1 - pfa``: ``pfa`` per cell, as WP4 states it.  Echoes
+        are the strongest ``max_echoes`` range peaks above it, four bins apart
+        and within ``dynamic_db`` of the strongest (the Hann sidelobe rule of
+        the summed detector), then sorted by range.  The beat is refined by a
+        parabola through the zero-padded power summed over the window that
+        peaked.
+
+        A noise-free record has no noise reference (its negative half holds
+        only leakage of the window); its threshold is then far below the peak
+        and the dynamic-range rule is the one that binds (``noise_free`` in the
+        report: the threshold more than 60 dB under the strongest cell).
+        """
+        from scipy import ndimage
+        from scipy.stats import gamma
+
+        n_sw, n = x.shape
+        i0 = min(n - 8, int(math.ceil(2.0 * float(max_range_m) / C_LIGHT * fs)))
+        seg = x[:, i0:]
+        m = seg.shape[1]
+        win = np.hanning(m)
+        p = np.abs(np.fft.fft(seg * win, axis=1)) ** 2
+        fr = np.fft.fftfreq(m, 1.0 / fs)
+        lo, hi = k * 2.0 * self.min_range_m / C_LIGHT, k * 2.0 * float(max_range_m) / C_LIGHT
+        cells = np.nonzero((fr > lo) & (fr < hi))[0]
+        neg = np.nonzero((fr < -lo) & (fr > -k * 2.0 * self.max_range_m / C_LIGHT))[0]
+        L = min(self.window_sweeps, n_sw)
+        report: dict[str, Any] = {"method": "windowed", "window_sweeps": L, "pfa_per_cell": self.pfa,
+                                  "segment_samples": int(m), "max_range_m": float(max_range_m),
+                                  "range_bins": int(cells.size)}
+        self.last_detection = report
+        if cells.size < 3 or neg.size < 3:
+            report["n_cells"] = 0
+            return []
+        csum = np.cumsum(np.vstack([np.zeros((1, cells.size)), p[:, cells]]), axis=0)
+        s = csum[L:] - csum[:-L]  # (window position, range bin)
+        noise = float(np.median(p[:, neg])) / math.log(2.0)
+        peak = float(s.max())
+        factor = float(gamma.isf(self.pfa, L))
+        thresh = noise * factor
+        noise_free = bool(thresh * 1e6 < peak)
+        report.update({"noise_power_per_bin": noise, "threshold_factor": factor, "noise_free": noise_free,
+                       "n_cells": int(s.size), "noise_ref_bins": int(neg.size * n_sw)})
+        over = s > thresh
+        report["n_cells_over"] = int(over.sum())
+        report["n_clusters_over"] = int(ndimage.label(over)[1])
+        best = s.max(axis=0)
+        bestj = s.argmax(axis=0)
+        floor_dyn = peak * 10.0 ** (-self.dynamic_db / 10.0)
+        cand = best.copy()
+        picked: list[int] = []
+        for _ in range(self.max_echoes):
+            b = int(np.argmax(cand))
+            v = float(cand[b])
+            if v <= thresh or v < floor_dyn or v <= 0.0:
+                break
+            picked.append(b)
+            cand[max(0, b - 4): b + 5] = 0.0
+        report["excess_db"] = [10.0 * math.log10(float(best[b]) / thresh) if thresh > 0 else math.inf
+                               for b in picked]
+        report["range_bin_m"] = float(C_LIGHT * fs / m / (2.0 * k))
+        beats = []
+        pad = max(self.zero_pad, 1)
+        nfft = int(2 ** math.ceil(math.log2(m * pad)))
+        frp = np.fft.fftfreq(nfft, 1.0 / fs)
+        for b in picked:
+            j0 = int(bestj[b])
+            pw = np.sum(np.abs(np.fft.fft(seg[j0: j0 + L] * win, n=nfft, axis=1)) ** 2, axis=0)
+            centre = fr[cells[b]]
+            near = np.nonzero(np.abs(frp - centre) <= 1.5 * fs / m)[0]
+            jj = int(near[np.argmax(pw[near])])
+            a, c0, c = np.log(pw[jj - 1]), np.log(pw[jj]), np.log(pw[jj + 1])
+            den = a - 2.0 * c0 + c
+            d = 0.5 * (a - c) / den if den != 0 else 0.0
+            beats.append(float(frp[jj] + d * fs / nfft))
+        report["window_start_sweep"] = [int(bestj[b]) for b in picked]
+        return sorted(beats)
+
     # -- the tier ---------------------------------------------------------------------
 
-    def process_sequence(self, sequence: ReceivedSequence, *, prior: OnboardPrior | None = None) -> DriftProduct:
+    def process_sequence(self, sequence: ReceivedSequence, *, prior: OnboardPrior | None = None,
+                         max_range_m: float | None = None) -> DriftProduct:
+        """Steps 1 to 5 on one sequence.
+
+        ``max_range_m`` overrides the search's far edge for this sequence, as a
+        range gate from the ionogram does (:func:`range_gate_from_ionogram`):
+        the detector's segment then starts earlier and is longer.
+        """
         prior = prior if prior is not None else self.prior
         recs = list(sequence.records)
         if not recs:
@@ -332,8 +504,11 @@ class DriftProcessing:
         x = np.stack([np.asarray(r.samples[0][:n_min], dtype=complex) for r in recs])
         t_n = np.asarray(sequence.t_s, dtype=float)
         tt = np.arange(n_min) / fs
-        beats = self._detect(x, fs, k)
+        gate = self.max_range_m if max_range_m is None else min(float(max_range_m), self.max_range_m)
+        beats = self._detect(x, fs, k, gate) if self.detector == "windowed" else self._detect(x, fs, k)
         flags: dict[str, Any] = {
+            "detection": dict(self.last_detection), "max_range_m": gate,
+            "range_gate": max_range_m is not None,
             "prior_source": None if prior is None else prior.source,
             # What the prior was built from (onboard_prior_from_ionogram's report).
             "prior": {} if prior is None else {kk: vv for kk, vv in dict(prior.extra).items()
@@ -342,7 +517,7 @@ class DriftProcessing:
             "not_done": ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
                          "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
                          "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
-                         "range_debiased_m", "los_rate_sigma_mps", "windowed_detection"],
+                         "range_debiased_m", "los_rate_sigma_mps"],
         }
         ids, rows = [], []
         for i, fb in enumerate(beats):
@@ -410,6 +585,11 @@ class DriftProcessing:
             if self.use_effective_speed:
                 r_p = self.earth_radius_m + float(p_pk.alt_m)
                 ratio, depth = effective_speed_ratio(prior, f_eff, float(p_pk.alt_m), p_group, r_p)
+                # The prior's group path cannot reach P': its reflection level
+                # is above the echo, and the depth is that level, not the facet's.
+                g_reach, _ = _group_integrals(prior, f_eff, float(p_pk.alt_m), depth, r_p)
+                if not g_reach >= 0.99 * p_group:
+                    echo_flags.append("PRIOR_REFLECTS_ABOVE")
             else:
                 echo_flags.append("FLAT_SPEED")
         v_eff = v * ratio

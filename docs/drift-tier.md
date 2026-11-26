@@ -199,10 +199,10 @@ the classification first and to the drift only at second order.
   (not separated: `t_pk` and `t_zc` share the noise).  The estimator is
   pinned by `wp5_baseline` and is not changed here; a slope test with a
   higher power cut, or the ephemeris slope as a prior, is for the study.
-* **Detection at 10 dB.**  The summed-spectrum detector finds 0 of 5 at 10
-  dB: its statistic is the spectrum summed over all 91 sweeps, of which the
-  facet's lobe fills about 15, against a 13 dB threshold.  A windowed
-  detector is part 2's second item.
+* **Detection at 10 dB.**  The part-1 summed-spectrum detector found 0 of 5
+  at 10 dB: its statistic is the spectrum summed over all 91 sweeps, of which
+  the facet's lobe fills about 15, against a 13 dB threshold.  Replaced by
+  the windowed detector (section 8).
 * Contract products not formed yet: per-sweep `range_m`, `power_db` and
   `doppler_hz`; `snr_db`, `resolution_mps`, `v_unambiguous_mps`,
   `range_debiased_m`, `los_rate_sigma_mps`, `tau_c_s`, `doppler_spread_hz`,
@@ -211,4 +211,106 @@ the classification first and to the drift only at second order.
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
 * The halo, the Cramer-Rao harness, the study `wp5_route_one`, Poole's
-  comparator, an onboard prior from L4 (part 2, Option A, in progress).
+  comparator.  The onboard prior is section 7; its full N(h) (L4's
+  retrieval rather than an assumed scale height) is later work.
+* Noise so far is white, added to noise-free records or L2's thermal noise.
+  The negative-beat half of an L2 drift record with thermal noise on was
+  checked flat (-103.0 dB in both halves, 0 to 1050 km, no notch: the
+  drift-mode records carry no leakage high-pass), but sky noise, clutter and
+  quantisation in drift mode are untested.
+* Noise-free on the Chapman orbit scene with the truth prior the slope ratio
+  is 0.916 (0.965 on the exponential scene of part 1): 0.084 from the
+  decline edge and unexplained.
+
+## 7. The onboard prior (part 2, Option A, decisions (i) and (k))
+
+`onboard_prior_from_ionogram(ionogram, platform)`: the WP4 tracker's `f_N`
+at the spacecraft (`flags["tracker"]["priors"]["f_n_hz"]`), accepted only when
+below the lowest detected trace frequency (L4's rule), and an exponential
+profile below the spacecraft of an **assumed** scale height (200 km
+default, flagged `scale_height_source: assumed`).  No valid `f_N` gives no
+prior, so no drift and `NO_PRIOR` (counted as an M3 failure, decision (k)).
+The report travels in the drift product's `flags["prior"]`.
+`Pipeline.run_prior_ionogram` makes the ionogram from the drift scene's own
+L0, through a given L1/L2/L3 (here `analytic`, the baseline instrument at
+600 km, `baseline` L3 with the tracker, the A1 sweep), on random streams of
+its own; `run_configuration` and `run_sequence` are unchanged.
+
+Measured on the Chapman L0 (f_N 1.8224 MHz at 600 km, topside scale height
+100 km), a 3-D plate at 430 km drifting 50 m/s, 5 MHz, noise-free sequence
+(`tests/unit/test_l3_drift_prior.py`):
+
+| Prior | f_N, MHz (method) | drift, m/s | facet depth, km | slope ratio |
+|---|---|---|---|---|
+| truth (the L0 profile) | 1.8224 | 49.982 | 169.9 | 0.916 |
+| onboard, clutter off, H 200 km | 1.8203 (trace_start) | 49.992 | 189.8 | 0.918 |
+| onboard, clutter off, H 100 km | 1.8203 | 49.992 | 169.0 | 0.916 |
+| onboard, clutter on, H 200 km | 1.8658 (resonance) | 50.187 | 188.5 | 0.917 |
+
+`f_N` sets `mu_sat` and so scales the drift: the clutter-on prior pass
+took a resonance 2.4 % high and moved the drift 0.4 %.  The scale height
+moves the inferred depth (20 km for a factor of two) and `v_eff`, not the
+drift.  The clutter-on row is one realisation; the spread of the tracker's
+`f_N` and the NO_PRIOR rate over seeds are not yet measured.  The
+tracker's O and X labels swap near 5 MHz on this scene (one seed has the O
+trace in the X column), which matters to the range gate (section 8) and
+not here.
+
+Fixed on the way: `effective_speed_ratio` halved an evanescent bracket
+until it propagated and could cut below the answer (108 km returned for
+170 km); it now bisects to the reflection level first, and an echo whose
+`P'` the prior cannot reach is flagged `PRIOR_REFLECTS_ABOVE`.
+
+## 8. The windowed detector (part 2, decision (j))
+
+Per sweep, the samples after `2 max_range / c` are Hann windowed and
+transformed without padding (one bin, 1.46 km, is a range cell); the power
+is summed over `window_sweeps` consecutive sweeps, sliding by one.  The
+noise reference is the negative-beat half (median over ln 2, about 1.4e5
+values per sequence).  Under noise a cell is Gamma(L) distributed, and the
+threshold is its quantile for `pfa` per cell (1e-4, WP4's value).  The
+strongest `max_echoes` (2) range peaks, four bins apart and within
+`dynamic_db` of the strongest, are echoes; the beat is refined on the
+window that peaked.  Window: 21 sweeps (0.47 s), the half-power width of a
+4 km facet's envelope at 530 km (0.463 s) and half that of a 2 km facet's
+(0.926 s); the facet's length is not known onboard.  `range_gate_from_ionogram` bounds the search
+by the trace's virtual range at the frequency (largest over the O and X
+columns, because the labels can swap) plus 20 km.
+
+Straight track, 25 m/s, 209 sweeps, SNR per sweep as in section 6:
+
+| Case | pfa per cell | L = 11 | L = 21 | L = 41 |
+|---|---|---|---|---|
+| Noise only, cells over / cells (200 seq.) | 1e-4 | 1.01e-4 | 1.07e-4 | 1.15e-4 |
+| Noise only, echoes declared per sequence | 1e-4 | 1.98 | 1.91 | 1.55 |
+| Noise only, drifts formed on them (200 seq.) | 1e-4 | 8 | 15 | 12 |
+| Noise only, cells over / cells (100 seq.) | 1e-7 | 0 | 2.3e-7 | 2.5e-7 |
+| Noise only, echoes declared per sequence | 1e-7 | 0.00 | 0.01 | 0.02 |
+| 10 dB, facet detected (50 seeds) | 1e-4 | 50 | 50 | 50 |
+| 10 dB, facet detected (50 seeds) | 1e-7 | 50 | 50 | 50 |
+| 7 dB, facet detected (50 seeds) | 1e-7 | 46 | 50 | 50 |
+| 4 dB, facet detected (50 seeds) | 1e-7 | 9 | 20 | 34 |
+
+End to end at 10 dB, L = 21, 200 seeds, nothing given: the facet is
+detected in 200, a drift formed in 96 and declined in 104 (route one's
+slope test, section 6).  At 1e-4 per cell the second echo slot holds a
+false echo in 196 of 200 sequences and 8 drifts form on them; at 1e-7, one
+false echo and none formed.
+
+**At 1e-4 per cell the stated rate is met, but a sequence holds 1.2e5 to
+1.4e5 cells, so nearly every sequence declares a false echo and about 1 in
+13 forms a false drift.**  1e-4 is WP4's rate for an ionogram cell, where
+the tracker then integrates along the trace; here nothing follows the
+detector but route one.  A rate stated per sequence (1e-7 per cell is about
+0.01 false echoes per sequence) costs about 1 dB of threshold and no
+detections at 10 dB.  The default stays 1e-4 as decided; the choice is
+put back to Andrew.
+
+The range gate on the Chapman orbit scene (section 7): the trace gives
+359 km at 5 MHz, gate 379 km; the facet is at 215.65 km.  The segment
+grows from 1438 to 1861 samples (+1.1 dB) and the range bins fall from 705
+to 319.  At 10 dB (30 seeds) the facet's excess over threshold rises from
+2.96 to 4.45 dB and false echoes fall from 25 to 14 per 30 sequences.
+The gated drift equals the ungated one.  The gate is tested on this one
+consistent scene only; in the exponential straight-track scenes the
+ionogram's L0 is not the facet's medium, and the gate is not used.

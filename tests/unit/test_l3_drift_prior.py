@@ -147,6 +147,18 @@ def test_on_an_l0_orbit_scene_the_onboard_prior_moves_the_depth_not_the_drift():
     assert onboard["facet_depth_m"] - truth["facet_depth_m"] == pytest.approx(20e3, abs=3e3)
     assert flags["prior_source"] == "onboard" and flags["prior"]["scale_height_source"] == "assumed"
 
+    # The range gate from the same ionogram: above the facet's range, and the
+    # gated drift is the ungated one (measured: gate 379 km, range 215.65 km).
+    from tss.l3_signal.drift import range_gate_from_ionogram
+
+    gate, rep = range_gate_from_ionogram(ion, 5e6)
+    assert gate is not None, rep["reason"]
+    assert gate > onboard["range_m"] + 50e3
+    gated = DriftProcessing(prior=onboard_prior_from_ionogram(ion, p0)[0]).process_sequence(
+        run.sequence, max_range_m=gate)
+    assert gated.flags["range_gate"] and gated.flags["detection"]["range_bins"] < 400
+    assert gated.products["drift_mps"][0] == pytest.approx(onboard["drift_mps"], abs=0.02)
+
     noisy = {**tiers, "clutter": ClutterGenerator.from_config(load_campaign("baseline").config["clutter"])}
     ion_c = pipe.run_prior_ionogram("orb", tiers=noisy, platform=p0, sweep=sweep, freq_hz=freq, alt_m=alt,
                                     epoch="2026-01-01T12:00:00Z").ionogram

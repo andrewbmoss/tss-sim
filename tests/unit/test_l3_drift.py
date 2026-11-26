@@ -136,6 +136,72 @@ def test_with_noise_the_envelope_fit_matches_the_parameter_level_monte_carlo():
     assert np.median(drift) == pytest.approx(25.0, abs=1.0)
 
 
+def _with_noise(seq, sig2, seed, signal=True):
+    import dataclasses
+
+    rng = np.random.default_rng(seed)
+    recs = [dataclasses.replace(q, samples=(q.samples if signal else 0.0 * q.samples) + math.sqrt(sig2 / 2) * (
+        rng.standard_normal(q.samples.shape) + 1j * rng.standard_normal(q.samples.shape))) for q in seq.records]
+    return dataclasses.replace(seq, records=recs)
+
+
+def _sigma2_for(seq, snr_db):
+    """Per-sample noise variance giving ``snr_db`` per sweep, the budget's definition."""
+    x = np.stack([q.samples[0] for q in seq.records])
+    rec = seq.records[0]
+    fb = DriftProcessing(detector="summed")._detect(x, rec.fs_hz, rec.sweep.k_f_hz_per_s)[0]
+    tt = np.arange(x.shape[1]) / rec.fs_hz
+    i0 = int(math.ceil(fb / rec.sweep.k_f_hz_per_s * rec.fs_hz)) + 3
+    z = x[:, i0:] @ np.exp(-2j * math.pi * fb * (tt[i0:] - tt[i0:].mean()))
+    return float(np.max(np.abs(z) ** 2)) / ((x.shape[1] - i0) * 10 ** (snr_db / 10)), fb
+
+
+def test_windowed_detector_false_alarm_rate_is_the_stated_one(straight_run):
+    """Noise only: the fraction of (window, range bin) cells over threshold is
+    the stated P_fa (1e-3 here, for counts), within a factor of 1.5."""
+    seq = straight_run.sequence
+    over = cells = 0
+    for seed in range(10):
+        tier = DriftProcessing(prior=PRIOR, pfa=1e-3)
+        prod = tier.process_sequence(_with_noise(seq, 1.0, 900 + seed, signal=False))
+        d = prod.flags["detection"]
+        assert d["method"] == "windowed" and not d["noise_free"]
+        over += d["n_cells_over"]
+        cells += d["n_cells"]
+    assert 1e-3 / 1.5 < over / cells < 1.5e-3
+
+
+def test_windowed_detector_finds_the_facet_at_10_db_per_sweep(straight_run):
+    """10 dB per sweep (budget definition), 21-sweep window, 1e-7 per cell:
+    found in 10 of 10 (the summed-spectrum detector found 0 of 5)."""
+    seq = straight_run.sequence
+    sig2, fb = _sigma2_for(seq, 10.0)
+    k = seq.records[0].sweep.k_f_hz_per_s
+    for seed in range(10):
+        prod = DriftProcessing(prior=PRIOR, pfa=1e-7).process_sequence(_with_noise(seq, sig2, 300 + seed))
+        beats = 2.0 * k * np.asarray(prod.products["range_beat_m"], dtype=float) / C_LIGHT
+        assert np.min(np.abs(beats - fb)) < 2 * 66.0
+
+
+def test_range_gate_from_the_trace():
+    from types import SimpleNamespace
+
+    from tss.l3_signal.drift import range_gate_from_ionogram
+
+    freq = np.array([4.7e6, 4.85e6, 5.0e6, 5.15e6, 5.3e6, 5.45e6])
+    vr = np.array([[300e3, np.nan], [310e3, 305e3], [np.nan, 312e3], [330e3, np.nan], [np.nan, np.nan],
+                   [np.nan, np.nan]])
+    ion = SimpleNamespace(freq_hz=freq, virtual_range_m=vr)
+    gate, rep = range_gate_from_ionogram(ion, 5.0e6, margin_m=10e3)
+    # Column 0 interpolates to 320 km; column 1 (X, or a swapped label) gives 312: the larger.
+    assert gate == pytest.approx(320e3 + 10e3) and rep["reason"] == "gated"
+    assert range_gate_from_ionogram(ion, 5.0e6, mode_index=1, margin_m=0.0)[0] == pytest.approx(312e3)
+    assert range_gate_from_ionogram(ion, 5.4e6)[0] is None  # above the last detected column
+    vr[3, 0] = np.nan
+    vr[5, 0] = 360e3
+    assert range_gate_from_ionogram(ion, 5.2e6)[0] is None  # a gap of three steps
+
+
 def test_effective_speed_in_a_thin_plasma_is_the_radius_ratio():
     thin = OnboardPrior.exponential(f_n_sat_hz=1e3, scale_height_m=200e3, ref_alt_m=600e3)
     r_p = RE + 600e3
