@@ -45,9 +45,13 @@ route one uses ``v_eff^2 = v^2 P' / P'_flat``, which is ``v^2 r_f / r_p`` in
 free space (4.3 % under ``v^2`` for a facet 300 km below a 600 km orbit).
 ``P'`` is measured; the facet's true depth, which ``P'_flat`` needs, comes from
 the N(h) prior by inverting ``P' = int_0^D dz / mu`` (decision (d)).  The prior
-is an explicit input (:class:`OnboardPrior`); ``Pipeline.run_sequence`` has no
-ionogram chain to supply it yet, so a test or study passes one and its source
-is in ``flags["prior_source"]`` (``"truth"`` when the truth profile was used).
+is an explicit input (:class:`OnboardPrior`), and its source is in
+``flags["prior_source"]`` (``"truth"`` when the truth profile was used).  The
+onboard prior (Option A, 2026-11-25) is built by
+:func:`onboard_prior_from_ionogram` from an ionogram of the same scene
+(``Pipeline.run_prior_ionogram``): the WP4 tracker's ``f_N`` at the
+spacecraft and an assumed scale height, reported in ``flags["prior"]``.  No
+valid ``f_N`` means no prior, and no drift (``NO_PRIOR``).
 On the straight track (platform states without velocity) the geometry is flat
 and ``v_eff`` is ``v_s_mps``.
 
@@ -58,10 +62,12 @@ several-frequency products, the per-sweep products and the rest listed in
 ``flags["not_done"]``, and ``drift_sigma_mps`` (NaN until the Cramer-Rao
 harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
 
-**Run noise-free only so far.**  The detector's statistic is the spectrum
-summed over the whole sequence, of which a facet's lobe fills a few sweeps,
-so at 10 dB per sweep it finds nothing (``docs/drift-tier.md`` section 6);
-a windowed statistic or a range prior is for the study.
+**Noise** (``docs/drift-tier.md`` section 6).  With the beat given, 20 dB
+per sweep matches the parameter-level budget; at 10 dB most facets are
+declined as extended on the free Doppler slope.  The field is scaled to a
+unit peak before the estimator (its fit has absolute tolerances).  The
+detector's statistic is the spectrum summed over the whole sequence, of which
+a facet's lobe fills a few sweeps, so at 10 dB per sweep it finds nothing.
 """
 
 from __future__ import annotations
@@ -79,7 +85,7 @@ from tss.l3_signal.novel.route_one_estimator import estimate_route_one
 from tss.platform.orbits import RE
 from tss.registry import register
 
-__all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio"]
+__all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio", "onboard_prior_from_ionogram"]
 
 #: ``f_N^2 / N_e``, Hz^2 m^3.
 _FN2_PER_NE = 80.6163
@@ -138,14 +144,25 @@ def effective_speed_ratio(prior: OnboardPrior, f_hz: float, alt_p: float, group_
                           r_p: float) -> tuple[float, float]:
     """``(v_eff / v, depth)`` for an echo of group path ``P'`` (module docstring).
 
-    The depth is found from ``P' = int_0^D dz / mu`` by bisection.
+    The depth is found from ``P' = int_0^D dz / mu`` by bisection.  When
+    ``D = P'`` lies beyond the prior's reflection level the bracket is first
+    cut back to that level, found by bisection between a depth where the wave
+    propagates and one where it does not.  (Until 2026-11-25 it was halved
+    until it propagated, which could cut it below the answer: on a Chapman
+    topside with a facet 170 km down it returned 108 km.)  If ``P'`` exceeds
+    the group path to the reflection level the depth returned is that level.
     """
     target = float(group_path_m)
     lo, hi = 0.0, target  # group path >= geometric depth
     if not math.isfinite(_group_integrals(prior, f_hz, alt_p, hi, r_p)[0]):
-        # The prior's reflection level lies above: search below it.
-        while hi - lo > 1.0 and not math.isfinite(_group_integrals(prior, f_hz, alt_p, hi, r_p)[0]):
-            hi = 0.5 * (lo + hi)
+        ok, bad = 0.0, hi
+        while bad - ok > 1.0:
+            mid = 0.5 * (ok + bad)
+            if math.isfinite(_group_integrals(prior, f_hz, alt_p, mid, r_p)[0]):
+                ok = mid
+            else:
+                bad = mid
+        hi = ok
     for _ in range(80):
         mid = 0.5 * (lo + hi)
         g, _ = _group_integrals(prior, f_hz, alt_p, mid, r_p)
@@ -156,6 +173,70 @@ def effective_speed_ratio(prior: OnboardPrior, f_hz: float, alt_p: float, group_
     depth = 0.5 * (lo + hi)
     g, g_flat = _group_integrals(prior, f_hz, alt_p, depth, r_p)
     return math.sqrt(g / g_flat), depth
+
+
+def onboard_prior_from_ionogram(
+    ionogram: Any,
+    platform: Any,
+    *,
+    scale_height_m: float = 200e3,
+    mode_index: int = 0,
+) -> tuple[OnboardPrior | None, dict[str, Any]]:
+    """The drift tier's prior from an ionogram's tracker (WP5 Phase 3, Option A).
+
+    The plasma frequency at the spacecraft is the WP4 tracker's estimate,
+    ``ionogram.flags["tracker"]["priors"]["f_n_hz"]``, accepted only when it is
+    finite, positive and below the lowest frequency detected on the trace
+    (column ``mode_index``), as a plasma frequency at the spacecraft must be
+    (the rule of :func:`tss.l4_retrieval.base.starting_plasma_frequency_hz`).
+    The profile below the spacecraft is an exponential in ``N_e`` of the stated
+    ``scale_height_m`` about the platform's altitude: **assumed, not
+    measured**.  Only ``f_N,sat`` comes from the ionogram; the retrieved N(h)
+    is later work (decision (i), 2026-11-25).  ``f_N,sat`` sets ``mu_sat``,
+    which scales the drift; the scale height sets the facet's inferred depth
+    and ``v_eff``, which move the slope ratio and the drift only at second
+    order (``docs/drift-tier.md`` section 5).
+
+    Returns ``(prior, report)``; ``prior`` is None when no valid ``f_N,sat``
+    is found, and the drift tier then forms no drift and flags ``NO_PRIOR``
+    (decision (k)).  ``report`` says why, and what the tracker gave.
+    """
+    flags = dict(getattr(ionogram, "flags", None) or {})
+    pri = dict((flags.get("tracker") or {}).get("priors") or {})
+    f_n = float(pri.get("f_n_hz", math.nan)) if pri.get("f_n_hz") is not None else math.nan
+    report: dict[str, Any] = {
+        "f_n_hz": f_n, "f_n_method": pri.get("f_n_method"),
+        "trace_floor_hz": float(pri.get("trace_floor_hz", math.nan) or math.nan),
+        "scale_height_m": float(scale_height_m), "scale_height_source": "assumed",
+    }
+    freq = np.asarray(getattr(ionogram, "freq_hz", []), dtype=float)
+    vr = np.asarray(getattr(ionogram, "virtual_range_m", np.empty((0, 1))), dtype=float)
+    if vr.ndim == 2 and vr.shape[0] == freq.size and 0 <= int(mode_index) < vr.shape[1]:
+        det = freq[np.isfinite(vr[:, int(mode_index)]) & np.isfinite(freq)]
+    else:
+        det = np.empty(0)
+    lowest = float(det.min()) if det.size else math.nan
+    report["lowest_trace_hz"] = lowest
+    if not pri:
+        report["reason"] = "the ionogram carries no tracker priors (extractor not 'tracker')"
+        return None, report
+    if not (math.isfinite(f_n) and f_n > 0.0):
+        report["reason"] = "the tracker found no plasma frequency at the spacecraft"
+        return None, report
+    if not math.isfinite(lowest):
+        report["reason"] = "no trace was detected to check f_N against"
+        return None, report
+    if not f_n < lowest:
+        report["reason"] = (f"f_N {f_n / 1e6:.4f} MHz is not below the lowest detected trace "
+                            f"frequency {lowest / 1e6:.4f} MHz")
+        return None, report
+    report["reason"] = "accepted"
+    alt = float(platform.alt_m)
+    prior = OnboardPrior.exponential(f_n_sat_hz=f_n, scale_height_m=float(scale_height_m), ref_alt_m=alt,
+                                     source="onboard")
+    prior = OnboardPrior(alt_m=prior.alt_m, ne=prior.ne, source="onboard",
+                         extra={**dict(prior.extra), **report})
+    return prior, report
 
 
 @register("l3", "drift")
@@ -254,6 +335,9 @@ class DriftProcessing:
         beats = self._detect(x, fs, k)
         flags: dict[str, Any] = {
             "prior_source": None if prior is None else prior.source,
+            # What the prior was built from (onboard_prior_from_ionogram's report).
+            "prior": {} if prior is None else {kk: vv for kk, vv in dict(prior.extra).items()
+                                               if isinstance(vv, (str, int, float, type(None)))},
             "channel": 0, "n_sweeps": len(recs), "detected": len(beats),
             "not_done": ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
                          "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",

@@ -332,6 +332,65 @@ class Pipeline:
             result.echoes = echo_sets
         return result
 
+    def run_prior_ionogram(
+        self,
+        configuration: str,
+        *,
+        tiers: Mapping[str, Any],
+        platform: PlatformState,
+        sweep: SweepSchedule,
+        freq_hz: np.ndarray,
+        alt_m: np.ndarray,
+        epoch: str,
+        truth_at: tuple[float, float] | None = None,
+    ) -> RunResult:
+        """An ionogram of a drift sequence's scene, for its onboard prior (WP5 Phase 3).
+
+        L0 is this pipeline's own (``self.tiers["l0"]``, the scene the drift
+        sequence runs in), taken at ``truth_at`` or the platform's sub-point;
+        L1, L2 and L3 are the ionogram chain's, given in ``tiers`` (``l1``,
+        ``l2``, ``l3``, and optionally ``clutter``).  The ionogram is formed
+        at ``platform`` and goes no further: no retrieval, no scoring.  It
+        draws from streams of its own (spawn keys 0xD0 for L2 and 0xD1 for L1
+        and the clutter after the configuration's), so running it does not
+        change the drift sequence's noise.  Nothing else in the pipeline
+        calls it, so the ionogram path of :meth:`run_configuration` is not
+        touched.
+        """
+        import time
+
+        def stream(key: int) -> np.random.Generator:
+            return np.random.default_rng(np.random.SeedSequence(
+                entropy=self.seed, spawn_key=(zlib.crc32(configuration.encode("utf-8")), key)))
+
+        result = RunResult(configuration=configuration)
+        t: dict[str, float] = {}
+        lat, lon = (platform.lat_deg, platform.lon_deg) if truth_at is None else (
+            float(truth_at[0]), float(truth_at[1]))
+        t0 = time.perf_counter()
+        truth = self.tiers["l0"].state_at(lat, lon, epoch, alt_m)
+        t["l0"] = time.perf_counter() - t0
+        freq = np.asarray(freq_hz, dtype=float)
+        t0 = time.perf_counter()
+        l1_rng = stream(0xD1)
+        echoes = tiers["l1"].echoes(truth, platform, freq, l1_rng)
+        clutter = tiers.get("clutter")
+        if clutter is not None:
+            echoes = clutter.augment(echoes, truth, platform, freq, l1_rng)
+        t["l1"] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        signal = tiers["l2"].receive(echoes, sweep, stream(0xD0))
+        t["l2"] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        ionogram = tiers["l3"].form_ionogram(signal, platform)
+        t["l3"] = time.perf_counter() - t0
+        result.timing_s = t
+        result.flags["prior_pass"] = {"truth_at": [float(lat), float(lon)], "clutter": clutter is not None}
+        result.ionogram = ionogram
+        if self.keep_intermediates:
+            result.truth, result.echoes, result.signal = truth, echoes, signal
+        return result
+
     def describe(self) -> dict[str, Any]:
         """Tier descriptions for the run manifest."""
         out: dict[str, Any] = {"seed": self.seed}
