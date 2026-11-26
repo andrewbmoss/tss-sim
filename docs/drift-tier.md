@@ -118,24 +118,33 @@ Products in the contract's names (`docs/drift-mode.md`); `drift_sigma_mps`
 is NaN until the Cramer-Rao harness and `not_done` says so.  The N(h) prior
 is an explicit input (`OnboardPrior`); `run_sequence` has no ionogram chain to
 supply one, so tests pass the truth profile and the product says
-`prior_source: truth` (advisor, 2026-11-25).
+`prior_source: truth` (advisor, 2026-11-25).  (As built in part 1.  Since
+part 2 the default detector is the windowed one of section 8, the onboard
+prior is section 7, and `drift_sigma_mps` stays NaN: the bound of section
+9 is not the estimator's error.)
 
 Noise-free (`tests/unit/test_l3_drift.py`; 5 MHz, `mu_f` 0.5, 2 km plate):
 
-| Case | Truth | Drift tier |
-|---|---|---|
-| Straight, overflight | 25 m/s | 24.997 |
-| Straight, facet 2 km along track | -60 m/s | -60.35 |
-| Orbit, 3-D plate 300 km below 600 km, exponential profile (not the L0 profile) | 50 m/s | 49.996 |
-| Extended plate (80 km, tapered) | declined | `extended` |
+| Case | Truth | Part 1 (23a4270) | HEAD, summed detector | HEAD, windowed (default) |
+|---|---|---|---|---|
+| Straight, overflight | 25 m/s | 24.997 | 25.029 | 25.066 |
+| Straight, facet 2 km along track | -60 m/s | -60.35 | -59.901 | -59.826 |
+| Orbit, 3-D plate 300 km below 600 km, exponential profile (not the L0 profile) | 50 m/s | 49.996 | 49.999 | 50.015 |
+| Extended plate (80 km, tapered) | declined | `extended` | `extended` | `extended` |
 
-All within D5's 1 m/s.  The 0.35 m/s at 2 km along track is the power-envelope
-fit, not the chain: the same estimator on the echo set's own field gives the
-same value, and on the plate model's field without the spreading term gives
-0.004; a 3e-4 change in the envelope's shape moves the four-parameter
-`sinc^2` fit's centre by 3 ms when the peak falls between sweeps.  Noise
-(sigma of `t_pk` 23 to 54 ms in the budget) will swamp it; it is reported, not
-fixed.
+All within D5's 1 m/s.  **Corrected 2026-11-25 night.**  Part 1 put the
+0.35 m/s at 2 km along track on the envelope fit's sensitivity to shape (a
+3e-4 change in shape moving the four-parameter `sinc^2` fit's centre by
+3 ms).  Most of it was the fit's absolute tolerances on physical-scale
+powers (section 6): the same estimator on the plate model's own field,
+which is near unit scale, gave 0.004, and with the field scaled to a unit
+peak the tier gives 0.10 (summed beat) or 0.17 (windowed beat).  What is
+left moves with the beat the detector reports (it sets the gate's first
+sample): the noise-free `t_pk` shifts by about 0.5 ms between the two
+detectors, 0.06 m/s.  The parameter-level studies are not affected:
+`c3_verify` hands the estimator fields of peak power 0.98 to 1.0, and
+scaling them to a unit peak changes no drift at 1e-4 m/s (21 cases
+checked; the other studies were not checked).
 
 ### The effective speed: a correction to Phase 2
 
@@ -180,8 +189,9 @@ the classification first and to the drift only at second order.
   m/s at 20 dB, 4.9 at 10 dB), not its full RSS (10.6 at 10 dB), which adds
   the oscillator and range-scale terms the simulation does not include.  An
   earlier first look (20 dB, drifts 12 to 38 m/s) was a bug: the envelope fit
-  (scipy `least_squares`, absolute tolerances) stopped early on powers of
-  1e-12 W.  The field is now scaled to a unit peak before the estimator
+  (scipy `least_squares`, absolute tolerances) stopped early on
+  physical-scale powers (a peak of about -66 dB in the tier's units on
+  these scenes).  The field is now scaled to a unit peak before the estimator
   (`power_peak_db` keeps the scale), and a test pins `t_pk` to the
   `route_one` Monte Carlo within a factor of 1.6.
 
@@ -252,11 +262,14 @@ Measured on the Chapman L0 (f_N 1.8224 MHz at 600 km, topside scale height
 `f_N` sets `mu_sat` and so scales the drift: the clutter-on prior pass
 took a resonance 2.4 % high and moved the drift 0.4 %.  The scale height
 moves the inferred depth (20 km for a factor of two) and `v_eff`, not the
-drift.  The clutter-on row is one realisation; the spread of the tracker's
-`f_N` and the NO_PRIOR rate over seeds are not yet measured.  The
-tracker's O and X labels swap near 5 MHz on this scene (one seed has the O
-trace in the X column), which matters to the range gate (section 8) and
-not here.
+drift.  Over 20 seeds of the prior pass (platform at 600 km on this
+Chapman scene): clutter off, NO_PRIOR 0/20 and the tracker's `f_N` -0.11 %
+in every seed (`trace_start`); clutter on, NO_PRIOR 0/20 and +2.38 % in
+every seed (`resonance`): a systematic error of the method on this
+scene, not noise (0.4 % of drift through `mu_sat` at 5 MHz).  Other
+scenes and other `f_N` are not measured.  The tracker's O and X labels
+swap near 5 MHz on this scene, which matters to the range gate (section
+8) and not here.
 
 Fixed on the way: `effective_speed_ratio` halved an evanescent bracket
 until it propagated and could cut below the answer (108 km returned for
@@ -308,8 +321,18 @@ detector but route one.  A rate stated per sequence (1e-7 per cell is about
 detections at 10 dB.  The default stays 1e-4 as decided; the choice is
 put back to Andrew.
 
-The range gate on the Chapman orbit scene (section 7): the trace gives
-359 km at 5 MHz, gate 379 km; the facet is at 215.65 km.  The segment
+The range gate takes the larger of the O and X columns' virtual ranges and
+is a bound only when the O trace is among the columns that bracket the
+frequency (`columns_used` in its report): over 20 prior-pass seeds at
+5 MHz, both columns bracketed in 10 (clutter off) and 14 (on), only column
+1 in 10 and 5, only column 0 in 0 and 1.  The single-column cases on this
+scene carry the O trace under the X label (the values match), but a true X
+trace alone would give a gate tighter than the O bound by the O-X
+separation (about 11 km at 5 MHz here, so inside the 20 km margin on this
+scene) less the margin.
+
+On the Chapman orbit scene (section 7): the trace gives 359 km at 5 MHz,
+gate 379 km; the facet is at 215.65 km.  The segment
 grows from 1438 to 1861 samples (+1.1 dB) and the range bins fall from 705
 to 319.  At 10 dB (30 seeds) the facet's excess over threshold rises from
 2.96 to 4.45 dB and false echoes fall from 25 to 14 per 30 sequences.
@@ -346,10 +369,19 @@ W 0.926 s, 209 sweeps):
 | 20 dB | 0.735 (0.108) m/s | 6.36 ms | -0.989 | 1.31 m/s | 11.0 ms | 0.31 | 4.30 (10.7, 2.40) m/s |
 | 10 dB | 2.33 (0.342) m/s | 20.1 ms | -0.989 | 6.67 m/s (92/200 formed) | 34.6 ms | 0.12 | 6.76 (15.2, 4.55) m/s |
 
+The bound limits the RMS error, so the estimator's RMS over the formed
+drifts (a rerun with the beat from the windowed detector, so the robust
+figures differ from the table in the second digit): 20 dB, RMS 1.19 m/s,
+bias +0.11, robust sd 1.29, `t_pk` RMS 9.7 ms (200/200 formed); 10 dB, RMS
+6.42 m/s, bias +0.10, robust sd 6.86, `t_pk` RMS 31.6 ms (93/200 formed).
+In RMS the estimator is 1.6 times the bound at 20 dB and 2.8 times at
+10 dB ((CRB / RMS)^2 0.38 and 0.13).
+
 `W` free or known gives the same bound (the envelope's width and centre
 decouple for a window centred on the peak).  **The estimator is not
-efficient**: 1.8 times the bound at 20 dB and 2.9 times at 10 dB, against
-the plan's exit of 20 % (or the shortfall explained, TV risk 3).  The
+efficient**: 1.6 to 1.8 times the bound at 20 dB and 2.8 to 2.9 times at
+10 dB, against the plan's exit of 20 % (or the shortfall explained, TV
+risk 3).  The
 shortfall is in both halves: `t_pk` comes from a fit to the power alone
 (the budget's Monte Carlo of that fit gives 9.4 and 30 ms against the
 bound's 6.4 and 20), and the zero crossing from a power-weighted mean of

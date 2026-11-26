@@ -604,7 +604,9 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 * L3 tier `drift` (`l3/drift`): route one at signal level, first delay gated
   out, `f_eff` conversion, platform Doppler removed, explicit N(h) prior.
   Noise-free: 25 -> 24.997 (straight), 50 -> 49.996 (orbit, 3-D plate),
-  -60 -> -60.35 (facet 2 km along track: the envelope fit), extended declined.
+  -60 -> -60.35 (facet 2 km along track: mostly the envelope fit's
+  absolute tolerances, fixed in part 2: -59.90 / -59.83 at HEAD), extended
+  declined.
   **Noise-free only**: with noise the detector (spectrum summed over the
   whole sequence, 13 dB) finds nothing at 10 dB per sweep; open for the study.
 * Correction to Phase 2: noise-free, to first order, `v_eff` does not move the
@@ -615,21 +617,27 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 
 ## WP5 Phase 3 (2026-11-25 night, part 2): prior, detector, bound
 
-* Committed locally (c300fdd to fb468a5), not pushed.  `docs/drift-tier.md`
+* Committed locally (c300fdd onward), not pushed.  `docs/drift-tier.md`
   sections 6 to 9; project note `wp5-p3-part2`.  Decisions (i) to (l), Option A.
 * Fix: the drift tier scales the field to a unit peak before route one's
-  envelope fit (scipy's absolute tolerances stopped it early on 1e-12 W
-  powers: `t_pk` spread 66 ms at 20 dB instead of about 10).
+  envelope fit (scipy's absolute tolerances stopped it early on
+  physical-scale powers, about -66 dB: `t_pk` spread 66 ms at 20 dB instead
+  of about 10).
 * Noise (beat given, 200 seeds, straight track): 20 dB 200/200 formed, drift
   sd 1.31 m/s; 10 dB 92/200 formed, sd 6.67 m/s.  The 10 dB declines are
   route one's free-slope test, on an ideal field too (87/200); no earlier
   study ran it with noise, so the budget's 10 dB point overstates
-  availability by about two.  The estimator is pinned and unchanged.
+  availability by about two (measured at one point: 5 MHz, 530 km, 2 km
+  facet, +/-2.5 W).  The estimator is pinned and unchanged.  The same fix
+  explains most of part 1's -60.35 (now -59.90 / -59.83); `c3_verify`'s
+  fields are near unit scale and unaffected.
 * Onboard prior (Option A): `onboard_prior_from_ionogram` (the tracker's
   f_N, an assumed scale height; NO_PRIOR when invalid) and
   `Pipeline.run_prior_ionogram` (the scene's own L0; additive).  Chapman orbit
   scene: f_N 1.8203 against 1.8224 MHz, drift 49.992 against 49.982 (truth
   prior); the assumed scale height moves the depth (20 km), not the drift.
+  Over 20 seeds: NO_PRIOR 0/20; f_N -0.11 % (clutter off) and +2.38 %
+  (clutter on, a resonance) in every seed, a systematic error, not noise.
   Fixed `effective_speed_ratio`'s bracket (108 km returned for 170).
 * Detector: windowed (21 sweeps), threshold for 1e-4 per cell from the
   negative-beat half; finds the facet at 10 dB in every trial, but at 1e-4
@@ -639,7 +647,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   trace (`range_gate_from_ionogram`, larger of the O and X columns).
 * Bound: `novel/drift_crb.py` (deterministic and Rayleigh-fading Fisher
   matrices; anchors 0.42 m/s and singular, Stein's FDOA bound per Moss 2014).
-  Straight scene: 0.735 m/s at 20 dB, 2.33 at 10 dB; the estimator is 0.31
-  and 0.12 of the bound in variance (plan exit: sigma_v within 20 % of it).
+  Straight scene: 0.735 m/s at 20 dB, 2.33 at 10 dB; the estimator's RMS
+  error is 1.6 and 2.8 times the bound (plan exit: within 20 % of it).
 * Next: the halo, the study `wp5_route_one`, Poole's comparator; Andrew to
   decide the per-cell P_fa and whether route one's slope test changes.

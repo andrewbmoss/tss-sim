@@ -183,6 +183,26 @@ def test_windowed_detector_finds_the_facet_at_10_db_per_sweep(straight_run):
         assert np.min(np.abs(beats - fb)) < 2 * 66.0
 
 
+def test_detection_report_is_in_echo_order(straight_run):
+    """At 1e-4 per cell a false echo usually takes the second slot; the
+    per-echo entries of the report follow the echoes (by range), so the
+    facet's is the one at its beat, and it is the strongest."""
+    seq = straight_run.sequence
+    sig2, fb = _sigma2_for(seq, 10.0)
+    k = seq.records[0].sweep.k_f_hz_per_s
+    seen_two = False
+    for seed in range(5):
+        prod = DriftProcessing(prior=PRIOR).process_sequence(_with_noise(seq, sig2, 700 + seed))
+        d = prod.flags["detection"]
+        beats = 2.0 * k * np.asarray(prod.products["range_beat_m"], dtype=float) / C_LIGHT
+        assert len(d["excess_db"]) == len(beats) == len(d["window_start_sweep"])
+        assert list(beats) == sorted(beats)
+        i = int(np.argmin(np.abs(beats - fb)))
+        assert d["excess_db"][i] == max(d["excess_db"])
+        seen_two |= len(beats) == 2
+    assert seen_two
+
+
 def test_range_gate_from_the_trace():
     from types import SimpleNamespace
 
@@ -195,6 +215,7 @@ def test_range_gate_from_the_trace():
     gate, rep = range_gate_from_ionogram(ion, 5.0e6, margin_m=10e3)
     # Column 0 interpolates to 320 km; column 1 (X, or a swapped label) gives 312: the larger.
     assert gate == pytest.approx(320e3 + 10e3) and rep["reason"] == "gated"
+    assert rep["columns_used"] == [0, 1]
     assert range_gate_from_ionogram(ion, 5.0e6, mode_index=1, margin_m=0.0)[0] == pytest.approx(312e3)
     assert range_gate_from_ionogram(ion, 5.4e6)[0] is None  # above the last detected column
     vr[3, 0] = np.nan

@@ -265,7 +265,11 @@ def range_gate_from_ionogram(
     reflects higher (a shorter range) and the tracker's O/X labels can swap
     near 5 MHz (seen on the Chapman scene, 2026-11-25): the O trace's range is
     the bound, and taking the larger of the two keeps a mislabel from
-    tightening the gate.
+    tightening the gate.  It is a bound only when the O trace is among the
+    bracketing columns: if only a true X trace brackets ``f_hz``, the gate is
+    tighter than the O bound by the O-X separation less ``margin_m`` and can
+    cut a facet near the reflection level.  ``report["columns_used"]`` says
+    which columns gave it.
     """
     freq = np.asarray(getattr(ionogram, "freq_hz", []), dtype=float)
     vr = np.asarray(getattr(ionogram, "virtual_range_m", np.empty((0, 1))), dtype=float)
@@ -293,7 +297,7 @@ def range_gate_from_ionogram(
         rep["reason"] = "no trace column brackets the frequency without a gap"
         return None, rep
     r = max(ranges.values())
-    rep.update({"virtual_range_m": r, "reason": "gated"})
+    rep.update({"virtual_range_m": r, "reason": "gated", "columns_used": sorted(ranges)})
     return r + float(margin_m), rep
 
 
@@ -462,8 +466,6 @@ class DriftProcessing:
                 break
             picked.append(b)
             cand[max(0, b - 4): b + 5] = 0.0
-        report["excess_db"] = [10.0 * math.log10(float(best[b]) / thresh) if thresh > 0 else math.inf
-                               for b in picked]
         report["range_bin_m"] = float(C_LIGHT * fs / m / (2.0 * k))
         beats = []
         pad = max(self.zero_pad, 1)
@@ -479,8 +481,12 @@ class DriftProcessing:
             den = a - 2.0 * c0 + c
             d = 0.5 * (a - c) / den if den != 0 else 0.0
             beats.append(float(frp[jj] + d * fs / nfft))
-        report["window_start_sweep"] = [int(bestj[b]) for b in picked]
-        return sorted(beats)
+        # The per-echo entries in the order of the echoes (by range), not of picking.
+        order = sorted(range(len(beats)), key=lambda i: beats[i])
+        report["excess_db"] = [10.0 * math.log10(float(best[picked[i]]) / thresh) if thresh > 0 else math.inf
+                               for i in order]
+        report["window_start_sweep"] = [int(bestj[picked[i]]) for i in order]
+        return [beats[i] for i in order]
 
     # -- the tier ---------------------------------------------------------------------
 
@@ -559,7 +565,8 @@ class DriftProcessing:
         ramp = 2.0 * math.pi * np.concatenate([[0.0], np.cumsum(0.5 * (fd_plat[1:] + fd_plat[:-1]) * np.diff(times))])
         field_e = np.conj(z) * np.exp(-1j * ramp)  # plate convention exp(-j 2 k0 P): closing -> +Doppler
         # Scale to a unit peak.  The envelope fit (scipy least_squares, absolute
-        # gradient tolerance) stops early on powers of 1e-12 W and returns the
+        # gradient tolerance) stops early on physical-scale powers (a peak of
+        # about -66 dB in the tier's units on the test scenes) and returns the
         # width it started from: with noise that put t_pk's spread at 66 ms
         # against the parameter-level 10 ms at 20 dB (2026-11-25).  A scale
         # changes nothing else route one forms.
