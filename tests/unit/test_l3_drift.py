@@ -1,8 +1,9 @@
 """WP5 Phase 3: the drift tier (``l3/drift``), route one at signal level.
 
-Noise-free, through L1 (facet) and L2 (baseline, quantisation and thermal
-noise off).  The pass criterion of D5 option A at noise-free level is drift
-within 1 m/s.  Nothing here runs with noise yet (docs/drift-tier.md,
+Through L1 (facet) and L2 (baseline, quantisation and thermal noise off).
+The pass criterion of D5 option A at noise-free level is drift within 1 m/s.
+One test adds white noise to the records at 20 dB per sweep and compares the
+spread of t_pk with the parameter-level Monte Carlo (docs/drift-tier.md,
 section 6).
 """
 

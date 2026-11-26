@@ -156,13 +156,23 @@ the classification first and to the drift only at second order.
 
 * **Noise.**  SNR per sweep is the budget's definition: the per-sweep
   complex value at the envelope's peak over its noise, which is the value
-  coherent over the gate.  Straight track, 25 m/s, +/-2.5 envelope widths
-  (209 sweeps), 40 seeds, the beat given so the estimator is isolated:
+  coherent over the gate (checked: 10.07 dB measured for 10 nominal).
+  Straight track, 25 m/s, +/-2.5 envelope widths (209 sweeps), 200 seeds,
+  the beat given so the estimator is isolated (robust sd = 1.4826 MAD):
 
-  | SNR/sweep | formed | drift median, robust sd | sd `t_pk` | sd `t_zc` | budget (overflight, Doppler) |
+  | SNR/sweep | formed | slope ratio median (p16, p84) | drift median, robust sd | sd `t_pk` | budget (overflight, Doppler; sigma_t0) |
   |---|---|---|---|---|---|
-  | 20 dB | 40/40 | 24.79, 1.36 m/s | 12.5 ms | 3.6 ms | 1.07, 1.11 m/s (sigma_t0 9.4 ms) |
-  | 10 dB | 11/40 | 19.45, 2.57 m/s | 51.5 ms | 90.9 ms | 3.43, 3.51 m/s (sigma_t0 30 ms) |
+  | 20 dB | 200/200 | 0.986 (0.96, 1.01) | 25.13, 1.31 m/s | 11.0 ms | 1.07, 1.11 m/s; 9.4 ms |
+  | 15 dB | 194/200 | 0.990 (0.91, 1.05) | 25.13, 2.35 m/s | 19.9 ms | |
+  | 10 dB | 92/200 | 0.884 (0.49, 1.20) | 24.46, 6.67 m/s | 34.6 ms | 3.43, 3.51 m/s; 30 ms |
+
+  The same estimator on an ideal field (a `sinc^2` envelope of width W, the
+  ephemeris Doppler, white noise; no L1, L2 or tier) gives at 10 dB 87/200
+  formed, slope ratio 0.909, drift sd 6.13 m/s, `t_pk` 28.5 ms; on the
+  tier's own noise-free field with white noise added, 88/200, 0.881, 6.19.
+  So the 10 dB behaviour is the estimator's, not the chain's.  A first run
+  of 40 seeds (1000 to 1039) gave 11/40 formed and was an unlucky draw; the
+  same 40 seeds give the same result again.
 
   The right comparator is the budget's overflight and Doppler terms (RSS 1.5
   m/s at 20 dB, 4.9 at 10 dB), not its full RSS (10.6 at 10 dB), which adds
@@ -173,15 +183,22 @@ the classification first and to the drift only at second order.
   (`power_peak_db` keeps the scale), and a test pins `t_pk` to the
   `route_one` Monte Carlo within a factor of 1.6.
 
-  **At 10 dB route one's compact-facet test rejects most facets**: 29 of 40
-  are declined as extended, the measured slope ratio having median 0.74
-  (16th to 84th percentile 0.51 to 1.17) against the tolerance 0.8 to 1.2.
-  The free Doppler-slope fit is the weak link at 10 dB, not the drift.  The
-  estimator is pinned by `wp5_baseline` and is not changed here; whether the
-  classification should use a slope fitted with the ephemeris slope as prior
-  is for the study.  The 11 formed drifts are low (median 19.45; 11 values,
-  so the 10 dB row is a small sample); selection on the slope could do this,
-  but it has not been tested.
+  **At 10 dB route one's compact-facet test declines more than half of the
+  compact facets** (108 of 200 declined; in the 40-seed run every decline
+  was on the slope, none on the contrast): the free, power-weighted
+  Doppler slope has a median 0.88 of the ephemeris slope and a spread
+  (0.49 to 1.20) wider than the tolerance 0.8 to 1.2.  A likely cause, not
+  tested: the Doppler history keeps samples down to 0.1 of the (noisy)
+  peak power, which at 10 dB is the noise level, and their random Doppler
+  pulls the weighted slope towards zero.  No earlier study ran the slope
+  test with noise: the parameter-level `route_one` study sizes `t_pk` and
+  the Doppler only, and `c3_verify` is noise-free.  So **the budget's 10 dB operating point overstates availability** by about
+  a factor of two, and the formed drifts scatter by 6.7 m/s against the
+  budget's overflight and Doppler RSS of 4.9.  `t_pk` (34.6 ms) is near the
+  budget's 30 ms, so most of the excess appears to be in the zero crossing
+  (not separated: `t_pk` and `t_zc` share the noise).  The estimator is
+  pinned by `wp5_baseline` and is not changed here; a slope test with a
+  higher power cut, or the ephemeris slope as a prior, is for the study.
 * **Detection at 10 dB.**  The summed-spectrum detector finds 0 of 5 at 10
   dB: its statistic is the spectrum summed over all 91 sweeps, of which the
   facet's lobe fills about 15, against a 13 dB threshold.  A windowed
