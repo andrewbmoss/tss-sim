@@ -1,7 +1,8 @@
 # tss-sim: where things stand
 
-Updated 2026-11-25, during WP5 Phase 3 (curved-Earth facets, the sheet wrap
-and the drift tier done; the halo, the Cramer-Rao harness and the study next).
+Updated 2026-11-25, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
+the drift tier, the onboard prior, the windowed detector and the Cramer-Rao
+harness done; the halo and the study next).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -611,3 +612,34 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   curvature moves the slope ratio by `(v_eff/v)^2` (0.956).
 * Next: the diffuse halo (scatterer field), the Cramer-Rao harness, the study
   `wp5_route_one` with the SNR grid, Poole's comparator.
+
+## WP5 Phase 3 (2026-11-25 night, part 2): prior, detector, bound
+
+* Committed locally (c300fdd to fb468a5), not pushed.  `docs/drift-tier.md`
+  sections 6 to 9; project note `wp5-p3-part2`.  Decisions (i) to (l), Option A.
+* Fix: the drift tier scales the field to a unit peak before route one's
+  envelope fit (scipy's absolute tolerances stopped it early on 1e-12 W
+  powers: `t_pk` spread 66 ms at 20 dB instead of about 10).
+* Noise (beat given, 200 seeds, straight track): 20 dB 200/200 formed, drift
+  sd 1.31 m/s; 10 dB 92/200 formed, sd 6.67 m/s.  The 10 dB declines are
+  route one's free-slope test, on an ideal field too (87/200); no earlier
+  study ran it with noise, so the budget's 10 dB point overstates
+  availability by about two.  The estimator is pinned and unchanged.
+* Onboard prior (Option A): `onboard_prior_from_ionogram` (the tracker's
+  f_N, an assumed scale height; NO_PRIOR when invalid) and
+  `Pipeline.run_prior_ionogram` (the scene's own L0; additive).  Chapman orbit
+  scene: f_N 1.8203 against 1.8224 MHz, drift 49.992 against 49.982 (truth
+  prior); the assumed scale height moves the depth (20 km), not the drift.
+  Fixed `effective_speed_ratio`'s bracket (108 km returned for 170).
+* Detector: windowed (21 sweeps), threshold for 1e-4 per cell from the
+  negative-beat half; finds the facet at 10 dB in every trial, but at 1e-4
+  per cell nearly every sequence also declares a false echo (1 in 13 forms a
+  false drift); 1e-7 per cell removes them at no cost at 10 dB.  Default
+  kept at 1e-4 as decided; the choice is Andrew's.  Range gate from the
+  trace (`range_gate_from_ionogram`, larger of the O and X columns).
+* Bound: `novel/drift_crb.py` (deterministic and Rayleigh-fading Fisher
+  matrices; anchors 0.42 m/s and singular, Stein's FDOA bound per Moss 2014).
+  Straight scene: 0.735 m/s at 20 dB, 2.33 at 10 dB; the estimator is 0.31
+  and 0.12 of the bound in variance (plan exit: sigma_v within 20 % of it).
+* Next: the halo, the study `wp5_route_one`, Poole's comparator; Andrew to
+  decide the per-cell P_fa and whether route one's slope test changes.

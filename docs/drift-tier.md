@@ -2,9 +2,11 @@
 
 2026-11-25.  Plan: Dissertation `Plans\WP5_plan.md`, P3; decisions (a) to (h)
 of 2026-11-25 09:01 (project note `claude/wp5-p3-decisions-2026-11-25.md`).
-Phase 2's sequence path is in `docs/drift-sequence.md`.  Not yet done in
-Phase 3: the diffuse halo, the Cramer-Rao harness, the study
-`wp5_route_one`, Poole's comparator on sequences.
+Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
+night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
+(7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
+Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
+Poole's comparator on sequences.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
 
