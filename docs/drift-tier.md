@@ -600,7 +600,9 @@ Within 20 % of the matching bound, or the shortfall explained:
   1.22 and 1.37 at signal level.**  The excess over the parameter level at
   20 dB is probably the envelope model's error; not tested.
 
-The default stays `"pinned"` (decision (t)); changing it is Andrew's.
+The default stays `"pinned"` for now.  Andrew, 2026-11-27, amending decision
+(t): switch to `"joint_fading"` when appropriate, not to `"joint"`, which
+under fading states a sigma far below its spread.
 
 Not done: fading at signal level (L2's specular fading through the tier), a
 Rician gain or another correlation shape, noise on the orbit scenes, the

@@ -702,9 +702,11 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   slow suite passed, ruff clean, smoke unchanged.
 * The pinned estimator is unchanged, so `wp5_baseline` stands; no number cited
   in the TV or dissertation changes.
-* For Andrew: whether either joint estimator becomes the default (decision
-  (t) was written for `joint`, before the fading fit); `tau_c_s` here is the
-  fitted exponential time, not `docs/drift-mode.md`'s lag-one definition.
+* Default (Andrew, 2026-11-27, amending decision (t)): leave `pinned` for
+  now; switch to `joint_fading`, not `joint`, when appropriate.
+* For Andrew, open: whether the explained fading shortfall is accepted; and
+  `tau_c_s` here is the fitted exponential time, not `docs/drift-mode.md`'s
+  lag-one definition.
 * Next: the power-cut experiment (n), the halo, Poole's comparator, the study
   `wp5_route_one`.
 
