@@ -6,7 +6,8 @@ Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
 night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
-sequence (10), the joint estimators (11), the fading outliers (12).
+sequence (10), the joint estimators (11), the fading outliers (12), the power
+cut (13).
 Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
 Poole's comparator on sequences.
 
@@ -710,4 +711,49 @@ suspect (outliers caught; RMS over the bound of the rest), pooled:
 ### Not done
 
 Through the tier with fading; other facet scenes; the combined flag above.
+
+## 13. The power cut of the Doppler history (decision (n))
+
+Route one's Doppler history keeps the sweep pairs whose power is at least
+`main_lobe` = 0.1 of the peak.  It feeds the free-slope test, which decides
+whether a drift is formed, and the pinned zero crossing.  Section 6 guessed
+that at 10 dB the cut sits at the noise and pulls the slope down.  This
+compares 0.1 with 0.25 and 0.5.  **An experiment: nothing is adopted and the
+default stays 0.1.**
+
+`scripts/wp5_power_cut.py results/wp5_power_cut` at commit 35832cb: section 9's
+scene, 200 echoes per case from seed 40000, parameter level.  `joint_fading` is
+fitted once per echo behind the same test.  About 3 minutes.
+
+Availability (drift formed), and RMS drift error in m/s of the formed echoes,
+pinned / `joint_fading`:
+
+| Case | cut 0.1 | cut 0.25 | cut 0.5 |
+|---|---|---|---|
+| 15 dB | 98.5 %; 2.52 / 1.47 | 95.5 %; 2.55 / 1.47 | 47.0 %; 4.84 / 1.29 |
+| 10 dB | 40.0 %; 7.49 / 2.57 | 53.0 %; 6.86 / 2.43 | 11.0 %; 18.17 / 2.14 |
+| 15 dB, tau_c 0.5 s | 62.0 %; 21.8 / 6.46 | 40.5 %; 23.5 / 5.26 | 15.0 %; 25.0 / 4.20 |
+| 10 dB, tau_c 0.5 s | 40.5 %; 21.7 / 8.58 | 27.0 %; 23.3 / 10.67 | 8.0 %; 34.8 / 6.70 |
+| 15 dB, tau_c 2 s | 74.0 %; 24.6 / 4.63 | 56.0 %; 21.1 / 4.85 | 25.0 %; 22.4 / 4.46 |
+| 10 dB, tau_c 2 s | 41.0 %; 24.2 / 12.77 | 31.5 %; 22.5 / 8.49 | 10.5 %; 36.2 / 5.00 |
+
+Noise-free, `c3_verify`:
+
+| cut | untilted formed, worst error | tilted formed | extended declined | plate lengths formed (case D) | slope ratio, untilted |
+|---|---|---|---|---|---|
+| 0.1 | 56/56, 0.030 m/s | 32/32 | 12/12 | 0.5, 1, 2 km | 0.942-0.996 |
+| 0.25 | 56/56, 0.026 | 32/32 | 12/12 | 0.5, 1, 2, **4** km | 0.953-0.997 |
+| 0.5 | 56/56, 0.024 | 32/32 | 12/12 | 0.5, 1, 2, **4** km | 0.961-0.997 |
+
+* **0.25 forms more drifts only at 10 dB without fading** (40 to 53 %, pinned
+  error 7.49 to 6.86 m/s).  In every other case it forms fewer: 3 points fewer
+  at 15 dB, 9 to 22 points fewer under fading.
+* **0.5 forms far fewer everywhere**, and the pinned drift is worse.
+* **Either higher cut lets the 4 km plate pass as compact**, which 0.1
+  declines: the compact-facet test gets weaker.
+* The `joint_fading` error changes mostly through which echoes pass the gate:
+  on the echoes formed at every cut it is the same by construction (the fit
+  does not use the cut).  At 10 dB those common sets are 4 to 7 echoes, too
+  few to compare.
+* The cut stays at 0.1.
 
