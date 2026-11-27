@@ -59,7 +59,7 @@ def _monte_carlo(kind, snr_db, tau_c_s, seeds):
             continue
         r = _fit(kind, T, y, e, **KW)
         assert r.ok, r.reason
-        rows.append((r.drift_mps - DRIFT, r.drift_sigma_mps, e.drift_mps - DRIFT, r.tau_c_s))
+        rows.append((r.drift_mps - DRIFT, r.drift_sigma_mps, e.drift_mps - DRIFT, r.tau_c_fit_s))
     return np.array(rows)
 
 
@@ -227,6 +227,38 @@ def test_noise_variance_from_the_detectors_bin_and_the_gated_sum():
     assert got == pytest.approx(sig2, rel=0.02)
     z = x[:, :n_gate] @ np.exp(-2j * math.pi * 0.013 * np.arange(n_gate))
     assert np.mean(np.abs(z) ** 2) == pytest.approx(n_gate * got, rel=0.15)
+
+
+def test_two_echoes_with_different_drifts_are_ambiguous():
+    """Two facets of equal strength apart in time: the likelihood has two
+    well-separated maxima of nearly the same height, and the fit says so."""
+    t = T
+    a = J.joint_model(t, t0_s=-1.3, drift_mps=60.0, width_s=0.5, **KW)
+    b = J.joint_model(t, t0_s=1.3, drift_mps=-60.0, width_s=0.5, **KW)
+    y = 10.0 * (a + b) + _noise(np.random.default_rng(1), t.size)
+    r = J.estimate_route_one_joint_fading(t, y, noise_var=1.0, **KW)
+    assert r.ok, r.reason
+    assert 0.0 <= r.nll_margin < 5.0
+    assert abs(r.drift_alt_mps - r.drift_mps) > 3.0 * r.drift_sigma_mps
+
+
+def test_one_strong_echo_is_not_ambiguous():
+    y = 10.0 * J.joint_model(T, t0_s=0.1, drift_mps=DRIFT, width_s=W, **KW)
+    y = y + _noise(np.random.default_rng(2), T.size)
+    r = J.estimate_route_one_joint_fading(T, y, noise_var=1.0, **KW)
+    assert r.ok, r.reason
+    assert r.nll_margin > 10.0
+    # No second maximum is reported as a drift when there is none.
+    assert math.isfinite(r.drift_alt_mps) == math.isfinite(r.nll_margin)
+
+
+def test_the_separation_that_makes_a_second_maximum_is_stated_in_sigmas():
+    t = T
+    a = J.joint_model(t, t0_s=-1.3, drift_mps=60.0, width_s=0.5, **KW)
+    b = J.joint_model(t, t0_s=1.3, drift_mps=-60.0, width_s=0.5, **KW)
+    y = 10.0 * (a + b) + _noise(np.random.default_rng(1), t.size)
+    far = J.estimate_route_one_joint_fading(t, y, noise_var=1.0, separation_sigmas=1e6, **KW)
+    assert math.isinf(far.nll_margin) and math.isnan(far.drift_alt_mps)
 
 
 def test_the_fits_say_when_they_cannot_run():
