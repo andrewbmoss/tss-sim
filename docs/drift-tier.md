@@ -700,6 +700,13 @@ suspect (outliers caught; RMS over the bound of the rest), pooled:
 * **Averaging the maxima** (the drift weighted by each maximum's likelihood,
   no echo declined) gains little: 1.16, 1.47, 1.36, 2.02.  Not built.
 
+### Decided (Andrew, 2026-11-27)
+
+* `ambiguity_margin` stays **off**, which is the default.
+* The outlier work stops for now.  M3 reports the outlier fraction beside the
+  RMS error.
+* The combined margin and sigma flag is left untested.
+
 ### Not done
 
 Through the tier with fading; other facet scenes; the combined flag above.

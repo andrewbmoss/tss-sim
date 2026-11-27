@@ -3,8 +3,8 @@
 Updated 2026-11-26, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
 the drift tier, the onboard prior, the windowed detector with its rate per
 sequence, the Cramer-Rao harness and the joint estimators done; the power-cut
-experiment, the halo and the study next; the fading outliers under way inside
-the 8 January timebox).
+experiment, the halo and the study next; the work on the fading outliers
+stopped for now).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -730,9 +730,10 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   0.83, from the true gain), weakly at 0.5 s; measures formed from the data do
   not find it.  The stated sigma ranks outliers well at 20 dB (AUC 0.86, 0.87).
   Averaging the likelihood's maxima gains little.
-* For Andrew: the margin (suggested 2), or leave the check off; whether to go
-  on to a combined margin-and-sigma flag.  A margin changes availability, which
-  decision (s) held equal for the estimators.
+* Decided (Andrew, 2026-11-27): the check stays off (so availability stays
+  equal across the estimators, decision (s)); the outlier work stops for now;
+  M3 reports the outlier fraction beside the RMS; the combined margin and sigma
+  flag is left untested.
 * Fast suite 1102 passed, the two slow fading grids passed, ruff clean, smoke
   unchanged.
 * The default estimator stays `pinned`; no number cited in the TV or
