@@ -2,8 +2,8 @@
 
 Updated 2026-11-26, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
 the drift tier, the onboard prior, the windowed detector with its rate per
-sequence and the Cramer-Rao harness done; the joint estimator, the halo and
-the study next).
+sequence, the Cramer-Rao harness and the joint estimators done; the power-cut
+experiment, the halo and the study next).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -672,3 +672,39 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 * Next: the joint estimator (`estimator="joint"` and `"joint_fading"`,
   timebox 8 January 2027), then the power-cut experiment, the halo, Poole's
   comparator and the study `wp5_route_one`.
+
+## WP5 Phase 3, part 3 step 2 (2026-11-26): the joint estimators
+
+* Branch `claude/wp5-p3-joint-estimator`, from step 1.  Decisions (o), (r),
+  (s), (t) and the fading-aware fit (Andrew, 2026-11-27).
+  `docs/drift-tier.md` section 11.
+* New `l3_signal/novel/route_one_joint.py`: a deterministic fit (`joint`) and
+  a Rayleigh-fading maximum-likelihood fit with `tau_c` fitted
+  (`joint_fading`), both behind the pinned free-slope test.  Tier option
+  `estimator`, **default still `pinned`**; `drift_pinned_mps` kept;
+  `drift_sigma_mps` and `tau_c_s` formed.
+* Two things needed beyond the prototype: the fading fit's noise is floored at
+  3e-3 of the peak, the `sinc^2` model's own error (told the noise is 1e-6,
+  45 of 56 noise-free facets miss by over 1 m/s); and the search starts from
+  six cells at each width (from the six best cells overall it missed the
+  lowest likelihood in 13 to 46 % of echoes).
+* Noise-free within 0.43 m/s (straight and orbit); 56/56 and the tilt bias to
+  1 % on the `c3_verify` fields.
+* RMS over the bound, 200 seeds, without fading (20, 15, 10 dB): pinned 1.60,
+  1.79, 2.46; joint 0.96, 0.97, 0.91; fading 1.12, 1.06, 0.98.  Under fading
+  (20 and 10 dB at 0.5 s; 20 and 10 dB at 2 s): pinned 5.2, 3.8, 8.8, 4.3;
+  joint 6.5, 6.5, 9.5, 4.2; fading 1.08, 1.78, 1.37, 2.90, with 0.8, 5.6, 4.0,
+  8.2 % outliers and 1.03 to 1.25 without them.  Signal level without fading:
+  joint 1.10 and 1.11 at 20 and 10 dB.
+* `joint`'s sigma is 0.05 to 0.11 of its spread under fading: not to be quoted
+  there.  About 1.5 s per echo for `joint_fading`, 10 ms for `joint`.
+* Fast suite 1092 passed (about 14 minutes), the two full fading grids in the
+  slow suite passed, ruff clean, smoke unchanged.
+* The pinned estimator is unchanged, so `wp5_baseline` stands; no number cited
+  in the TV or dissertation changes.
+* For Andrew: whether either joint estimator becomes the default (decision
+  (t) was written for `joint`, before the fading fit); `tau_c_s` here is the
+  fitted exponential time, not `docs/drift-mode.md`'s lag-one definition.
+* Next: the power-cut experiment (n), the halo, Poole's comparator, the study
+  `wp5_route_one`.
+
