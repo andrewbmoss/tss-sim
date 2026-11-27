@@ -48,7 +48,9 @@ RRI is mostly Faraday fading and is not a source for `tau_c`.
    random scatter.  Decorrelation of the medium itself at 0.1 s can occur on a
    compact facet (the disturbed ground values reach 45 ms) and is carried as
    the intrinsic time of the specular part.  That route one declines a randomly
-   phased patch is expected, not yet run.
+   phased patch is expected, not yet run.  (Run 2026-11-27 and not
+   as expected: route one's tests form a drift on such a patch 18 to 55 % of
+   the time, `docs/drift-tier.md` section 14.)
 5. (20:46) Decorrelation can come from either the spacecraft's motion or the
    medium; the model carries both (diffuse halo, intrinsic specular time).
    The 0.1 s medium-caused case on a compact facet returns in Phase 2 through
@@ -155,9 +157,9 @@ note on the four budget points the reference profile cannot reach.
 ## Not yet done
 
 * A diffuse halo wider than the facet does not share the facet's power
-  envelope, so Phase 2 cannot apply the diffuse part as a multiplicative gain
-  on the facet echo; it needs its own scatterer field (or an envelope of the
-  halo's width).  The specular part can be applied as a gain.
+  envelope, so it cannot be a multiplicative gain on the facet echo.  Since
+  Phase 3 the facet tier draws it as its own scatterers
+  (`docs/drift-tier.md` section 14); the specular part is applied as a gain.
 * Reproducing the route-one budget with this module needs
   `specular="rayleigh"`, `k_factor=inf` and `tau_log_sigma=0` pinned.
 

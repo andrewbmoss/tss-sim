@@ -82,7 +82,7 @@ and ``v_eff`` is ``v_s_mps``.
 
 WHAT IS NOT DONE YET
 --------------------
-The diffuse halo, ``tau_c_s``, ``doppler_spread_hz``, the field-aligned and
+``tau_c_s``, ``doppler_spread_hz``, the field-aligned and
 several-frequency products, the per-sweep products and the rest listed in
 ``flags["not_done"]``.  ``drift_sigma_mps`` is formed by the joint estimators
 only (NaN with ``"pinned"``).  ``"joint_fading"`` also reports
@@ -576,7 +576,7 @@ class DriftProcessing:
         det = self.last_detection
         if det.get("noise_power_per_bin") is not None:
             sample_var = sample_noise_variance(det["noise_power_per_bin"], det["segment_samples"])
-        not_done = ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
+        not_done = ["tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
                     "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
                     "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
                     "range_debiased_m", "los_rate_sigma_mps"]

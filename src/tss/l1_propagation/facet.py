@@ -109,11 +109,31 @@ magnetoionic split (it is not the ``analytic`` tier's echo), no layer drift.
 A frequency below the platform's plasma frequency or above the layer's
 critical frequency gives a masked row.
 
+THE DIFFUSE HALO (PHASE 3, DECISION (E))
+----------------------------------------
+A plate may carry ``halo: {k, ratio, n_points, seed}`` (:class:`HaloSpec`):
+``n_points`` (200) weak point scatterers, equal in all directions, drawn
+uniformly along the plate's line over ``ratio`` (2) plate lengths about its
+centre, each with a random phase, moving with the medium (option A, Andrew,
+2026-11-27).  Each gives its own row, flagged ``halo:<id>``, with its own
+group and phase delay and Doppler, so L2 sums them as it sums echoes and the
+facet's specular fading does not touch them.  ``K`` is the facet's power over
+the halo's mean power **at overflight** (the platform over the facet's centre,
+at its height): every scatterer has the amplitude ``a`` with
+``n_points a^2 = |E_facet(overflight)|^2 / K``, spreading apart, so the halo's
+power stays about constant through a pass while the facet's rises and falls.
+``K = inf`` is no halo.  ``K = 0`` leaves the facet's row out and gives the
+halo the power the facet would have had.  The field of such a patch
+decorrelates as ``sinc(pi B tau)``, ``B = 2 v L / (lambda P')``
+(:func:`tss.l2_instrument.fading.halo_decorrelation_s`).  The scatterers lie
+on a line along the track, as the 2-D plate does: there is no cross-track
+extent.  Not on a sheet, nor on the orbit's 2-D plate.
+
 WHAT IS LEFT OUT
 ----------------
 Everything the plate and sheet models leave out (the magnetic field's effect on
-the wave, absorption, reflectivity variation across the surface); there is no
-diffuse halo yet (Phase 3).
+the wave, absorption, reflectivity variation across the surface); the halo's
+scatterers do not interact with the facet or with each other.
 """
 
 from __future__ import annotations
@@ -128,7 +148,13 @@ import numpy as np
 from tss.constants import C_LIGHT
 from tss.interfaces import EchoSet, IonosphereState, PlatformState
 from tss.l1_propagation import sheet_echo as se
-from tss.l1_propagation.plate_echo import ExponentialTopside, Plate, echo_track, plate_points
+from tss.l1_propagation.plate_echo import (
+    ExponentialTopside,
+    Plate,
+    echo_track,
+    plate_points,
+    point_paths,
+)
 from tss.l1_propagation.sphere import LocalFrame, SphericalMedium, ray_paths
 from tss.platform.orbits import RE
 from tss.registry import register
@@ -218,6 +244,19 @@ def pair_phase_delay_difference(e0: complex, e1: complex, pc0: float, pc1: float
     return 2.0 * (dpc - d_res / (2.0 * k0)) / C_LIGHT
 
 
+def _plate_normal_and_along(plate: Plate, azimuth_rad: float,
+                            cross_tilt_rad: float) -> tuple[np.ndarray, np.ndarray]:
+    """A 3-D plate's unit normal and its along-track tangent, local (east, north, up)."""
+    a_hat = np.array([math.sin(azimuth_rad), math.cos(azimuth_rad), 0.0])
+    c_hat = np.array([math.cos(azimuth_rad), -math.sin(azimuth_rad), 0.0])
+    up = np.array([0.0, 0.0, 1.0])
+    n = math.tan(float(plate.tilt_rad)) * a_hat + math.tan(float(cross_tilt_rad)) * c_hat + up
+    n /= np.linalg.norm(n)
+    t_c = np.cross(a_hat, n)
+    t_c /= np.linalg.norm(t_c)
+    return n, np.cross(n, t_c)
+
+
 def plate_surface(
     plate: Plate, *, width_m: float, azimuth_rad: float, cross_tilt_rad: float, f_hz: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -236,17 +275,53 @@ def plate_surface(
     y = np.linspace(-float(width_m) / 2.0, float(width_m) / 2.0, nc)
     wc = np.full(nc, 1.0 / nc)
     a_hat = np.array([math.sin(azimuth_rad), math.cos(azimuth_rad), 0.0])
-    c_hat = np.array([math.cos(azimuth_rad), -math.sin(azimuth_rad), 0.0])
-    up = np.array([0.0, 0.0, 1.0])
-    n = math.tan(float(plate.tilt_rad)) * a_hat + math.tan(float(cross_tilt_rad)) * c_hat + up
-    n /= np.linalg.norm(n)
+    n, t_a = _plate_normal_and_along(plate, azimuth_rad, cross_tilt_rad)
     t_c = np.cross(a_hat, n)
     t_c /= np.linalg.norm(t_c)
-    t_a = np.cross(n, t_c)
     pts = s[:, None, None] * t_a[None, None, :] + y[None, :, None] * t_c[None, None, :]
     w = np.outer(wa, wc).ravel()
     pts = np.vstack([np.zeros((1, 3)), pts.reshape(-1, 3)])
     return pts, np.concatenate([[0.0], w / w.sum()]), n
+
+
+@dataclass(frozen=True)
+class HaloSpec:
+    """The diffuse halo around a plate (module docstring): ``K``, size, count and draw."""
+
+    k: float
+    ratio: float = 2.0
+    n_points: int = 200
+    seed: int = 0
+
+    @classmethod
+    def from_mapping(cls, m: Mapping[str, Any]) -> HaloSpec:
+        d = dict(m)
+        unknown = set(d) - {"k", "ratio", "n_points", "seed"}
+        if unknown:
+            raise ValueError(f"unknown halo keys {sorted(unknown)}")
+        if "k" not in d:
+            raise ValueError("a halo needs k, the facet's power over the halo's")
+        spec = cls(k=float(d["k"]), ratio=float(d.get("ratio", 2.0)), n_points=int(d.get("n_points", 200)),
+                   seed=int(d.get("seed", 0)))
+        if not spec.k >= 0.0:
+            raise ValueError("halo k must not be negative")
+        if not (spec.ratio > 0.0 and math.isfinite(spec.ratio)):
+            raise ValueError("halo ratio must be positive")
+        if spec.n_points < 1:
+            raise ValueError("halo n_points must be at least 1")
+        return spec
+
+    @property
+    def present(self) -> bool:
+        """False for ``K = inf``, which is no halo."""
+        return math.isfinite(self.k)
+
+    def draw(self, facet_length_m: float) -> tuple[np.ndarray, np.ndarray]:
+        """Positions along the plate's line about its centre, m, and phases, rad."""
+        rng = np.random.default_rng(self.seed)
+        length = self.ratio * float(facet_length_m)
+        s = rng.uniform(-0.5 * length, 0.5 * length, self.n_points)
+        return s, rng.uniform(-math.pi, math.pi, self.n_points)
 
 
 @dataclass(frozen=True)
@@ -264,6 +339,7 @@ class FacetSpec:
     y_m: float = 0.0
     azimuth_deg: float | None = None
     kind: str = "plate"
+    halo: HaloSpec | None = None
 
     @classmethod
     def from_mapping(cls, m: Mapping[str, Any], profile: Any, *, orbit: bool) -> FacetSpec:
@@ -274,7 +350,7 @@ class FacetSpec:
         on an orbit ``lat_deg``, ``lon_deg`` and ``alt_m`` (``azimuth_deg`` for
         a 3-D plate); and ``tilt_deg``, ``cross_tilt_deg``, ``length_m``,
         ``width_m`` (3-D; default the length), ``drift_mps``, ``drift_x_mps``,
-        ``taper``, ``reflection_db``.
+        ``taper``, ``reflection_db``, ``halo`` (:class:`HaloSpec`).
         """
         d = dict(m)
         lat = lon = alt = None
@@ -303,11 +379,15 @@ class FacetSpec:
                    reflection_db=float(d.get("reflection_db", 0.0)), lat_deg=lat, lon_deg=lon, alt_m=alt,
                    width_m=None if width is None else float(width),
                    cross_tilt_rad=math.radians(float(d.get("cross_tilt_deg", 0.0))),
-                   y_m=float(d.get("y_m", 0.0)), azimuth_deg=None if az is None else float(az))
+                   y_m=float(d.get("y_m", 0.0)), azimuth_deg=None if az is None else float(az),
+                   halo=None if d.get("halo") is None else HaloSpec.from_mapping(d["halo"]))
 
     def describe(self) -> dict[str, Any]:
         p = self.plate
-        return {"id": self.facet_id, "kind": "plate", "x_m": p.x_m, "depth_m": p.depth_m,
+        halo = {} if self.halo is None else {"halo": {
+            "k": self.halo.k, "ratio": self.halo.ratio, "length_m": self.halo.ratio * p.length_m,
+            "n_points": self.halo.n_points, "seed": self.halo.seed}}
+        return {**halo, "id": self.facet_id, "kind": "plate", "x_m": p.x_m, "depth_m": p.depth_m,
                 "tilt_deg": math.degrees(p.tilt_rad), "length_m": p.length_m,
                 "drift_mps": p.drift_mps, "drift_x_mps": p.drift_x_mps, "taper": p.taper,
                 "reflection_db": self.reflection_db, "lat_deg": self.lat_deg,
@@ -348,6 +428,8 @@ class SheetSpec:
     @classmethod
     def from_mapping(cls, m: Mapping[str, Any], *, orbit: bool) -> SheetSpec:
         d = dict(m)
+        if d.get("halo") is not None:
+            raise ValueError("a halo is modelled around a plate, not around a sheet")
         curv: Any = d.get("curvature_radius_m", "dipole" if orbit else math.inf)
         if isinstance(curv, str):
             if curv.lower() in ("inf", "flat", "straight"):
@@ -501,6 +583,11 @@ class FacetTier:
             else:
                 raise ValueError(f"facet kind must be 'plate' or 'sheet', not {kind!r}")
         self.facets = tuple(specs)
+        if self.plate_model == "2d" and geometry == "orbit" and any(
+                isinstance(f, FacetSpec) and f.halo is not None and f.halo.present for f in specs):
+            raise ValueError("a halo on the orbit needs plate_model '3d'")
+        #: The halo's reference field |E| of each facet at overflight, by (id, frequency).
+        self._halo_ref: dict[tuple[str, float], float] = {}
         ids = [f.facet_id for f in self.facets]
         if len(set(ids)) != len(ids):
             raise ValueError("facet ids must be unique")
@@ -771,6 +858,90 @@ class FacetTier:
                 group = float(gr[0]) if surf.ref == "centre" else float(np.min(gr[live]))
         return group, fields, pcs
 
+    # -- the diffuse halo ------------------------------------------------------------
+
+    def _halo_paths(self, spec: FacetSpec, f: float, times: np.ndarray, p: PlatformState, base: Any):
+        """One-way phase and group paths to the scatterers, ``(times, points)``, and
+        the facet's reference field at overflight.  ``None`` beyond reflection."""
+        s, _ = spec.halo.draw(spec.plate.length_m)
+        key = (spec.facet_id, float(f))
+        plate = spec.plate
+        if self.plate_model == "2d":  # the straight track
+            try:
+                phase, group = point_paths(times, f, plate, base, s, v_s_mps=self.v_s_mps)
+                if key not in self._halo_ref:
+                    t_over = plate.x_m / (self.v_s_mps - plate.drift_x_mps)
+                    ref = echo_track(np.array([t_over]), f, plate, base, v_s_mps=self.v_s_mps)
+                    self._halo_ref[key] = float(abs(ref.field[0]))
+            except ValueError:
+                return None
+            return phase, group, self._halo_ref[key]
+        # The 3-D engine: the same frame and medium as the facet's own row.
+        surf = self._surfaces[(spec.facet_id, float(f))]
+        az = self._azimuth[spec.facet_id]
+        _, t_a = _plate_normal_and_along(plate, az, spec.cross_tilt_rad)
+        pts = s[:, None] * t_a[None, :]
+        if self.geometry == "orbit":
+            frame = LocalFrame(float(spec.lat_deg), float(spec.lon_deg), self.earth_radius_m + float(spec.alt_m))
+            vel_p = frame.vector_from_ned(np.asarray(p.velocity_ned_mps, dtype=float), p.lat_deg, p.lon_deg)
+            r_base = float(self.ref_alt_m) - float(spec.alt_m)
+
+            def platform(tau: float) -> np.ndarray:
+                return frame.from_llh(p.lat_deg, p.lon_deg, self.earth_radius_m + float(p.alt_m)) + vel_p * (
+                    tau - float(times[0]))
+
+            overhead = np.array([0.0, 0.0, float(p.alt_m) - float(spec.alt_m)])
+            t_over = float(times[0])
+        else:
+            frame = LocalFrame(0.0, 0.0, self.flat_radius_m)
+            r_base = float(plate.depth_m)
+
+            def platform(tau: float) -> np.ndarray:
+                return np.array([-spec.y_m, self.v_s_mps * tau - plate.x_m, plate.depth_m])
+
+            t_over = plate.x_m / self.v_s_mps
+            overhead = platform(t_over)
+        med0 = SphericalMedium(base, r_base)
+        phase = np.empty((times.size, s.size))
+        group = np.empty((times.size, s.size))
+        try:
+            for i, tau in enumerate(times):
+                med = med0.shifted(surf.rise_mps * tau)
+                phase[i], group[i], _ = ray_paths(platform(float(tau)), pts + surf.vel * tau, f, med, frame.r0_m)
+            if key not in self._halo_ref:
+                # On the orbit "overflight" is the platform overhead at its present height.
+                tau_ref = 0.0 if self.geometry == "orbit" else t_over
+                ph, _, _ = ray_paths(overhead, surf.pts + surf.vel * tau_ref, f,
+                                     med0.shifted(surf.rise_mps * tau_ref), frame.r0_m)
+                k0 = 2.0 * math.pi * f / C_LIGHT
+                self._halo_ref[key] = float(abs(np.sum(surf.w * np.exp(-2j * k0 * ph))))
+        except ValueError:
+            return None
+        return phase, group, self._halo_ref[key]
+
+    def _halo_rows(self, spec: FacetSpec, f: float, t: float, p: PlatformState, base: Any) -> list[tuple]:
+        """One row per scatterer of ``spec``'s halo (module docstring)."""
+        tag = f"halo:{spec.facet_id}"
+        h = 0.5 * self.doppler_dt_s
+        times = np.array([t, t - h, t + h])
+        got = self._halo_paths(spec, f, times, p, base)
+        if got is None:
+            return [(f, math.nan, math.nan, math.nan, math.nan, f"{tag};beyond_reflection")]
+        phase, group, ref = got
+        _, theta = spec.halo.draw(spec.plate.length_m)
+        share = spec.halo.k if spec.halo.k > 0.0 else 1.0
+        amplitude = ref / math.sqrt(share * spec.halo.n_points)
+        lam = C_LIGHT / f
+        rows = []
+        for i in range(spec.halo.n_points):
+            g = float(group[0, i])
+            tau_p = 2.0 * float(phase[0, i]) / C_LIGHT - float(theta[i]) / (2.0 * math.pi * f)
+            dopp = -f * 2.0 * float(phase[2, i] - phase[1, i]) / C_LIGHT / self.doppler_dt_s
+            amp = (20.0 * math.log10(lam / (4.0 * math.pi * 2.0 * g)) + spec.reflection_db
+                   + (20.0 * math.log10(amplitude) if amplitude > 0.0 else -math.inf))
+            rows.append((f, 2.0 * g / C_LIGHT, tau_p, dopp, amp, tag))
+        return rows
+
     # -- the layer echo ------------------------------------------------------------
 
     @staticmethod
@@ -852,8 +1023,14 @@ class FacetTier:
             for f in freqs:
                 f = float(f)
                 got = self._row(facet, f, t, platform, base, state)
+                halo = facet.halo if isinstance(facet, FacetSpec) else None
                 if got is None:
                     rows.append((f, math.nan, math.nan, math.nan, math.nan, f"{tag};beyond_reflection"))
+                    continue
+                diffuse = (self._halo_rows(facet, f, t, platform, base)
+                           if halo is not None and halo.present else [])
+                if halo is not None and halo.k == 0.0:  # the facet is absent; only its halo is received
+                    rows.extend(diffuse)
                     continue
                 group, fields, pcs = got
                 centre = -0.5 * math.pi if isinstance(facet, SheetSpec) else 0.0
@@ -865,6 +1042,7 @@ class FacetTier:
                 amp = (20.0 * math.log10(lam / (4.0 * math.pi * 2.0 * group)) + facet.reflection_db
                        + (20.0 * math.log10(mag) if mag > 0.0 else -math.inf))
                 rows.append((f, 2.0 * group / C_LIGHT, tau_p, dopp, amp, tag))
+                rows.extend(diffuse)
         if self.layer_echo:
             for f in freqs:
                 rows.append(self._layer_row(state, platform, float(f)))

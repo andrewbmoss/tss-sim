@@ -30,8 +30,10 @@ cell the chain's detector sees.  Poole's three-cell structure uses two
 receivers and four antennas for arrival angle and O/X; with one antenna, as
 here, the cells give ``R'``, ``V*`` and the amplitude.
 
-WP5 uses :func:`three_cell` as the baseline comparator for C3: it is the
-published single-antenna way to separate range from radial velocity.
+WP5 uses Poole's method as the baseline comparator for C3: it is the published
+single-antenna way to separate range from radial velocity.  A drift-mode
+sequence has one start frequency, so only the velocity half can be formed from
+it (:func:`velocity_series`; Andrew, 2026-11-27).
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ __all__ = [
     "group_range_m",
     "doppler_velocity_mps",
     "three_cell",
+    "velocity_series",
     "phase_error_rms_rad",
 ]
 
@@ -165,6 +168,43 @@ def three_cell(cells: Sequence[np.ndarray], fs_hz: float, *, k_hz_per_s: float, 
     return {"group_range_m": r_g, "phase_velocity_mps": v, "n": n_amb, "m": m, "phi_r_rad": phi_r,
             "phi_d_rad": phi_d, "f_i_hz": f_i, "bin_index": i, "amplitude": float(np.abs(spectra[0][1][i])),
             "f_c_hz": f_c, "cell_s": cell_s}
+
+
+def velocity_series(cells: Sequence[np.ndarray], fs_hz: float, *, k_hz_per_s: float, f0_hz: float,
+                    period_s: float, window: str = "hann", n_fft: int | None = None,
+                    bin_index: int | None = None) -> dict[str, Any]:
+    """Poole's phase velocity between successive cells of one start frequency.
+
+    The velocity half of the method on a drift-mode sequence: ``cells`` are the
+    de-chirped samples of sweeps starting ``period_s`` apart, all at ``f0_hz``.
+    One spectral component (``bin_index``, by default the strongest summed over
+    the cells) is followed, and each pair's phase difference gives ``V*`` by
+    :func:`doppler_velocity_mps` with the integer ``M`` zero, the principal
+    value, since the range that would resolve it needs a second start frequency.
+    So ``V*`` is known modulo ``c / (2 T f_c)`` and read within
+    ``v_unambiguous_mps = c / (4 T f_c)``.  No group range is formed.
+
+    Returns ``velocity_mps`` (rate of the phase range, positive receding), the
+    pairs' mid times ``t_s`` from the first cell's start, ``power`` (the product
+    of the two cells' component amplitudes), ``bin_index``, ``f_i_hz``,
+    ``f_c_hz``, ``v_unambiguous_mps`` and ``not_formed``.
+    """
+    if len(cells) < 2:
+        raise ValueError("at least two cells are needed")
+    spectra = [complex_bins(c, fs_hz, window=window, n_fft=n_fft) for c in cells]
+    freqs = spectra[0][0]
+    stack = np.stack([s[1] for s in spectra])
+    i = int(np.argmax(np.sum(np.abs(stack) ** 2, axis=0))) if bin_index is None else int(bin_index)
+    z = stack[:, i]
+    cell_s = int(np.asarray(cells[0]).shape[-1]) / float(fs_hz)
+    f_c = float(f0_hz) + 0.5 * float(k_hz_per_s) * cell_s
+    f_i = float(freqs[i])
+    phi = np.angle(z[1:] * np.conj(z[:-1]))
+    v = np.array([doppler_velocity_mps(float(p), f_i, f_i, float(period_s), f_c)[0] for p in phi])
+    return {"velocity_mps": v, "t_s": float(period_s) * (np.arange(v.size) + 0.5),
+            "power": np.abs(z[1:]) * np.abs(z[:-1]), "bin_index": i, "f_i_hz": f_i, "f_c_hz": f_c,
+            "v_unambiguous_mps": C_LIGHT / (4.0 * float(period_s) * f_c),
+            "not_formed": "group range: it needs a cell at a second start frequency"}
 
 
 def phase_error_rms_rad(snr_db: float, n: int = 20001) -> float:

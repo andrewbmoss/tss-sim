@@ -1,10 +1,10 @@
 # tss-sim: where things stand
 
-Updated 2026-11-26, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
+Updated 2026-11-27, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
 the drift tier, the onboard prior, the windowed detector with its rate per
-sequence, the Cramer-Rao harness and the joint estimators done; the power-cut
-experiment, the halo and the study next; the work on the fading outliers
-stopped for now).
+sequence, the Cramer-Rao harness, the joint estimators, the power-cut
+experiment, the diffuse halo and Poole's comparator done; the study next; the
+work on the fading outliers stopped for now).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -740,4 +740,53 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   dissertation changes.
 * Next: the power-cut experiment (n), the halo, Poole's comparator, the study
   `wp5_route_one`.
+
+## WP5 Phase 3, part 3 steps 3 and 4 (2026-11-27): power cut, halo, Poole
+
+* Branch `claude/wp5-p3-halo-comparator`, from master ef29d24 (PR #4 merged).
+  Decisions (n) and (e); the halo as option A and Poole as option A (velocity
+  only), Andrew, 2026-11-27.
+* Power cut (`docs/drift-tier.md` section 13, `scripts/wp5_power_cut.py`):
+  `estimate_route_one(main_lobe=...)`, default 0.1 unchanged.  0.25 forms more
+  drifts only at 10 dB without fading (40 to 53 %), fewer everywhere else; 0.5
+  far fewer; both pass a 4 km plate as compact.  Nothing adopted.
+* Halo (section 14): plate `halo: {k, ratio, n_points, seed}`, scatterers as
+  `halo:<id>` rows; K the facet over the halo's mean power at overflight.
+  48 draws per case through the chain: at K 10 the noise-free drift error goes
+  from 0.1 to 15-17 m/s (pinned, joint), at K 3 to 33-63; `joint_fading` is the
+  worst with the facet present, except at 4 lengths.
+* **Finding for Andrew: with no facet (K = 0), which should be declined, route
+  one forms a drift on half the draws, wrong by about 100 m/s.**  A random
+  patch sweeps at the ephemeris slope, so the free-slope test cannot reject it
+  (shown without L1 or L2; pinned by a test).  This contradicts the expectation
+  in `docs/decorrelation.md`; the TV's text on a random halo as an extended
+  reflector should be read with it (TV not edited).
+* Poole (section 15, `poole_range.velocity_series`, `scripts/wp5_poole.py`):
+  pair by pair the same observable as the tier's phase steps (0.3 m/s apart
+  without noise); its lobe mean is 1.3-1.7 m/s at 20 dB against 0.7-0.9 for
+  `joint`.  The range half cannot be formed from a one-frequency sequence.
+* Fast suite 1139 passed (about 15 minutes), ruff clean, smoke unchanged.
+* No number cited in the TV or dissertation changes; `wp5_baseline` untouched
+  (route one's default is unchanged).
+* For Andrew: how route one should treat a diffuse or rough reflector (before
+  or in the study), and which halo cases the study carries.
+* Next: the study `wp5_route_one` (its run time to be put to Andrew first).
+
+## WP5 Phase 3, rough patches: a short look (2026-11-27)
+
+* Andrew chose option (b): a bounded, report-only look before the study.
+  `scripts/wp5_rough_test.py`, `docs/drift-tier.md` section 16.  Nothing in
+  route one or the tier changed.
+* Thresholds set to reject 5 % of unfaded reflectors.  The joint fit's residual
+  catches the patches but also 50 to 100 % of faded reflectors.  At 20 dB a
+  contrast below 56 catches all patches (K = 0) and loses 5 to 22 % of faded
+  reflectors; at 10 dB the power far from the peak catches 85 % and loses 16 %.
+* Thresholds depend on SNR, and both rely on the halo staying on through the
+  pass (option A).
+* The study's halo cases: none, K = 10 and 3 at 2 lengths, and K = 0 (put to
+  Andrew 2026-11-27, no objection).
+* Decided (Andrew, 2026-11-27): record only.  `wp5_route_one` records contrast
+  and far-from-peak power for every echo and reports availability and error
+  against halo strength; the rejection rule is chosen afterwards.
+* The study is not started: its run time goes to Andrew first.
 

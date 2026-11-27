@@ -6,9 +6,10 @@ Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
 night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
-sequence (10), the joint estimators (11), the fading outliers (12).
-Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
-Poole's comparator on sequences.
+sequence (10), the joint estimators (11), the fading outliers (12), the power
+cut (13), the diffuse halo (14), Poole's velocity as the comparator (15), a look
+at spotting rough patches (16).
+Not yet done in Phase 3: the study `wp5_route_one`.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
 
@@ -225,8 +226,8 @@ the classification first and to the drift only at second order.
 * The facet tier keeps state between calls (the latched plate azimuth, the
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
-* The halo, the Cramer-Rao harness, the study `wp5_route_one`, Poole's
-  comparator.  The onboard prior is section 7; its full N(h) (L4's
+* The study `wp5_route_one`.  (The harness is section 9, the halo section 14,
+  Poole's comparator section 15.)  The onboard prior is section 7; its full N(h) (L4's
   retrieval rather than an assumed scale height) is later work.
 * Noise so far is white, added to noise-free records or L2's thermal noise.
   The negative-beat half of an L2 drift record with thermal noise on was
@@ -710,4 +711,276 @@ suspect (outliers caught; RMS over the bound of the rest), pooled:
 ### Not done
 
 Through the tier with fading; other facet scenes; the combined flag above.
+
+## 13. The power cut of the Doppler history (decision (n))
+
+Route one's Doppler history keeps the sweep pairs whose power is at least
+`main_lobe` = 0.1 of the peak.  It feeds the free-slope test, which decides
+whether a drift is formed, and the pinned zero crossing.  Section 6 guessed
+that at 10 dB the cut sits at the noise and pulls the slope down.  This
+compares 0.1 with 0.25 and 0.5.  **An experiment: nothing is adopted and the
+default stays 0.1.**
+
+`scripts/wp5_power_cut.py results/wp5_power_cut` at commit 35832cb: section 9's
+scene, 200 echoes per case from seed 40000, parameter level.  `joint_fading` is
+fitted once per echo behind the same test.  About 3 minutes.
+
+Availability (drift formed), and RMS drift error in m/s of the formed echoes,
+pinned / `joint_fading`:
+
+| Case | cut 0.1 | cut 0.25 | cut 0.5 |
+|---|---|---|---|
+| 15 dB | 98.5 %; 2.52 / 1.47 | 95.5 %; 2.55 / 1.47 | 47.0 %; 4.84 / 1.29 |
+| 10 dB | 40.0 %; 7.49 / 2.57 | 53.0 %; 6.86 / 2.43 | 11.0 %; 18.17 / 2.14 |
+| 15 dB, tau_c 0.5 s | 62.0 %; 21.8 / 6.46 | 40.5 %; 23.5 / 5.26 | 15.0 %; 25.0 / 4.20 |
+| 10 dB, tau_c 0.5 s | 40.5 %; 21.7 / 8.58 | 27.0 %; 23.3 / 10.67 | 8.0 %; 34.8 / 6.70 |
+| 15 dB, tau_c 2 s | 74.0 %; 24.6 / 4.63 | 56.0 %; 21.1 / 4.85 | 25.0 %; 22.4 / 4.46 |
+| 10 dB, tau_c 2 s | 41.0 %; 24.2 / 12.77 | 31.5 %; 22.5 / 8.49 | 10.5 %; 36.2 / 5.00 |
+
+Noise-free, `c3_verify`:
+
+| cut | untilted formed, worst error | tilted formed | extended declined | plate lengths formed (case D) | slope ratio, untilted |
+|---|---|---|---|---|---|
+| 0.1 | 56/56, 0.030 m/s | 32/32 | 12/12 | 0.5, 1, 2 km | 0.942-0.996 |
+| 0.25 | 56/56, 0.026 | 32/32 | 12/12 | 0.5, 1, 2, **4** km | 0.953-0.997 |
+| 0.5 | 56/56, 0.024 | 32/32 | 12/12 | 0.5, 1, 2, **4** km | 0.961-0.997 |
+
+* **0.25 forms more drifts only at 10 dB without fading** (40 to 53 %, pinned
+  error 7.49 to 6.86 m/s).  In every other case it forms fewer: 3 points fewer
+  at 15 dB, 9 to 22 points fewer under fading.
+* **0.5 forms far fewer everywhere**, and the pinned drift is worse.
+* **Either higher cut lets the 4 km plate pass as compact**, which 0.1
+  declines: the compact-facet test gets weaker.
+* The `joint_fading` error changes mostly through which echoes pass the gate:
+  on the echoes formed at every cut it is the same by construction (the fit
+  does not use the cut).  At 10 dB those common sets are 4 to 7 echoes, too
+  few to compare.
+* The cut stays at 0.1.
+
+## 14. The diffuse halo (decision (e))
+
+**Model** (`l1_propagation/facet.py`; option A, Andrew, 2026-11-27).  A plate
+may carry `halo: {k, ratio, n_points, seed}`: 200 weak point scatterers, equal
+in all directions, uniform along the track over `ratio` facet lengths, random
+phases, moving with the medium.  `K` is the facet's power over the halo's mean
+power **at overflight**; the halo's power then stays about constant through the
+pass while the facet's rises and falls.  `K = 0` leaves the facet out and keeps
+the halo at the power the facet would have had.  Checked in
+`tests/unit/test_l1_facet_halo.py`: mean power `1/K` through the pass; the
+field correlation `1/e` at the uniform patch's time (`fading.halo_decorrelation_s`);
+the drift's Doppler; the facet's specular fading leaves it alone.
+
+**Measured** with `scripts/wp5_halo.py results/wp5_halo` at commit b1a37f2: the
+straight scene of section 6 (2 km facet, 5 MHz, drift 25 m/s, 209 sweeps)
+through L1, L2 and the tier, 48 halo draws per case, white noise at 20 and
+10 dB per sweep of the facet's echo, or none.  About 4 minutes.
+
+Drifts formed, of 48 (no noise / 20 dB / 10 dB):
+
+| Halo | formed |
+|---|---|
+| none | 48 / 48 / 26 |
+| 2 facet lengths, K 10 | 47 / 47 / 39 |
+| 2, K 3 | 37 / 38 / 41 |
+| 2, K 1 | 29 / 34 / 33 |
+| 1, K 3 | 25 / 29 / 32 |
+| 4, K 3 | 41 / 41 / 41 |
+| 2, **K 0 (no facet)** | **24 / 27 / 25** |
+
+RMS drift error of the formed, m/s, pinned / joint / joint_fading:
+
+| Halo | no noise | 20 dB | 10 dB |
+|---|---|---|---|
+| none | 0.07 / 0.11 / 0.08 | 1.10 / 0.71 / 1.08 | 5.65 / 2.81 / 3.04 |
+| 2, K 10 | 17.0 / 14.8 / 53.5 | 17.1 / 14.8 / 49.4 | 21.1 / 23.1 / 46.1 |
+| 2, K 3 | 32.7 / 36.4 / 66.9 | 32.6 / 36.2 / 65.7 | 33.7 / 36.0 / 69.4 |
+| 2, K 1 | 60.4 / 64.1 / 80.0 | 62.8 / 65.3 / 73.2 | 65.3 / 69.1 / 81.6 |
+| 1, K 3 | 44.2 / 47.6 / 67.2 | 48.7 / 49.3 / 65.0 | 53.0 / 63.8 / 80.6 |
+| 4, K 3 | 62.7 / 53.9 / 47.7 | 62.5 / 53.1 / 42.7 | 56.0 / 56.3 / 56.9 |
+| 2, K 0 | 100 / 103 / 81 | 100 / 116 / 77 | 105 / 133 / 90 |
+
+An echo at the facet's range was found in every draw.  Robust spreads (1.4826
+MAD, in `summary.txt`) are of the same order, except `pinned` and `joint` at
+4 lengths, where they are about half the RMS (outliers).
+
+* **The halo, not the noise, sets the drift error.**  At K = 10 (the halo 10 dB
+  under the facet at overflight) the noise-free error goes from 0.1 to
+  15-17 m/s with `pinned` and `joint`; at K = 3 it is 33 to 63 m/s.
+* **`joint_fading` is the worst of the three under a halo** with the facet
+  present, except at 4 lengths: its model has fading on the facet but no halo, and a halo of this
+  kind is added power, not a gain on the facet.
+* **`K = 0` should be declined and is not**: a drift is formed on half the
+  draws, wrong by about 100 m/s.
+* Option A is the harsher form of the halo: its power is received through the
+  whole 4.6 s window, the facet's mostly within its 0.9 s lobe.  A halo that
+  rose and fell with the pass (option B) was not run.
+
+### Why a random patch passes the compact-facet test
+
+Each point of a randomly phased patch sweeps in Doppler at the ephemeris slope,
+with its own zero crossing.  Their sum keeps that slope, so route one's
+free-slope test reads about 1; only the contrast test (a peak above the window's
+edges) can decline it, and a random envelope has such a peak often.  Checked
+without L1, L2 or the tier, from route one's own Doppler law (400 draws, no
+noise):
+
+| Patch length | 0.5 km | 2 km | 4 km | 8 km | 32 km |
+|---|---|---|---|---|---|
+| drift formed | 0.8 % | 18.5 % | 30.5 % | 41 % | 54.5 % |
+| slope ratio within 0.8 to 1.2 | 100 % | 100 % | 100 % | 100 % | 93.8 % |
+| RMS drift error of the formed, m/s | 10 | 105 | 123 | 133 | 140 |
+
+Through the chain at K = 0, 12 draws formed 5, with slope ratios 0.93 to 1.02
+and a median contrast of 2.7 against the threshold of 4.  A facet plus a patch
+built the same way gives errors of the same size as the chain's (pinned, 300
+draws: 17.5 m/s at 2 lengths and K 10, 50 at K 3, 84 at K 1, 49 at 1 length and
+K 3, 37 at 4 lengths and K 3).
+
+This **contradicts an expectation** carried since Phase 1
+(`docs/decorrelation.md`, "that route one declines a randomly phased patch is
+expected, not yet run").  The extended reflector route one does decline is a
+specular one (the tapered 80 km plate), whose Doppler does not sweep.  The
+rough extended reflector is not declined.  The Technical Volume's statement
+that a wholly random echo is an extended reflector rather than a compact facet
+holds as a description of the scene, but route one's tests do not detect it.
+Telling the two apart is open; nothing is changed in the estimator.
+
+### Not done
+
+Orbit scenes with the halo (the code runs; only checked for amplitude); a
+cross-track extent; scatterers with a narrow scattering angle; the halo
+together with the facet's specular fading.
+
+## 15. Poole's velocity as the comparator (TV Section 8.21, item 10)
+
+Poole (1985) forms a group range from the phase step across a change of start
+frequency and a velocity from the phase step between sweeps.  A drift sequence
+has one start frequency, so **only the velocity half is formed; the range half
+cannot be formed from this data** (option A, Andrew, 2026-11-27).
+`poole_range.velocity_series` takes the principal value between successive
+sweeps (+/-675 m/s of phase-range rate at 5 MHz and 45 Hz).  `-V* / mu_sat` is
+the line-of-sight rate in route one's sense: platform, drift and tilt together.
+
+`scripts/wp5_poole.py results/wp5_poole` at commit f06e2fa, on the sequences of
+sections 6 and 14, 48 noise (or halo) draws per case.  About 4 minutes.
+
+**Pair by pair**, against the line-of-sight rate L1 put into the facet's echo,
+over the main lobe, median RMS in m/s: Poole / the tier's phase steps, then
+Poole against the tier.
+
+| Scene | no noise | 20 dB | 10 dB |
+|---|---|---|---|
+| overhead | 0.51 / 0.22; 0.31 | 41 / 35; 20 | 231 / 223; 159 |
+| 2 km along | 0.51 / 0.22; 0.31 | 42 / 36; 20 | 233 / 217; 154 |
+| halo, 2 lengths, K 3 | 28.0 / 28.3; 0.72 | 47 / 45; 19 | 135 / 119; 62 |
+| 80 km plate | 1.20 / 0.63; 0.58 | not detected | not detected |
+
+**As a drift** (true 25 m/s), RMS error in m/s.  "Peak" is Poole's rate at the
+strongest pair; "mean" is its power-weighted mean over the lobe.  The joint
+columns and `pinned` form a drift only where the compact test passes (count in
+the last column); the Poole columns here are over all 48.
+
+| Scene, level | Poole peak | Poole mean | pinned | joint | joint_fading | route one formed |
+|---|---|---|---|---|---|---|
+| overhead, none | 1.31 | 0.36 | 0.07 | 0.11 | 0.08 | 48 |
+| overhead, 20 dB | 23.6 | 1.26 | 1.10 | 0.71 | 1.08 | 48 |
+| overhead, 10 dB | 77.6 | 9.44 | 5.65 | 2.81 | 3.04 | 26 |
+| 2 km along, none | 0.91 | 0.28 | 0.07 | 0.21 | 0.12 | 48 |
+| 2 km along, 20 dB | 26.5 | 1.72 | 1.25 | 0.88 | 1.07 | 48 |
+| 2 km along, 10 dB | 80.7 | 10.1 | 8.32 | 2.19 | 2.28 | 22 |
+| 80 km plate, none | 0.03 | 0.09 | declined | declined | declined | 0 |
+| halo, none | 70.5 | 29.6 | 32.7 | 36.4 | 66.9 | 37 |
+| halo, 20 dB | 76.9 | 29.2 | 32.6 | 36.2 | 65.7 | 38 |
+| halo, 10 dB | 78.8 | 25.3 | 33.7 | 36.0 | 69.4 | 41 |
+
+On the echoes route one formed at 10 dB, Poole's mean is 10.4 m/s overhead and
+9.6 m/s 2 km along.
+
+* **Pair by pair Poole's rate is the tier's own observable**: without noise the
+  two agree to 0.3 m/s.  With noise Poole's is 4 to 17 % further from the truth,
+  probably from its window over the whole record against the tier's gate (not
+  tested).
+* **One pair is no drift estimate under noise** (24 to 81 m/s).
+* **Averaged over the lobe it comes close to the drift**, because the platform's
+  part cancels when the whole lobe is in the window.  That average is the first
+  term of route one's pinned drift (section 5).  It is behind `joint` at 20 dB
+  (1.3 to 1.7 against 0.7 to 0.9 m/s) and well behind at 10 dB.
+* **What Poole's method does not give**: whether the echo is a compact facet (it
+  returns a number for the 80 km plate; right here only because that plate is
+  flat and overhead, so the line-of-sight rate is the drift; a tilted layer was
+  not run), the overflight time that corrects a lobe not centred in the window
+  (not run: every window here held the whole lobe), and an uncertainty.
+* **Under the halo none of them works**; Poole's mean is no worse than route
+  one's.
+* **Item 10, velocity half**: in these cases Poole's observable adds no
+  information beyond the phase steps route one already uses.  The range half
+  stays open: it needs a second start frequency in the drift mode.
+* The 80 km plate was not detected with noise, which is set from the compact
+  facet's echo; its noisy cases are not measured.
+
+## 16. Spotting a rough patch: a short look (report only)
+
+Andrew, 2026-11-27, option (b), before the study: can a statistic of the echo
+separate the patches section 14's test lets through?  **Nothing here is used by
+route one or the tier.**
+
+`scripts/wp5_rough_test.py results/wp5_rough` at commit e58480d, about 2
+minutes: section 14's scene, 100 draws per case at 20 and 10 dB, the strongest
+echo, where the compact test forms a drift.  True reflectors: no halo, without
+fading and with Rayleigh specular fading at 0.5 and 2 s through L2.  Rough: a
+halo of 2 lengths at K = 10 and 3, and K = 0 (the patch alone).  Each
+statistic's threshold rejects 5 % of a separate calibration set (200 noise
+draws of the unfaded reflector at the same SNR).
+
+Statistics: the deterministic joint fit's residual variance over the measured
+noise; its residual in the lobe over the fitted echo; its residual outside the
+lobe over the noise; the raw power more than 1.5 fitted widths from the
+overflight time over the noise; and route one's own peak contrast, with a
+stricter threshold.
+
+Share of the formed echoes rejected, in %.  The first three columns are true
+reflectors **lost**; the last three are rough echoes **caught**.
+
+| 20 dB: statistic, threshold | no fading | fading 0.5 s | fading 2 s | K 0 | K 3 | K 10 |
+|---|---|---|---|---|---|---|
+| residual / noise > 1.18 | 5 | 100 | 100 | 100 | 100 | 100 |
+| residual / echo > 0.021 | 10 | 100 | 99 | 89 | 91 | 98 |
+| residual outside lobe / noise > 1.21 | 4 | 100 | 100 | 98 | 100 | 100 |
+| far power / noise > 3.09 | 4 | 48 | 29 | 89 | 94 | 96 |
+| contrast < 56 | 5 | 5 | 22 | 100 | 98 | 94 |
+| *formed echoes* | *100* | *60* | *83* | *44* | *80* | *98* |
+
+| 10 dB: statistic, threshold | no fading | fading 0.5 s | fading 2 s | K 0 | K 3 | K 10 |
+|---|---|---|---|---|---|---|
+| residual / noise > 1.135 | 4 | 100 | 92 | 100 | 100 | 100 |
+| residual / echo > 0.21 | 4 | 84 | 58 | 34 | 46 | 36 |
+| residual outside lobe / noise > 1.17 | 2 | 84 | 50 | 98 | 99 | 97 |
+| far power / noise > 1.42 | 4 | 16 | 16 | 85 | 88 | 89 |
+| contrast < 11.1 | 0 | 3 | 5 | 68 | 58 | 44 |
+| *formed echoes* | *47* | *38* | *38* | *53* | *84* | *73* |
+
+* **The joint fit's mismatch catches the patches and throws away the faded
+  reflectors with them** (residual over noise: 92 to 100 % of both).  It cannot
+  tell fading from roughness.
+* The two measures of power away from the peak keep most faded reflectors.
+  **At 20 dB the stricter contrast does best** (every K = 0 patch and 94 to 98 %
+  of the halo cases caught, 5 to 22 % of faded reflectors lost); **at 10 dB the far power does best** (85 to 89 %
+  caught, 16 % of faded reflectors lost).  Neither is best at both.
+* **The thresholds depend on the SNR.**  One contrast threshold of 11 for both
+  loses 0 to 5 % of reflectors and catches 59 to 68 % of patches, 58 to 59 % at
+  K = 3 and 19 to 44 % at K = 10.
+* **Both work because this halo stays on through the pass** (option A).  A patch
+  whose power rose and fell like a reflector's would probably pass them: not
+  tested.  Neither are other windows (these are +/-2.3 s), other facet shapes,
+  or a halo together with fading.
+
+### Decided (Andrew, 2026-11-27): record, then decide
+
+No rejection rule is adopted.  The study `wp5_route_one`:
+
+* records route one's peak contrast and the far-from-peak power over the noise
+  for **every echo**;
+* reports availability and drift error against halo strength, in the cases
+  without a halo, with halos of 2 facet lengths at K = 10 and K = 3, and K = 0;
+* leaves the choice of a rejection rule until its results are in.
 

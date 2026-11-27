@@ -203,6 +203,7 @@ def estimate_route_one(
     v_s_mps: float = 7600.0,
     slope_tolerance: float = 0.2,
     min_contrast: float = 4.0,
+    main_lobe: float = 0.1,
 ) -> RouteOneEstimate:
     """Route one on the echo of one scatterer.
 
@@ -223,12 +224,17 @@ def estimate_route_one(
     min_contrast
         The power must fall to below ``1 / min_contrast`` of its peak at both
         edges of the window, so that the peak is inside it.
+    main_lobe
+        The fraction of the peak power below which a sweep pair is left out of
+        the Doppler history (:func:`doppler_history_from_field`).  The value in
+        use is 0.1; higher cuts are an experiment
+        (``scripts/wp5_power_cut.py``), not adopted.
     """
     t = np.asarray(t_s, dtype=float)
     e = np.asarray(field, dtype=complex)
     f = float(f_hz)
     slope = 2.0 * f * float(v_s_mps) ** 2 / (C_LIGHT * float(group_path_m))
-    hist = doppler_history_from_field(t, e)
+    hist = doppler_history_from_field(t, e, main_lobe=float(main_lobe))
     w = hist.power / hist.power.sum()
 
     # Free slope, power weighted.
