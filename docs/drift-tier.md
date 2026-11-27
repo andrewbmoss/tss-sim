@@ -7,8 +7,8 @@ night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
 sequence (10), the joint estimators (11), the fading outliers (12), the power
-cut (13).
-Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
+cut (13), the diffuse halo (14).
+Not yet done in Phase 3: the study `wp5_route_one`,
 Poole's comparator on sequences.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
@@ -756,4 +756,98 @@ Noise-free, `c3_verify`:
   does not use the cut).  At 10 dB those common sets are 4 to 7 echoes, too
   few to compare.
 * The cut stays at 0.1.
+
+## 14. The diffuse halo (decision (e))
+
+**Model** (`l1_propagation/facet.py`; option A, Andrew, 2026-11-27).  A plate
+may carry `halo: {k, ratio, n_points, seed}`: 200 weak point scatterers, equal
+in all directions, uniform along the track over `ratio` facet lengths, random
+phases, moving with the medium.  `K` is the facet's power over the halo's mean
+power **at overflight**; the halo's power then stays about constant through the
+pass while the facet's rises and falls.  `K = 0` leaves the facet out and keeps
+the halo at the power the facet would have had.  Checked in
+`tests/unit/test_l1_facet_halo.py`: mean power `1/K` through the pass; the
+field correlation `1/e` at the uniform patch's time (`fading.halo_decorrelation_s`);
+the drift's Doppler; the facet's specular fading leaves it alone.
+
+**Measured** with `scripts/wp5_halo.py results/wp5_halo` at commit b1a37f2: the
+straight scene of section 6 (2 km facet, 5 MHz, drift 25 m/s, 209 sweeps)
+through L1, L2 and the tier, 48 halo draws per case, white noise at 20 and
+10 dB per sweep of the facet's echo, or none.  About 4 minutes.
+
+Drifts formed, of 48 (no noise / 20 dB / 10 dB):
+
+| Halo | formed |
+|---|---|
+| none | 48 / 48 / 26 |
+| 2 facet lengths, K 10 | 47 / 47 / 39 |
+| 2, K 3 | 37 / 38 / 41 |
+| 2, K 1 | 29 / 34 / 33 |
+| 1, K 3 | 25 / 29 / 32 |
+| 4, K 3 | 41 / 41 / 41 |
+| 2, **K 0 (no facet)** | **24 / 27 / 25** |
+
+RMS drift error of the formed, m/s, pinned / joint / joint_fading:
+
+| Halo | no noise | 20 dB | 10 dB |
+|---|---|---|---|
+| none | 0.07 / 0.11 / 0.08 | 1.10 / 0.71 / 1.08 | 5.65 / 2.81 / 3.04 |
+| 2, K 10 | 17.0 / 14.8 / 53.5 | 17.1 / 14.8 / 49.4 | 21.1 / 23.1 / 46.1 |
+| 2, K 3 | 32.7 / 36.4 / 66.9 | 32.6 / 36.2 / 65.7 | 33.7 / 36.0 / 69.4 |
+| 2, K 1 | 60.4 / 64.1 / 80.0 | 62.8 / 65.3 / 73.2 | 65.3 / 69.1 / 81.6 |
+| 1, K 3 | 44.2 / 47.6 / 67.2 | 48.7 / 49.3 / 65.0 | 53.0 / 63.8 / 80.6 |
+| 4, K 3 | 62.7 / 53.9 / 47.7 | 62.5 / 53.1 / 42.7 | 56.0 / 56.3 / 56.9 |
+| 2, K 0 | 100 / 103 / 81 | 100 / 116 / 77 | 105 / 133 / 90 |
+
+An echo at the facet's range was found in every draw.  Robust spreads (1.4826
+MAD, in `summary.txt`) are of the same order, except `pinned` and `joint` at
+4 lengths, where they are about half the RMS (outliers).
+
+* **The halo, not the noise, sets the drift error.**  At K = 10 (the halo 10 dB
+  under the facet at overflight) the noise-free error goes from 0.1 to
+  15-17 m/s with `pinned` and `joint`; at K = 3 it is 33 to 63 m/s.
+* **`joint_fading` is the worst of the three under a halo** with the facet
+  present, except at 4 lengths: its model has fading on the facet but no halo, and a halo of this
+  kind is added power, not a gain on the facet.
+* **`K = 0` should be declined and is not**: a drift is formed on half the
+  draws, wrong by about 100 m/s.
+* Option A is the harsher form of the halo: its power is received through the
+  whole 4.6 s window, the facet's mostly within its 0.9 s lobe.  A halo that
+  rose and fell with the pass (option B) was not run.
+
+### Why a random patch passes the compact-facet test
+
+Each point of a randomly phased patch sweeps in Doppler at the ephemeris slope,
+with its own zero crossing.  Their sum keeps that slope, so route one's
+free-slope test reads about 1; only the contrast test (a peak above the window's
+edges) can decline it, and a random envelope has such a peak often.  Checked
+without L1, L2 or the tier, from route one's own Doppler law (400 draws, no
+noise):
+
+| Patch length | 0.5 km | 2 km | 4 km | 8 km | 32 km |
+|---|---|---|---|---|---|
+| drift formed | 0.8 % | 18.5 % | 30.5 % | 41 % | 54.5 % |
+| slope ratio within 0.8 to 1.2 | 100 % | 100 % | 100 % | 100 % | 93.8 % |
+| RMS drift error of the formed, m/s | 10 | 105 | 123 | 133 | 140 |
+
+Through the chain at K = 0, 12 draws formed 5, with slope ratios 0.93 to 1.02
+and a median contrast of 2.7 against the threshold of 4.  A facet plus a patch
+built the same way gives errors of the same size as the chain's (pinned, 300
+draws: 17.5 m/s at 2 lengths and K 10, 50 at K 3, 84 at K 1, 49 at 1 length and
+K 3, 37 at 4 lengths and K 3).
+
+This **contradicts an expectation** carried since Phase 1
+(`docs/decorrelation.md`, "that route one declines a randomly phased patch is
+expected, not yet run").  The extended reflector route one does decline is a
+specular one (the tapered 80 km plate), whose Doppler does not sweep.  The
+rough extended reflector is not declined.  The Technical Volume's statement
+that a wholly random echo is an extended reflector rather than a compact facet
+holds as a description of the scene, but route one's tests do not detect it.
+Telling the two apart is open; nothing is changed in the estimator.
+
+### Not done
+
+Orbit scenes with the halo (the code runs; only checked for amplitude); a
+cross-track extent; scatterers with a narrow scattering angle; the halo
+together with the facet's specular fading.
 

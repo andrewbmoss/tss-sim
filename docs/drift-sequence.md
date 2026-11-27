@@ -110,7 +110,8 @@ Noise-free, `quantise=False`, 5 MHz, reference plasma, a 2 km facet with
   `k_factor=inf`): one stream per facet id, sorted, the drawn `tau_i` recorded
   in each record's `flags["fading"]`.  A finite K is refused: a diffuse halo
   wider than the facet does not share its envelope, so it cannot be a gain on
-  it (Phase 3 needs its own scatterer field).
+  it (Phase 3: the facet tier draws it as its own scatterers,
+  `docs/drift-tier.md` section 14).
 * **Oscillator continuity**: one `ImpairmentRealization` over the whole
   sequence, its carrier the sawtooth `f0 + K mod(t, T)`, cut per record by
   `RealizationWindow`; `flags["oscillator_continuous"]`.  The leakage, when on,

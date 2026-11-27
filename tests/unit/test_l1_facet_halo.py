@@ -201,3 +201,30 @@ def test_through_the_chain_a_weak_halo_perturbs_the_drift_and_does_not_replace_i
     p = DriftProcessing(prior=PRIOR).process_sequence(weak).products
     assert p["echo_class"][0] == "compact_facet"
     assert p["drift_mps"][0] == pytest.approx(25.0, abs=3.0)
+
+
+def test_route_ones_slope_test_does_not_reject_a_random_patch():
+    """Measured 2026-11-27 (docs/drift-tier.md section 14), from route one's own
+    Doppler law with no L1 or L2: every point of a randomly phased patch sweeps
+    at the ephemeris slope, so the free-slope test reads about 1 and only the
+    contrast test can decline it.  A tapered specular plate reads a slope near 0
+    and is declined; a rough one is not."""
+    from tss.l3_signal.novel.route_one_estimator import estimate_route_one
+
+    f, p_group, mu, v_s = 4.988e6, 529.8e3, 0.9537, 7600.0
+    t = (np.arange(209) - 104) / 45.0
+    slope = 2 * f * v_s**2 / (C_LIGHT * p_group)
+    kappa = mu * p_group / v_s**2
+    ratios, formed = [], 0
+    for seed in range(60):
+        rng = np.random.default_rng(seed)
+        ti = rng.uniform(-2000.0, 2000.0, 200) / v_s
+        theta = rng.uniform(-math.pi, math.pi, 200)
+        u = t[:, None] - ti[None, :]
+        y = np.exp(1j * (theta + 2 * math.pi * slope * (kappa * 25.0 * u - 0.5 * u * u))).sum(axis=1)
+        e = estimate_route_one(t, y / np.abs(y).max(), f_hz=f, group_path_m=p_group, mu_sat=mu, v_s_mps=v_s)
+        ratios.append(e.slope_ratio)
+        formed += e.separable
+    assert np.mean(np.abs(np.array(ratios) - 1.0) <= 0.2) > 0.9
+    assert formed >= 6
+
