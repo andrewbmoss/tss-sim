@@ -318,8 +318,8 @@ false echo and none formed.
 the tracker then integrates along the trace; here nothing follows the
 detector but route one.  A rate stated per sequence (1e-7 per cell is about
 0.01 false echoes per sequence) costs about 1 dB of threshold and no
-detections at 10 dB.  The default stays 1e-4 as decided; the choice is
-put back to Andrew.
+detections at 10 dB.  The default stayed 1e-4 as decided and the choice was
+put back to Andrew, who set the rate per sequence (section 10).
 
 The range gate takes the larger of the O and X columns' virtual ranges and
 is a bound only when the O trace is among the columns that bracket the
@@ -393,3 +393,28 @@ quadrature (4.9 m/s at 10 dB), while the bound treats them jointly
 scale, the ephemeris, a Rician `K`; the 10 dB estimator figure is over the
 formed drifts only.  `drift_sigma_mps` in the product stays NaN: the bound
 is not the estimator's error.
+
+## 10. The false-alarm rate stated per sequence (part 3, decisions (m) and (q))
+
+Andrew, 2026-11-27: the detector's rate is stated per sequence, 1e-2 by
+default (`pfa_per_sequence`), and the per-cell rate is that over the number
+of (window, range bin) cells in the sequence.  This is a union bound on the
+chance that any cell of a noise-only sequence crosses the threshold.  It is
+conservative because overlapping windows share sweeps, so the cells are not
+independent.  At 1.2e5 to 1.4e5 cells (209 sweeps, section 8) the per-cell
+rate is 7e-8 to 8e-8, close to the 1e-7 of section 8, which found the facet
+at 10 dB in 50 of 50.  A range gate shortens the search, so the per-cell
+rate rises with it and the per-sequence rate stays the same.
+
+`pfa` (per cell, WP4's convention) still works and overrides the sequence
+rate when given.  The report carries `pfa_per_cell` and `pfa_per_sequence`
+(None when `pfa` was given).
+
+Why this differs from WP4: WP4's tracker integrates along the trace after
+the detector, so a false cell rarely survives to a product.  In drift mode
+nothing follows the detector but route one, and at 1e-4 per cell 15 of 200
+noise-only sequences formed a false drift (section 8).
+
+Measured with the new default: not yet run (tests in
+`tests/unit/test_l3_drift.py`: noise-only sequences with any cell over the
+threshold, and the facet at 10 dB with the second echo slot empty).

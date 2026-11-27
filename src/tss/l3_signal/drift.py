@@ -18,7 +18,10 @@ contract's names.  One receive channel (channel 0).  Steps:
     the ionogram's trace, :func:`range_gate_from_ionogram`); the power is
     summed over ``window_sweeps`` consecutive sweeps (21, sliding), and a
     (window, range bin) cell is declared against a threshold set from the
-    noise in the negative-beat half for ``pfa`` per cell (1e-4, WP4's value).
+    noise in the negative-beat half.  The false-alarm rate is stated per
+    sequence (``pfa_per_sequence``, 1e-2, decision (m), 2026-11-27) and
+    divided by the number of cells in the sequence (decision (q)); ``pfa``
+    per cell, WP4's convention, overrides it when given.
     The strongest ``max_echoes`` range peaks become echoes, sorted by range;
     the beat of each is refined on the window that peaked.  The summed
     detector of part 1 (the whole sequence, a 13 dB rule) is kept as
@@ -72,7 +75,8 @@ harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
 slope test declines about half the compact facets, on an ideal field too.
 The field is scaled to a unit peak before the estimator (its fit has absolute
 tolerances).  The windowed detector finds the facet at 10 dB in every trial;
-at 1e-4 per cell it also declares about one false echo per sequence.
+at 1e-4 per cell it also declared about one false echo per sequence, which is
+why the rate is now stated per sequence (``docs/drift-tier.md`` section 10).
 """
 
 from __future__ import annotations
@@ -326,17 +330,21 @@ class DriftProcessing:
         use_effective_speed: bool = True,
         detector: str = "windowed",
         window_sweeps: int = 21,
-        pfa: float = 1.0e-4,
+        pfa: float | None = None,
+        pfa_per_sequence: float = 1.0e-2,
     ) -> None:
         if detector not in ("windowed", "summed"):
             raise ValueError("detector must be 'windowed' or 'summed'")
-        if not 0.0 < float(pfa) < 1.0:
+        if pfa is not None and not 0.0 < float(pfa) < 1.0:
             raise ValueError("pfa must be in (0, 1)")
+        if not 0.0 < float(pfa_per_sequence) < 1.0:
+            raise ValueError("pfa_per_sequence must be in (0, 1)")
         if int(window_sweeps) < 1:
             raise ValueError("window_sweeps must be at least 1")
         self.detector = detector
         self.window_sweeps = int(window_sweeps)
-        self.pfa = float(pfa)
+        self.pfa = None if pfa is None else float(pfa)
+        self.pfa_per_sequence = float(pfa_per_sequence)
         self.last_detection: dict[str, Any] = {}
         self.prior = prior
         self.max_range_m = float(max_range_m)
@@ -359,6 +367,7 @@ class DriftProcessing:
                 "earth_radius_m": self.earth_radius_m, "slope_tolerance": self.slope_tolerance,
                 "min_contrast": self.min_contrast, "use_effective_speed": self.use_effective_speed,
                 "detector": self.detector, "window_sweeps": self.window_sweeps, "pfa": self.pfa,
+                "pfa_per_sequence": self.pfa_per_sequence,
                 "prior_source": None if self.prior is None else self.prior.source}
 
     # -- steps 1 to 3 ----------------------------------------------------------------
@@ -409,7 +418,11 @@ class DriftProcessing:
         over all sweeps and bins, over ``ln 2``, is the mean noise power per
         bin.  Under noise alone a cell is the sum of ``L`` independent
         exponential powers, so the threshold is the mean times the Gamma(L)
-        quantile at ``1 - pfa``: ``pfa`` per cell, as WP4 states it.  Echoes
+        quantile at ``1 - pfa_cell``.  ``pfa_cell`` is ``pfa`` when it is given
+        (per cell, as WP4 states it); otherwise it is ``pfa_per_sequence`` over
+        the number of cells in this sequence (decisions (m) and (q),
+        2026-11-27), a union bound on the chance of any false cell, which is
+        conservative because the sliding windows overlap.  Echoes
         are the strongest ``max_echoes`` range peaks above it, four bins apart
         and within ``dynamic_db`` of the strongest (the Hann sidelobe rule of
         the summed detector), then sorted by range.  The beat is refined by a
@@ -436,6 +449,7 @@ class DriftProcessing:
         neg = np.nonzero((fr < -lo) & (fr > -k * 2.0 * self.max_range_m / C_LIGHT))[0]
         L = min(self.window_sweeps, n_sw)
         report: dict[str, Any] = {"method": "windowed", "window_sweeps": L, "pfa_per_cell": self.pfa,
+                                  "pfa_per_sequence": None if self.pfa is not None else self.pfa_per_sequence,
                                   "segment_samples": int(m), "max_range_m": float(max_range_m),
                                   "range_bins": int(cells.size)}
         self.last_detection = report
@@ -446,7 +460,9 @@ class DriftProcessing:
         s = csum[L:] - csum[:-L]  # (window position, range bin)
         noise = float(np.median(p[:, neg])) / math.log(2.0)
         peak = float(s.max())
-        factor = float(gamma.isf(self.pfa, L))
+        pfa_cell = self.pfa if self.pfa is not None else self.pfa_per_sequence / float(s.size)
+        report["pfa_per_cell"] = pfa_cell
+        factor = float(gamma.isf(pfa_cell, L))
         thresh = noise * factor
         noise_free = bool(thresh * 1e6 < peak)
         report.update({"noise_power_per_bin": noise, "threshold_factor": factor, "noise_free": noise_free,
