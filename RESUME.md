@@ -785,6 +785,8 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   pass (option A).
 * The study's halo cases: none, K = 10 and 3 at 2 lengths, and K = 0 (put to
   Andrew 2026-11-27, no objection).
-* For Andrew: adopt a rejection test, or record these statistics per echo in the
-  study and decide with its results.
+* Decided (Andrew, 2026-11-27): record only.  `wp5_route_one` records contrast
+  and far-from-peak power for every echo and reports availability and error
+  against halo strength; the rejection rule is chosen afterwards.
+* The study is not started: its run time goes to Andrew first.
 

@@ -974,3 +974,13 @@ reflectors **lost**; the last three are rough echoes **caught**.
   tested.  Neither are other windows (these are +/-2.3 s), other facet shapes,
   or a halo together with fading.
 
+### Decided (Andrew, 2026-11-27): record, then decide
+
+No rejection rule is adopted.  The study `wp5_route_one`:
+
+* records route one's peak contrast and the far-from-peak power over the noise
+  for **every echo**;
+* reports availability and drift error against halo strength, in the cases
+  without a halo, with halos of 2 facet lengths at K = 10 and K = 3, and K = 0;
+* leaves the choice of a rejection rule until its results are in.
+
