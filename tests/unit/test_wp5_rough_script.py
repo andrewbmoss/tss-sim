@@ -37,6 +37,11 @@ def test_the_statistics_of_a_model_echo_and_of_noise(script):
     assert got["residual_over_noise"] == pytest.approx(1.0, abs=0.3)
     assert got["residual_over_echo"] < 0.1
     assert got["outside_over_noise"] == pytest.approx(1.0, abs=0.3)
+    # Far from the lobe only the sidelobes and noise remain; a steady background shows there.
+    assert 0.7 < got["far_over_noise"] < 4.0
+    raised = script.statistics(t, y + 5.0 * np.exp(2j * np.pi * rng.uniform(size=t.size)), fit, noise_var=1.0,
+                               **kw)
+    assert raised["far_over_noise"] > got["far_over_noise"] + 15.0
 
 
 def test_a_threshold_rejects_the_stated_share_of_the_calibration_set(script):

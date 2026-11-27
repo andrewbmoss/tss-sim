@@ -15,6 +15,10 @@ test accepts, from the deterministic joint fit and the echo itself:
 ``outside_over_noise``
     mean residual power outside the lobe (model power below 0.05, the fitted
     sidelobes taken out) over the noise;
+``far_over_noise``
+    mean raw power more than 1.5 fitted widths from the fitted overflight time,
+    over the noise: a fading gain multiplies the facet and leaves this low, an
+    added background does not;
 ``contrast``
     route one's own peak contrast (low is suspect).
 
@@ -49,7 +53,7 @@ CASES: dict[str, tuple[tuple[float, float] | None, float | None]] = {
 }
 #: Statistic: True when a high value is suspect.
 STATISTICS = {"residual_over_noise": True, "residual_over_echo": True, "outside_over_noise": True,
-              "contrast": False}
+              "far_over_noise": True, "contrast": False}
 LEVELS = (20.0, 10.0)
 RATES = (0.05, 0.10)
 #: Noise seeds of the calibration set, apart from the held-out ones (from 0).
@@ -68,10 +72,12 @@ def statistics(t: np.ndarray, field: np.ndarray, fit: Any, *, noise_var: float, 
     r2 = np.abs(field - model) ** 2
     s2 = np.abs(s) ** 2
     lobe, outside = s2 > 0.1, s2 < 0.05
+    far = np.abs(t - fit.t0_s) > 1.5 * fit.width_s
     return {
         "residual_over_noise": float(fit.noise_var / noise_var),
         "residual_over_echo": float(r2[lobe].sum() / max(np.sum(np.abs(model[lobe]) ** 2), 1e-300)),
         "outside_over_noise": float(np.mean(r2[outside]) / noise_var) if outside.any() else math.nan,
+        "far_over_noise": float(np.mean(np.abs(field[far]) ** 2) / noise_var) if far.any() else math.nan,
     }
 
 
