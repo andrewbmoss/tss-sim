@@ -42,7 +42,12 @@ contract's names.  One receive channel (channel 0).  Steps:
 5.  **Route one** (:func:`estimate_route_one`, reused): Doppler from phase
     steps, the power envelope's peak ``t_pk``, the zero crossing ``t_zc`` with
     the ephemeris slope, and ``drift = v_eff^2 (t_zc - t_pk) / (mu_sat P')``,
-    with its refusals (extended, no peak).
+    with its refusals (extended, no peak).  With ``estimator="joint"``
+    (part 3, decision (o)) the pinned estimator is still the gate and its
+    answer the start, and :func:`estimate_route_one_joint` forms the drift
+    and ``drift_sigma_mps``; ``drift_pinned_mps`` is kept beside it.  The
+    default stays ``"pinned"`` until the joint fit meets its exit
+    (decision (t)).
 
 THE EFFECTIVE SPEED ON AN ORBIT
 -------------------------------
@@ -91,6 +96,7 @@ import numpy as np
 from tss.constants import C_LIGHT
 from tss.interfaces import DriftProduct, ReceivedSequence
 from tss.l3_signal.novel.route_one_estimator import estimate_route_one
+from tss.l3_signal.novel.route_one_joint import estimate_route_one_joint
 from tss.platform.orbits import RE
 from tss.registry import register
 
@@ -332,7 +338,11 @@ class DriftProcessing:
         window_sweeps: int = 21,
         pfa: float | None = None,
         pfa_per_sequence: float = 1.0e-2,
+        estimator: str = "pinned",
     ) -> None:
+        if estimator not in ("pinned", "joint"):
+            raise ValueError("estimator must be 'pinned' or 'joint'")
+        self.estimator = estimator
         if detector not in ("windowed", "summed"):
             raise ValueError("detector must be 'windowed' or 'summed'")
         if pfa is not None and not 0.0 < float(pfa) < 1.0:
@@ -367,7 +377,7 @@ class DriftProcessing:
                 "earth_radius_m": self.earth_radius_m, "slope_tolerance": self.slope_tolerance,
                 "min_contrast": self.min_contrast, "use_effective_speed": self.use_effective_speed,
                 "detector": self.detector, "window_sweeps": self.window_sweeps, "pfa": self.pfa,
-                "pfa_per_sequence": self.pfa_per_sequence,
+                "pfa_per_sequence": self.pfa_per_sequence, "estimator": self.estimator,
                 "prior_source": None if self.prior is None else self.prior.source}
 
     # -- steps 1 to 3 ----------------------------------------------------------------
@@ -621,16 +631,31 @@ class DriftProcessing:
                                  min_contrast=self.min_contrast)
         if not est.separable:
             echo_flags.append("DECLINED: " + est.reason)
+        drift, drift_sigma, t_pk, t_zc = est.drift_mps, math.nan, est.t_power_peak_s, est.t_zero_crossing_s
+        joint_extra: dict[str, Any] = {}
+        if self.estimator == "joint" and est.separable:
+            # Decision (s): the pinned test is the gate; the joint fit forms the drift.
+            jt = estimate_route_one_joint(times, field_e, f_hz=f_eff, group_path_m=p_group, mu_sat=mu_sat,
+                                          v_s_mps=v_eff, t0_start_s=est.t_power_peak_s,
+                                          drift_start_mps=est.drift_mps)
+            joint_extra = {"drift_pinned_mps": est.drift_mps, "t_pk_pinned_s": est.t_power_peak_s,
+                           "joint_ok": jt.ok}
+            if jt.ok:
+                drift, drift_sigma, t_pk, t_zc = jt.drift_mps, jt.drift_sigma_mps, jt.t0_s, jt.t_zc_s
+                joint_extra.update({"t0_sigma_s": jt.t0_sigma_s, "width_s": jt.width_s,
+                                    "corr_t0_v": jt.corr_t0_v})
+            else:
+                echo_flags.append("JOINT_FAILED_PINNED_USED: " + jt.reason)
         echo_class = "compact_facet" if est.separable else (
             "extended" if abs(est.slope_ratio - 1.0) > self.slope_tolerance else "unresolved")
         return {
             "range_m": p_group, "range_beat_m": C_LIGHT * tau0 / 2.0, "f_eff_hz": f_eff, "mu_sat": mu_sat,
             "blanked_fraction": i0 / n, "t_ref_s": t_ref,
             "platform_doppler_hz": float(np.mean(fd_plat)), "los_rate_mps": est.los_rate_mps,
-            "drift_mps": est.drift_mps, "drift_sigma_mps": math.nan, "t_pk_s": est.t_power_peak_s,
-            "t_zc_s": est.t_zero_crossing_s, "slope_ratio": est.slope_ratio, "peak_contrast": est.peak_contrast,
-            "along_track_m": v_eff * est.t_power_peak_s if est.separable else math.nan,
+            "drift_mps": drift, "drift_sigma_mps": drift_sigma, "t_pk_s": t_pk,
+            "t_zc_s": t_zc, "estimator": self.estimator, "slope_ratio": est.slope_ratio, "peak_contrast": est.peak_contrast,
+            "along_track_m": v_eff * t_pk if est.separable else math.nan,
             "v_mps": v, "v_eff_mps": v_eff, "facet_depth_m": depth, "geometry": geometry,
             "power_peak_db": 10.0 * math.log10(peak_power) if peak_power > 0 else -math.inf,
-            "echo_class": echo_class, "flags": echo_flags,
+            "echo_class": echo_class, "flags": echo_flags, **joint_extra,
         }
