@@ -55,3 +55,37 @@ def test_velocity_ambiguity_wraps_n():
     bad = pr.three_cell(_three(f0, 5e3, lambda f, t: r0 + 400.0 * t), FS, k_hz_per_s=K, f0_hz=f0, delta_f_hz=5e3)
     assert abs(ok["group_range_m"] - r0) < 1e3
     assert abs(bad["group_range_m"] - r0 - C / 1e4) < 2e3
+
+
+# -- WP5 comparator: the velocity half on a drift-mode sequence (Andrew, 2026-11-27) ------
+
+
+# Within c / (4 T f_c), 25.4 m/s here.
+@pytest.mark.parametrize("v", [10.0, -20.0, 0.0])
+def test_velocity_series_recovers_the_phase_velocity_between_cells(v):
+    f0 = 5.9e6
+    cells = [_cell(f0, i * T, lambda f, t: 300e3 + v * t) for i in range(5)]
+    got = pr.velocity_series(cells, FS, k_hz_per_s=K, f0_hz=f0, period_s=T)
+    assert got["velocity_mps"].shape == (4,) and got["power"].shape == (4,)
+    np.testing.assert_allclose(got["velocity_mps"], v, atol=0.05)
+    np.testing.assert_allclose(got["t_s"], T * (np.arange(4) + 0.5))
+    assert got["f_c_hz"] == f0 + 0.5 * K * T
+    # One start frequency: no group range, and the velocity is known modulo c / (2 T f_c).
+    assert got["v_unambiguous_mps"] == pytest.approx(C / (4 * T * got["f_c_hz"]))
+    assert "group_range_m" not in got and "second start frequency" in got["not_formed"]
+
+
+def test_velocity_series_wraps_beyond_its_unambiguous_interval():
+    f0 = 5.9e6
+    limit = C / (4 * T * (f0 + 0.5 * K * T))
+    v = limit + 3.0
+    cells = [_cell(f0, i * T, lambda f, t: 300e3 + v * t) for i in range(3)]
+    got = pr.velocity_series(cells, FS, k_hz_per_s=K, f0_hz=f0, period_s=T)
+    np.testing.assert_allclose(got["velocity_mps"], v - 2 * limit, atol=0.1)
+
+
+def test_velocity_series_needs_two_cells():
+    with pytest.raises(ValueError):
+        pr.velocity_series([_cell(5.9e6, 0.0, lambda f, t: 300e3 + 0 * t)], FS, k_hz_per_s=K, f0_hz=5.9e6,
+                           period_s=T)
+
