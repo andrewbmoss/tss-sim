@@ -43,6 +43,15 @@ contract's names.  One receive channel (channel 0).  Steps:
     steps, the power envelope's peak ``t_pk``, the zero crossing ``t_zc`` with
     the ephemeris slope, and ``drift = v_eff^2 (t_zc - t_pk) / (mu_sat P')``,
     with its refusals (extended, no peak).
+6.  **Joint estimators** (``estimator``; part 3, decisions (o), (r) and (s)).
+    ``"joint"`` fits amplitude, ``t0``, drift and width to the complex values
+    (deterministic likelihood); ``"joint_fading"`` fits power, ``t0``, drift,
+    width and ``tau_c`` to a Rayleigh-fading likelihood with the noise fixed at
+    the detector's (:mod:`tss.l3_signal.novel.route_one_joint`).  Step 5 stays:
+    it is the gate, so all three form a drift on the same echoes, and its
+    answer is the start and is kept as ``drift_pinned_mps``.  A joint fit that
+    fails leaves the pinned drift, flagged ``JOINT_FAILED_PINNED_USED``.
+    The default stays ``"pinned"`` until the exit is met (decision (t)).
 
 THE EFFECTIVE SPEED ON AN ORBIT
 -------------------------------
@@ -65,10 +74,13 @@ and ``v_eff`` is ``v_s_mps``.
 
 WHAT IS NOT DONE YET
 --------------------
-The diffuse halo, ``tau_c_s``, ``doppler_spread_hz``, the field-aligned and
+The diffuse halo, ``doppler_spread_hz``, the field-aligned and
 several-frequency products, the per-sweep products and the rest listed in
-``flags["not_done"]``, and ``drift_sigma_mps`` (NaN until the Cramer-Rao
-harness, Phase 3).  Every facet product carries ``TILT_UNFLAGGED``.
+``flags["not_done"]``.  ``drift_sigma_mps`` is formed by the joint estimators
+only (NaN with ``"pinned"``), ``tau_c_s`` by ``"joint_fading"`` only: the
+maximum-likelihood time of an exponential correlation, not the lag-one
+definition of ``docs/drift-mode.md`` section 4.  Every facet product carries
+``TILT_UNFLAGGED``.
 
 **Noise** (``docs/drift-tier.md`` sections 6 to 8).  With the beat given,
 20 dB per sweep matches the parameter-level budget; at 10 dB route one's
@@ -91,6 +103,12 @@ import numpy as np
 from tss.constants import C_LIGHT
 from tss.interfaces import DriftProduct, ReceivedSequence
 from tss.l3_signal.novel.route_one_estimator import estimate_route_one
+from tss.l3_signal.novel.route_one_joint import (
+    JointEstimate,
+    estimate_route_one_joint,
+    estimate_route_one_joint_fading,
+    sample_noise_variance,
+)
 from tss.platform.orbits import RE
 from tss.registry import register
 
@@ -99,6 +117,8 @@ __all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio", "onboard_
 
 #: ``f_N^2 / N_e``, Hz^2 m^3.
 _FN2_PER_NE = 80.6163
+
+ESTIMATORS = ("pinned", "joint", "joint_fading")
 
 
 @dataclass(frozen=True)
@@ -332,7 +352,11 @@ class DriftProcessing:
         window_sweeps: int = 21,
         pfa: float | None = None,
         pfa_per_sequence: float = 1.0e-2,
+        estimator: str = "pinned",
     ) -> None:
+        if estimator not in ESTIMATORS:
+            raise ValueError(f"estimator must be one of {ESTIMATORS}")
+        self.estimator = estimator
         if detector not in ("windowed", "summed"):
             raise ValueError("detector must be 'windowed' or 'summed'")
         if pfa is not None and not 0.0 < float(pfa) < 1.0:
@@ -367,7 +391,7 @@ class DriftProcessing:
                 "earth_radius_m": self.earth_radius_m, "slope_tolerance": self.slope_tolerance,
                 "min_contrast": self.min_contrast, "use_effective_speed": self.use_effective_speed,
                 "detector": self.detector, "window_sweeps": self.window_sweeps, "pfa": self.pfa,
-                "pfa_per_sequence": self.pfa_per_sequence,
+                "pfa_per_sequence": self.pfa_per_sequence, "estimator": self.estimator,
                 "prior_source": None if self.prior is None else self.prior.source}
 
     # -- steps 1 to 3 ----------------------------------------------------------------
@@ -528,7 +552,19 @@ class DriftProcessing:
         t_n = np.asarray(sequence.t_s, dtype=float)
         tt = np.arange(n_min) / fs
         gate = self.max_range_m if max_range_m is None else min(float(max_range_m), self.max_range_m)
+        self.last_detection = {}
         beats = self._detect(x, fs, k, gate) if self.detector == "windowed" else self._detect(x, fs, k)
+        # The raw samples' noise variance, from the windowed detector's reference.
+        sample_var = math.nan
+        det = self.last_detection
+        if det.get("noise_power_per_bin") is not None:
+            sample_var = sample_noise_variance(det["noise_power_per_bin"], det["segment_samples"])
+        not_done = ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
+                    "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
+                    "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
+                    "range_debiased_m", "los_rate_sigma_mps"]
+        formed = {"pinned": (), "joint": ("drift_sigma_mps",),
+                  "joint_fading": ("drift_sigma_mps", "tau_c_s")}[self.estimator]
         flags: dict[str, Any] = {
             "detection": dict(self.last_detection), "max_range_m": gate,
             "range_gate": max_range_m is not None,
@@ -537,15 +573,13 @@ class DriftProcessing:
             "prior": {} if prior is None else {kk: vv for kk, vv in dict(prior.extra).items()
                                                if isinstance(vv, (str, int, float, type(None)))},
             "channel": 0, "n_sweeps": len(recs), "detected": len(beats),
-            "not_done": ["diffuse_halo", "tau_c_s", "doppler_spread_hz", "drift_sigma_mps",
-                         "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
-                         "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
-                         "range_debiased_m", "los_rate_sigma_mps"],
+            "estimator": self.estimator,
+            "not_done": [n for n in not_done if n not in formed],
         }
         ids, rows = [], []
         for i, fb in enumerate(beats):
             ids.append(f"e{i + 1}")
-            rows.append(self._echo(x, tt, t_n, fs, k, f0, fb, sequence.platforms, prior))
+            rows.append(self._echo(x, tt, t_n, fs, k, f0, fb, sequence.platforms, prior, sample_var))
         names = sorted({key for r in rows for key in r if key != "flags"})
         products: dict[str, np.ndarray] = {}
         for key in names:
@@ -555,7 +589,38 @@ class DriftProcessing:
         return DriftProduct(t_s=t_n, echo_id=ids, products=products, flags=flags,
                             source=f"l3/drift ({len(ids)} echoes)")
 
-    def _echo(self, x, tt, t_n, fs, k, f0, fb, platforms: Sequence[Any], prior):
+    def _joint(self, times, field_e, est, field_var: float, **kw):
+        """Step 6 on an echo the pinned test accepted: ``(products, flags)``."""
+        start = {"t0_start_s": est.t_power_peak_s, "drift_start_mps": est.drift_mps}
+        extra: dict[str, Any] = {"drift_pinned_mps": est.drift_mps, "t_pk_pinned_s": est.t_power_peak_s}
+        flags: list[str] = []
+        if self.estimator == "joint":
+            fit = estimate_route_one_joint(times, field_e, **start, **kw)
+        else:
+            extra["field_noise_var"] = field_var
+            if math.isfinite(field_var):
+                # A noise-free record's reference is tiny; the fit floors it.
+                fit = estimate_route_one_joint_fading(
+                    times, field_e, noise_var=max(field_var, 1e-30), **start, **kw)
+            else:
+                fit = JointEstimate(False, "no noise reference (the windowed detector gives it)")
+        extra["joint_ok"] = float(fit.ok)
+        if not fit.ok:
+            flags.append("JOINT_FAILED_PINNED_USED: " + fit.reason)
+            return extra, flags
+        extra.update({"drift_mps": fit.drift_mps, "drift_sigma_mps": fit.drift_sigma_mps,
+                      "t_pk_s": fit.t0_s, "t_zc_s": fit.t_zc_s, "t0_sigma_s": fit.t0_sigma_s,
+                      "width_s": fit.width_s, "corr_t0_v": fit.corr_t0_v})
+        if self.estimator == "joint_fading":
+            extra["tau_c_s"] = fit.tau_c_s
+            # docs/drift-mode.md section 4: above half the dwell only a lower bound.
+            if fit.tau_c_s > 0.5 * float(times[-1] - times[0]):
+                flags.append("TAU_LOWER_BOUND")
+            if fit.at_bound:
+                flags.append("FIT_AT_BOUND: " + ", ".join(fit.at_bound))
+        return extra, flags
+
+    def _echo(self, x, tt, t_n, fs, k, f0, fb, platforms: Sequence[Any], prior, sample_var: float):
         n = tt.size
         tau0 = fb / k
         i0 = min(n - 8, int(math.ceil(tau0 * fs)) + self.guard_samples)
@@ -620,18 +685,28 @@ class DriftProcessing:
         est = estimate_route_one(times, field_e, f_hz=f_eff, group_path_m=p_group, mu_sat=mu_sat,
                                  v_s_mps=v_eff, slope_tolerance=self.slope_tolerance,
                                  min_contrast=self.min_contrast)
+        joint: dict[str, Any] = {}
         if not est.separable:
             echo_flags.append("DECLINED: " + est.reason)
+        elif self.estimator != "pinned":
+            # The per-sweep value sums the gated samples; then the unit-peak scaling.
+            field_var = (n - i0) * sample_var / peak_power if peak_power > 0.0 else math.nan
+            joint, joint_flags = self._joint(times, field_e, est, field_var, f_hz=f_eff,
+                                             group_path_m=p_group, mu_sat=mu_sat, v_s_mps=v_eff)
+            echo_flags.extend(joint_flags)
+        t0 = joint.get("t_pk_s", est.t_power_peak_s)
         echo_class = "compact_facet" if est.separable else (
             "extended" if abs(est.slope_ratio - 1.0) > self.slope_tolerance else "unresolved")
-        return {
+        row = {
             "range_m": p_group, "range_beat_m": C_LIGHT * tau0 / 2.0, "f_eff_hz": f_eff, "mu_sat": mu_sat,
             "blanked_fraction": i0 / n, "t_ref_s": t_ref,
             "platform_doppler_hz": float(np.mean(fd_plat)), "los_rate_mps": est.los_rate_mps,
             "drift_mps": est.drift_mps, "drift_sigma_mps": math.nan, "t_pk_s": est.t_power_peak_s,
             "t_zc_s": est.t_zero_crossing_s, "slope_ratio": est.slope_ratio, "peak_contrast": est.peak_contrast,
-            "along_track_m": v_eff * est.t_power_peak_s if est.separable else math.nan,
+            "along_track_m": v_eff * t0 if est.separable else math.nan,
             "v_mps": v, "v_eff_mps": v_eff, "facet_depth_m": depth, "geometry": geometry,
             "power_peak_db": 10.0 * math.log10(peak_power) if peak_power > 0 else -math.inf,
             "echo_class": echo_class, "flags": echo_flags,
         }
+        row.update(joint)
+        return row

@@ -19,6 +19,11 @@ Module                        Claim  What it does
                                      crossing and the power peak of one facet
                                      echo, with the extended-reflector refusal.
                                      Parameter level; ``studies/c3_verify``.
+``route_one_joint``           C3     Route one by joint maximum likelihood,
+                                     deterministic and fading-aware, on the
+                                     echoes route one accepts.  Parameter
+                                     level and ``l3/drift``
+                                     (``estimator``); not the default.
 ``field_aligned_estimator``   C3     Route one for a field-aligned sheet, its
                                      orientation from the field model.
                                      Parameter level;

@@ -258,6 +258,99 @@ def test_default_detector_finds_the_facet_at_10_db_with_no_second_echo(straight_
     assert single >= 9
 
 
+# -- part 3 step 2: the joint estimators in the tier -----------------------------------
+
+JOINT = ("joint", "joint_fading")
+
+
+def test_the_default_estimator_is_the_pinned_one(straight_run):
+    """Decision (t): pinned until the joint fit meets its exit."""
+    tier = DriftProcessing(prior=PRIOR)
+    assert tier.describe()["estimator"] == "pinned"
+    prod = tier.process_sequence(straight_run.sequence)
+    assert prod.flags["estimator"] == "pinned"
+    assert math.isnan(prod.products["drift_sigma_mps"][0]) and "drift_sigma_mps" in prod.flags["not_done"]
+    assert "drift_pinned_mps" not in prod.products
+    with pytest.raises(ValueError):
+        DriftProcessing(estimator="other")
+
+
+@pytest.mark.parametrize("estimator", JOINT)
+def test_joint_noise_free_straight_track_drift_within_1_mps(straight_run, estimator):
+    pinned = DriftProcessing(prior=PRIOR).process_sequence(straight_run.sequence).products
+    prod = DriftProcessing(prior=PRIOR, estimator=estimator).process_sequence(straight_run.sequence)
+    p = {k: v[0] for k, v in prod.products.items()}
+    assert prod.flags["estimator"] == estimator and p["echo_class"] == "compact_facet"
+    assert p["drift_mps"] == pytest.approx(25.0, abs=1.0)
+    assert p["drift_pinned_mps"] == pytest.approx(float(pinned["drift_mps"][0]), rel=1e-12)
+    assert p["joint_ok"] == 1.0 and p["drift_sigma_mps"] > 0.0
+    assert p["t_pk_pinned_s"] == pytest.approx(float(pinned["t_pk_s"][0]), rel=1e-12)
+    assert p["along_track_m"] == pytest.approx(p["v_eff_mps"] * p["t_pk_s"], rel=1e-12)
+    # The identifiability statistics are the pinned test's (decision (s)).
+    assert p["slope_ratio"] == pytest.approx(float(pinned["slope_ratio"][0]), rel=1e-12)
+    assert "drift_sigma_mps" not in prod.flags["not_done"]
+    fading = estimator == "joint_fading"
+    assert ("tau_c_s" in prod.products) == fading
+    assert ("tau_c_s" in prod.flags["not_done"]) != fading
+    if fading:
+        # A constant gain over the pass: the decorrelation time is only a lower bound.
+        assert "TAU_LOWER_BOUND" in prod.flags["echo_flags"][0]
+
+
+@pytest.mark.parametrize("estimator", JOINT)
+def test_joint_orbit_noise_free_drift_within_1_mps(orbit_run, estimator):
+    p = DriftProcessing(prior=PRIOR, estimator=estimator).process_sequence(orbit_run.sequence).products
+    assert p["joint_ok"][0] == 1.0
+    assert p["drift_mps"][0] == pytest.approx(50.0, abs=1.0)
+
+
+@pytest.mark.parametrize("estimator", JOINT)
+def test_joint_extended_plate_is_declined_by_the_pinned_gate(estimator):
+    run = _straight({"id": "L", "depth_m": DEPTH, "drift_mps": 25.0, "length_m": 80e3, "taper": "tukey"},
+                    n=61)
+    p = DriftProcessing(prior=PRIOR, estimator=estimator).process_sequence(run.sequence)
+    assert p.products["echo_class"][0] == "extended"
+    assert math.isnan(p.products["drift_mps"][0])
+    assert "joint_ok" not in p.products or math.isnan(p.products["joint_ok"][0])
+
+
+def test_the_tiers_noise_variance_is_the_gated_sums(straight_run):
+    """The fading fit's sigma^2 from the detector's negative-beat noise: the
+    per-sweep value sums the gated samples, then the field is scaled to a unit
+    peak (docs/drift-tier.md section 11)."""
+    seq = straight_run.sequence
+    sig2, _ = _sigma2_for(seq, 20.0)
+    n = seq.records[0].samples.shape[1]
+    ratio = []
+    for seed in range(5):
+        p = DriftProcessing(prior=PRIOR, estimator="joint_fading").process_sequence(
+            _with_noise(seq, sig2, 1600 + seed)).products
+        n_gate = n * (1.0 - float(p["blanked_fraction"][0]))
+        want = n_gate * sig2 / 10.0 ** (float(p["power_peak_db"][0]) / 10.0)
+        ratio.append(float(p["field_noise_var"][0]) / want)
+    assert np.mean(ratio) == pytest.approx(1.0, abs=0.02)
+
+
+def test_joint_falls_back_to_the_pinned_drift_and_says_so(straight_run, monkeypatch):
+    from tss.l3_signal import drift as drift_module
+    from tss.l3_signal.novel.route_one_joint import JointEstimate
+
+    monkeypatch.setattr(drift_module, "estimate_route_one_joint", lambda *a, **k: JointEstimate(False, "no"))
+    p = DriftProcessing(prior=PRIOR, estimator="joint").process_sequence(straight_run.sequence)
+    assert p.products["joint_ok"][0] == 0.0
+    assert p.products["drift_mps"][0] == p.products["drift_pinned_mps"][0]
+    assert math.isnan(p.products["drift_sigma_mps"][0])
+    assert any(f.startswith("JOINT_FAILED_PINNED_USED") for f in p.flags["echo_flags"][0])
+
+
+def test_fading_fit_without_a_noise_reference_uses_the_pinned_drift(straight_run):
+    p = DriftProcessing(prior=PRIOR, estimator="joint_fading", detector="summed").process_sequence(
+        straight_run.sequence)
+    assert p.products["joint_ok"][0] == 0.0
+    assert p.products["drift_mps"][0] == p.products["drift_pinned_mps"][0]
+    assert any("no noise" in f for f in p.flags["echo_flags"][0])
+
+
 def test_range_gate_from_the_trace():
     from types import SimpleNamespace
 

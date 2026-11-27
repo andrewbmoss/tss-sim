@@ -6,7 +6,7 @@ Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
 night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
-sequence (10).
+sequence (10), the joint estimators (11).
 Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
 Poole's comparator on sequences.
 
@@ -220,7 +220,8 @@ the classification first and to the drift only at second order.
 * Contract products not formed yet: per-sweep `range_m`, `power_db` and
   `doppler_hz`; `snr_db`, `resolution_mps`, `v_unambiguous_mps`,
   `range_debiased_m`, `los_rate_sigma_mps`, `tau_c_s`, `doppler_spread_hz`,
-  `drift_sigma_mps` (NaN).
+  `drift_sigma_mps` (NaN).  The last, and `tau_c_s`, are formed by the joint
+  estimators of section 11.
 * The facet tier keeps state between calls (the latched plate azimuth, the
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
@@ -393,8 +394,9 @@ is not the budget: the budget adds the overflight and Doppler terms in
 quadrature (4.9 m/s at 10 dB), while the bound treats them jointly
 (their correlation is -0.989).  Not in the bound: the oscillator, the range
 scale, the ephemeris, a Rician `K`; the 10 dB estimator figure is over the
-formed drifts only.  `drift_sigma_mps` in the product stays NaN: the bound
-is not the estimator's error.
+formed drifts only.  With the pinned estimator `drift_sigma_mps` in the
+product stays NaN: the bound is not the estimator's error (section 11 has the
+joint estimators' own sigma).
 
 ## 10. The false-alarm rate stated per sequence (part 3, decisions (m) and (q))
 
@@ -445,3 +447,162 @@ this scene.
 Tests (`tests/unit/test_l3_drift.py`): noise-only sequences rarely declare
 any cell; the per-cell rate follows the number of cells, gated and not; `pfa`
 overrides; the facet is found at 10 dB with the second echo slot empty.
+
+## 11. The joint estimators (part 3 step 2, decisions (o), (r), (s) and (t))
+
+`l3_signal/novel/route_one_joint.py`; the tier's `estimator` is `"pinned"`
+(default), `"joint"` or `"joint_fading"`.  The deterministic fit was decision
+(r); the fading-aware fit was added by Andrew on 2026-11-27.
+
+* **Model** (section 9's): `y_n = c s_n g_n + w_n`, `s_n` the `sinc`
+  envelope and route one's Doppler law with the ephemeris slope.
+* **`joint`**: `g_n = 1`.  Least squares on the complex values, `c` solved in
+  closed form, a search in `t0`, `v`, `W` from the pinned estimate.  Sigma
+  from the Jacobian of the projected residual.
+* **`joint_fading`**: `g` zero-mean complex Gaussian with correlation
+  `exp(-|dt|/tau_c)`, so `y ~ CN(0, P D R D^H + sigma^2 I)`; `P`, `t0`, `v`,
+  `W`, `tau_c` fitted, `sigma^2` given.  `R^-1` is tridiagonal, so the
+  likelihood costs `O(N)` (it matches the dense form to 1e-9).  Sigma from the
+  observed information over the parameters off their bounds.
+* **Gate** (decision (s)): the pinned free-slope and contrast tests decide, so
+  all three form a drift on the same echoes and availability is unchanged.
+  The pinned answer is kept (`drift_pinned_mps`, `t_pk_pinned_s`).  A joint
+  fit that fails leaves the pinned drift, flagged `JOINT_FAILED_PINNED_USED`.
+* **Noise for the fading fit**: the windowed detector's negative-beat power
+  per bin over `sum(hann^2)` is the sample variance; times the number of
+  gated samples is the variance of the per-sweep value; then the unit-peak
+  scaling.  The tier's value is 1.00 +/- 0.02 of the injected one (5
+  sequences at 20 dB).  The summed detector has no noise reference, so
+  `joint_fading` then falls back to the pinned drift.
+* **`tau_c_s`** is the fitted time of the exponential correlation, with
+  `TAU_LOWER_BOUND` above half the dwell.  `docs/drift-mode.md` section 4
+  defines the product from the lag-one correlation: the two differ, and the
+  contract is not edited here.
+
+### The noise floor of the fading fit
+
+The envelope is not exactly `sinc^2`: on the noise-free `c3_verify` fields the
+deterministic fit leaves a residual of 1.6e-4 to 2.7e-3 of the peak power.  A
+fading likelihood told that less than that is noise explains the misfit as
+fading and moves `t0` and the width:
+
+| noise given, of the peak | untilted (case A) over 1 m/s | tilted (case B) over 1 % of the bias |
+|---|---|---|
+| 1e-6 | 45/56 (up to 241 m/s) | 30/32 |
+| 1e-4 | 0/56 | 1/32 (30 %) |
+| 1e-3 | 0/56 | 0/32 |
+| 3e-3 (`MODEL_ERROR_FLOOR`) | 0/56 (max 0.04 m/s) | 0/32 (max 0.16 %) |
+| 1e-2 | 0/56 | 0/32 |
+
+The fit therefore does not take `sigma^2` below 3e-3 of the largest sample
+power.  Under fading the floor binds in up to 21 % of fits at 20 dB and never
+at 10 dB; the RMS errors below change by 0.01 of the bound or less from no
+floor to this one (1e-2 raises one case from 1.07 to 1.16).
+
+### The search
+
+The fading likelihood has several minima that differ in width and time.  The
+search is a grid (`t0` over the window in 0.1 s steps, `v` over +/-300 m/s,
+six widths, three `tau_c`) and a local fit from the six best distinct cells at
+each width and from the pinned estimate.  How often each setting missed the
+lowest likelihood that any setting or a fit started at the truth reached (100
+seeds per case, formed echoes only):
+
+| Setting | 20 dB, tau_c 0.5 s | 10 dB, 0.5 s | 20 dB, 2 s | 10 dB, 2 s | s per fit |
+|---|---|---|---|---|---|
+| pinned estimate alone | 68 % | 50 % | 38 % | 29 % | 0.03 |
+| six best cells, any width | 46 % | 24 % | 35 % | 13 % | 1.2 |
+| best 1 per width | 18 % | 8 % | 10 % | 2 % | 1.2 |
+| best 2 per width | 8 % | 0 | 3 % | 0 | 1.3 |
+| best 6 per width (default) | 0 | 0 | 0 | 0 | 1.8 |
+| 6 per width, +/-600 m/s | 0 | 0 | 0 | 0 | 3.0 |
+
+A grid twice as fine in `t0`, `v` and width with seven `tau_c` and four starts
+per width gave the same errors as the default on 24 seeds per case, at about
+20 s per fit.  (Times: 14 processes at once.)
+
+### Noise-free, through the tier
+
+| Case | Truth | pinned | joint | joint_fading |
+|---|---|---|---|---|
+| Straight, overflight | 25 m/s | 25.066 | 25.090 | 25.100 |
+| Straight, facet 2 km along track | -60 m/s | -59.826 | -59.743 | -59.575 |
+| Orbit, 3-D plate | 50 m/s | 50.015 | 50.010 | 49.976 |
+| Extended plate (80 km) | declined | declined | declined | declined |
+
+At parameter level both fits read all 56 untilted `c3_verify` facets within
+1 m/s and all 32 tilted ones within 1 % of the predicted bias.
+
+### Parameter level against the bounds
+
+Section 9's scene (209 sweeps, drift 25 m/s), 200 seeds per case from 10000,
+echoes the pinned test accepts.  RMS drift error over the matching bound
+(deterministic without fading, Rayleigh-fading with it):
+
+| SNR, tau_c | formed | bound, m/s | pinned | joint | joint_fading |
+|---|---|---|---|---|---|
+| 20 dB, none | 200 | 0.735 | 1.60 | 0.96 | 1.12 |
+| 15 dB, none | 194 | 1.307 | 1.79 | 0.97 | 1.06 |
+| 10 dB, none | 81 | 2.325 | 2.46 | 0.91 | 0.98 |
+| 20 dB, 0.5 s | 122 | 4.298 | 5.22 | 6.50 | 1.08 |
+| 10 dB, 0.5 s | 72 | 6.759 | 3.83 | 6.50 | 1.78 |
+| 20 dB, 2 s | 176 | 2.403 | 8.80 | 9.48 | 1.37 |
+| 10 dB, 2 s | 85 | 4.554 | 4.32 | 4.22 | 2.90 |
+
+The fading fit by its outliers (errors beyond three bounds):
+
+| SNR, tau_c | RMS | robust sd (1.4826 MAD) | outliers | RMS without them | sigma / robust sd | within 1, 2 sigma | tau_c fitted / true, median (16-84 %) |
+|---|---|---|---|---|---|---|---|
+| 20 dB, 0.5 s | 1.08 | 0.98 | 0.8 % | 1.05 | 1.06 | 0.69, 0.94 | 1.04 (0.77-1.59) |
+| 10 dB, 0.5 s | 1.78 | 1.11 | 5.6 % | 1.25 | 0.81 | 0.58, 0.88 | 1.20 (0.76-2.00) |
+| 20 dB, 2 s | 1.37 | 1.08 | 4.0 % | 1.06 | 1.04 | 0.69, 0.92 | 0.95 (0.56-1.71) |
+| 10 dB, 2 s | 2.90 | 1.03 | 8.2 % | 1.03 | 1.02 | 0.62, 0.86 | 1.14 (0.56-2.35) |
+
+In none of the 200-seed cases did a fit started at the truth reach a lower
+likelihood than the search's answer, so these outliers are not search
+failures: the likelihood's lowest minimum found lies far from the truth (a
+threshold effect).  The cloud prototype (not merged) reported 1.14 and 1.60
+at 0.5 s and 1.13 to 3.22 at 2 s on 100 seeds, with its grid placed about the
+true `t0` and drift.
+
+`joint`'s sigma matches its spread without fading (1.05, 1.03, 1.09 of the
+standard deviation at 20, 15, 10 dB).  **Under fading it is 0.05 to 0.11 of
+the spread**, and its RMS error is worse than the pinned estimator's in three
+of the four cases: it must not be quoted on a fading echo.
+
+### Signal level, no fading
+
+The straight scene through L1, L2 and the tier with white noise, 200 seeds per
+SNR from 60000:
+
+| SNR | formed | pinned | joint | joint_fading |
+|---|---|---|---|---|
+| 20 dB | 200/200 | 1.24 m/s (1.69) | 0.81 (1.10), sigma/sd 0.95 | 1.00 (1.37), sigma/sd 1.03 |
+| 10 dB | 90/200 | 6.58 m/s (2.83) | 2.58 (1.11), sigma/sd 0.90 | 2.83 (1.22), sigma/sd 0.96 |
+
+(In brackets: over the deterministic bound.)  No fit failed.
+
+**Run time** (one process, 209 sweeps): the tier takes 0.02 s per sequence
+with `pinned`, 0.03 s with `joint` and about 1.5 s with `joint_fading`, per
+echo.  Longer windows cost more.
+
+### The exit
+
+Within 20 % of the matching bound, or the shortfall explained:
+
+* **`joint`, without fading: met** (0.91 to 0.97 at parameter level, 1.10 and
+  1.11 at signal level).
+* **`joint_fading`, under fading: met at 20 dB, tau_c 0.5 s (1.08).**  Not met
+  in RMS elsewhere (1.37, 1.78, 2.90): outliers in 4 to 8 % of formed echoes;
+  without them 1.03 to 1.25.  The availability (the pinned gate, 36 to 88 %
+  of echoes under fading) is unchanged.
+* **`joint_fading`, without fading: met at parameter level (0.98 to 1.12);
+  1.22 and 1.37 at signal level.**  The excess over the parameter level at
+  20 dB is probably the envelope model's error; not tested.
+
+The default stays `"pinned"` (decision (t)); changing it is Andrew's.
+
+Not done: fading at signal level (L2's specular fading through the tier), a
+Rician gain or another correlation shape, noise on the orbit scenes, the
+several-echo case, and the power-cut experiment (n).
+
