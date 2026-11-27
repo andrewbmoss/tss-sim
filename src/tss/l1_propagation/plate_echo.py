@@ -88,6 +88,7 @@ __all__ = [
     "echo_stratified",
     "TrackEcho",
     "echo_track",
+    "point_paths",
 ]
 
 
@@ -378,6 +379,51 @@ def echo_track(
         group[j] = float(gc[0])
         phase_c[j] = float(pc[0])
     return TrackEcho(t_s=t, field=field, group_path_m=group, phase_path_m=phase_c, mu_sat=mu_sat)
+
+
+def point_paths(
+    t_s: np.ndarray,
+    f_hz: float,
+    plate: Plate,
+    profile: object | None,
+    s_m: np.ndarray,
+    *,
+    v_s_mps: float = 7600.0,
+    n_nodes: int = 64,
+    newton_iterations: int = 8,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Phase and group paths to separate points of a plate's plane, each time.
+
+    The points lie ``s_m`` along the plate from its centre (they may lie beyond
+    its ends) and move with it; the track and the medium are
+    :func:`echo_track`'s straight level track.  Returns two arrays of shape
+    (times, points), one way, m.  The diffuse halo's scatterers
+    (``l1_propagation.facet``) use it.
+
+    Raises
+    ------
+    ValueError
+        If a point lies at or below the reflection level of the frequency.
+    """
+    t = np.asarray(t_s, dtype=float)
+    f = float(f_hz)
+    xi, di = _point_coordinates(plate, np.asarray(s_m, dtype=float))
+    phase = np.empty((t.size, xi.size))
+    group = np.empty((t.size, xi.size))
+    if profile is None:
+        for j, tj in enumerate(t):
+            phase[j] = np.hypot(float(v_s_mps) * tj - xi - float(plate.drift_x_mps) * tj,
+                                di - float(plate.drift_mps) * tj)
+        return phase, phase.copy()
+    span = float(np.ptp(t)) if t.size else 0.0
+    if np.any(profile.mu_squared(f, di.max() + abs(plate.drift_mps) * span) <= 0.05):
+        raise ValueError("a point reaches the reflection level of this frequency")
+    nodes, weights = np.polynomial.legendre.leggauss(int(n_nodes))
+    for j, tj in enumerate(t):
+        offset = float(v_s_mps) * tj - xi - float(plate.drift_x_mps) * tj
+        phase[j], group[j] = _solve(offset, float(plate.drift_mps) * tj, di, f, profile, nodes, weights,
+                                    newton_iterations)
+    return phase, group
 
 
 def _solve(

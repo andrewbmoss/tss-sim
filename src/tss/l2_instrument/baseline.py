@@ -132,7 +132,8 @@ delay, gives the samples this tier always gave.  The sign is this tier's:
 phase ``+2 pi f tau``, so a closing echo's phase falls from sweep to sweep, as
 its Doppler ``-2 pi f_d t`` makes it fall within a sweep.
 
-Rows flagged ``facet:<id>`` (the facet tier) never join a dispersion trace.
+Rows flagged ``facet:<id>`` (the facet tier), and the ``halo:<id>`` rows of a
+facet's diffuse halo, never join a dispersion trace.
 
 SEQUENCES (WP5 PHASE 2)
 -----------------------
@@ -354,6 +355,11 @@ class RealizationWindow:
 
 def _is_facet(flag: Any) -> bool:
     return str(flag).startswith("facet:")
+
+
+def _is_halo(flag: Any) -> bool:
+    """A scatterer of a facet's diffuse halo (``l1_propagation.facet``)."""
+    return str(flag).startswith("halo:")
 
 
 def _substreams(rng: np.random.Generator, n: int) -> list[np.random.Generator]:
@@ -752,13 +758,15 @@ class BaselineInstrument:
         is_clutter = np.array([str(f).startswith("clutter:") for f in flags_in.ravel()[: freq.size]],
                               dtype=bool)
         is_facet = np.array([_is_facet(f) for f in flags_in.ravel()[: freq.size]], dtype=bool)
+        is_halo = np.array([_is_halo(f) for f in flags_in.ravel()[: freq.size]], dtype=bool)
+        off_trace = is_clutter | is_facet | is_halo
         pd_in = getattr(echoes, "phase_delay_s", None)
         phase_delay = (
             np.asarray(pd_in, dtype=float) if pd_in is not None and np.shape(pd_in) == freq.shape else None
         )
         rows_phase_path = 0
         traces = (
-            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable & ~is_clutter & ~is_facet)
+            _traces_by_mode(freq, delay, getattr(echoes, "mode", None), usable & ~off_trace)
             if self.in_dwell_dispersion
             else {}
         )
@@ -867,7 +875,7 @@ class BaselineInstrument:
                 if d_path != 0.0:
                     imp_phase = imp_phase + 2.0 * np.pi * f_k * d_path
                 rows_phase_path += 1
-            trace = None if (is_clutter[row] or is_facet[row]) else traces.get(str(row_mode[row]))
+            trace = None if off_trace[row] else traces.get(str(row_mode[row]))
             if trace is not None:
                 # The delay follows the trace through the dwell.  Find when each
                 # received sample left the antenna, t = t_e + tau_g(f(t_e)), and
@@ -1122,6 +1130,7 @@ class BaselineInstrument:
             # WP5 Phase 2.
             "rows_phase_path": rows_phase_path,
             "facet_rows_used": int(np.count_nonzero(usable & is_facet)),
+            "halo_rows_used": int(np.count_nonzero(usable & is_halo)),
             "first_delay_blanked": blank_first,
             "thermal_noise": self.thermal_noise,
             "oscillator_continuous": False,
@@ -1224,7 +1233,9 @@ class BaselineInstrument:
         One stream per facet, spawned in the sorted order of the ids, so a
         facet's draw does not depend on which other facets are present in
         which row.  Only the specular part: a diffuse halo wider than the facet
-        does not share its envelope and cannot be a gain on it (Phase 3).
+        does not share its envelope and cannot be a gain on it.  The facet tier
+        draws that halo as its own scatterers (``halo:<id>`` rows), which this
+        leaves alone.
         """
         from tss.l2_instrument.fading import echo_streams
 
@@ -1232,8 +1243,8 @@ class BaselineInstrument:
         if model is None:
             return {}
         if not math.isinf(float(model.k_factor)):
-            raise ValueError("the diffuse part of the fading is not a gain on the facet (Phase 3); "
-                             "use k_factor=inf here")
+            raise ValueError("the diffuse part of the fading is not a gain on the facet; use "
+                             "k_factor=inf here and give the facet a halo (l1/facet)")
         ids = sorted({str(fl).split(";")[0][len("facet:"):]
                       for e in echo_sets for fl in (e.flags if e.flags is not None else [])
                       if _is_facet(fl)})
