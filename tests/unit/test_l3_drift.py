@@ -425,6 +425,20 @@ def test_the_power_far_from_the_peak_is_recorded_for_every_echo():
     assert math.isnan(DriftProcessing(prior=PRIOR).process_sequence(short).products["far_power_over_noise"][0])
 
 
+def test_the_power_in_the_windows_edges_is_recorded_for_a_patch_too():
+    """A patch's power fit fills the window, so no sample is 1.5 fitted widths
+    out; the mean power of the window's outer fifths needs no fit and is there
+    for every echo (measured 2026-11-27 on the study's trial run)."""
+    facet = _straight({"id": "f1", "depth_m": DEPTH, "drift_mps": 25.0}, n=209).sequence
+    patch = _straight({"id": "f1", "depth_m": DEPTH, "drift_mps": 25.0,
+                       "halo": {"k": 0.0, "n_points": 20, "seed": 3}}, n=209).sequence
+    sig2, _ = _sigma2_for(facet, 20.0)
+    a = DriftProcessing(prior=PRIOR).process_sequence(_with_noise(facet, sig2, 1800)).products
+    b = DriftProcessing(prior=PRIOR).process_sequence(_with_noise(patch, sig2, 1800)).products
+    assert 0.3 < a["edge_power_over_noise"][0] < 8.0
+    assert b["edge_power_over_noise"][0] > 4.0 * a["edge_power_over_noise"][0]
+
+
 def test_range_gate_from_the_trace():
     from types import SimpleNamespace
 

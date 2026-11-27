@@ -790,3 +790,15 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   against halo strength; the rejection rule is chosen afterwards.
 * The study is not started: its run time goes to Andrew first.
 
+## WP5 Phase 3, the study `wp5_route_one` (2026-11-27)
+
+* Branch `claude/wp5-p3-study`, from master 53859b9 (PR #5 merged).  Andrew:
+  "full study now", the approved layout with 100 seeds, no instrument speed-up.
+* `src/tss/studies/wp5_route_one.py`: five blocks (`docs/drift-tier.md`
+  section 17), checkpointed per job and resumable; one row per echo and
+  estimator.  The tier records `far_power_over_noise`.
+* The reference run goes to `data/reference/wp5_route_one`, committed
+  separately.
+* Open: the plan text of decision (dd) says "two halo lengths"; the approved
+  layout and this study run 2 facet lengths only.  To confirm with Andrew.
+

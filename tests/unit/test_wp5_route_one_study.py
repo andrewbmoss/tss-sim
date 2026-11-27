@@ -52,7 +52,8 @@ def test_the_monte_carlo_scenes_are_the_seven_environments_and_two_budget_points
 
 @pytest.mark.parametrize("scene_id", ["A_plasma_5MHz_mu0.5_x5_v25", "B_free_5MHz_500km_t1_v25",
                                       "C_plasma_5MHz_mu0.5_t0.5_v25", "D_free_5MHz_500km_L32",
-                                      "S_free_dip10_psi15_phi5", "S_plasma_dip10_psi0_phi5",
+                                      "S_free_dip10_psi15_phi5",
+                                      pytest.param("S_plasma_dip10_psi0_phi5", marks=pytest.mark.slow),
                                       "E_plasma_5MHz_P500km_v25"])
 def test_every_kind_of_scene_becomes_a_facet_the_tier_builds(scene_id):
     setup = W.scene_setup(BY_ID[scene_id])
@@ -97,7 +98,7 @@ def test_a_monte_carlo_job_sets_the_snr_and_records_the_measures(fast_settings, 
     for r in rows:
         assert r["oscillator"] == "threshold" and math.isnan(r["tau_c_s"])
         assert r["detected"]
-        assert math.isfinite(r["snr_db"]) and math.isfinite(r["far_power_over_noise"])
+        assert math.isfinite(r["snr_db"]) and math.isfinite(r["edge_power_over_noise"])
         assert math.isfinite(r["err_mps"]) == r["formed"]
     at20 = [r["snr_db"] for r in rows if r["level_db"] == 20.0]
     assert np.mean(at20) == pytest.approx(20.0, abs=1.5)

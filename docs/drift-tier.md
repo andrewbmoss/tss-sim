@@ -8,8 +8,8 @@ night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
 sequence (10), the joint estimators (11), the fading outliers (12), the power
 cut (13), the diffuse halo (14), Poole's velocity as the comparator (15), a look
-at spotting rough patches (16).
-Not yet done in Phase 3: the study `wp5_route_one`.
+at spotting rough patches (16), the study (17).
+The study `wp5_route_one` is section 17.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
 
@@ -983,4 +983,34 @@ No rejection rule is adopted.  The study `wp5_route_one`:
 * reports availability and drift error against halo strength, in the cases
   without a halo, with halos of 2 facet lengths at K = 10 and K = 3, and K = 0;
 * leaves the choice of a rejection rule until its results are in.
+
+## 17. The study `wp5_route_one`
+
+Layout approved by Andrew, 2026-11-27 ("full study now": 100 seeds).  The
+definitions are in the docstring of `src/tss/studies/wp5_route_one.py`.
+
+| Block | Scenes | Noise and what varies | Jobs |
+|---|---|---|---|
+| `scenes` | all 117 Phase 0 scenes | none; receiver without impairments | 117 |
+| `monte_carlo` | 7 environments at nadir, 25 m/s, and the 2 budget points | 0, 5, 10, 15, 20 dB per sweep and the link budget; no fading and Rayleigh 0.1, 0.5, 1.0 s; oscillator at the INS-26 threshold | 3600 |
+| `oscillator` | the same 9 | 10 dB and link budget, no fading; oscillator at the INS-26 goal | 900 |
+| `halo` | plasma 5 MHz | no halo, K 10, K 3 at 2 facet lengths, K 0; 10 and 20 dB | 400 |
+| `orbit` | 3 plasma facets, 600 km orbit | 10 and 20 dB; prior scale height 100, 200, 300 km | 300 |
+
+Every echo's row carries route one's peak contrast and two measures of power
+away from the peak (section 16's decision).  `far_power_over_noise` is section
+16's, taken with the centre and width of the power fit (section 16's script
+used the joint fit's); it is blank for a patch, whose fitted envelope fills the
+window, as the trial run showed.  `edge_power_over_noise` is the mean over the
+window's first and last fifths, needs no fit and is there for every echo; in
+this study's windows (+/-2.5 widths) it covers the same region for a facet
+overhead.
+
+    tss study wp5_route_one --out results/wp5_route_one --strict
+
+The same command resumes an interrupted run from the same commit.
+
+Not in it: phase-wander and Rician fading, open item 12 (the range-correlation
+credit), clutter, a halo with fading, a halo that rises and falls with the
+pass, the onboard f_N from an ionogram, and Poole's comparator (section 15).
 

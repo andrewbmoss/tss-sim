@@ -53,8 +53,9 @@ WHAT IS RECORDED
 One row per estimator (``pinned``, ``joint``, ``joint_fading``) and echo; the
 facet's echo is the one within two range cells of its beat, and a row is kept
 for it when it is not detected.  Every echo carries route one's
-``peak_contrast`` and the ``far_power_over_noise`` of the drift tier
-(``docs/drift-tier.md`` section 16: recorded, no rejection rule).  The summary
+``peak_contrast`` and the drift tier's ``far_power_over_noise`` and
+``edge_power_over_noise`` (``docs/drift-tier.md`` section 16: recorded, no
+rejection rule).  The summary
 reports availability and error against level, fading, oscillator, halo
 strength and scale height, with the matching Cramer-Rao bound at the nominal
 SNR.
@@ -148,7 +149,7 @@ ROW_FIELDS = (
     "oscillator", "halo", "h_assumed_km", "seed", "estimator", "echo_id", "facet_echo", "detected",
     "formed", "echo_class", "truth_mps", "bias_mps", "drift_mps", "err_mps", "param_err_mps",
     "drift_sigma_mps", "drift_pinned_mps", "slope_ratio", "peak_contrast", "far_power_over_noise",
-    "tau_c_fit_s", "snr_db", "range_m", "blanked_fraction", "n_sweeps", "w_s", "p_group_m", "mu_sat",
+    "edge_power_over_noise", "tau_c_fit_s", "snr_db", "range_m", "blanked_fraction", "n_sweeps", "w_s", "p_group_m", "mu_sat",
     "flags",
 )
 
@@ -520,7 +521,8 @@ def _rows(job: Job, s: Settings, got: dict[str, Any], sequence: Any, level: Any,
             }
             blank = {n: math.nan for n in ("drift_mps", "err_mps", "drift_sigma_mps", "drift_pinned_mps",
                                            "slope_ratio", "peak_contrast", "far_power_over_noise",
-                                           "tau_c_fit_s", "range_m", "blanked_fraction")}
+                                           "edge_power_over_noise", "tau_c_fit_s", "range_m",
+                                           "blanked_fraction")}
             for j, echo_id in enumerate(prod.echo_id):
                 v = {n: prod.products[n][j] for n in prod.products}
 
@@ -534,7 +536,8 @@ def _rows(job: Job, s: Settings, got: dict[str, Any], sequence: Any, level: Any,
                        "err_mps": drift - setup.truth_mps if math.isfinite(drift) else math.nan,
                        "flags": ";".join(prod.flags["echo_flags"][j])}
                 for name in ("drift_sigma_mps", "drift_pinned_mps", "slope_ratio", "peak_contrast",
-                             "far_power_over_noise", "tau_c_fit_s", "range_m", "blanked_fraction"):
+                             "far_power_over_noise", "edge_power_over_noise", "tau_c_fit_s", "range_m",
+                             "blanked_fraction"):
                     row[name] = num(name)
                 out.append(row)
             if mine is None:
@@ -670,6 +673,7 @@ def summarise(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "snr_db_median": snr,
             "peak_contrast_median": _median([float(r["peak_contrast"]) for r in mine]),
             "far_power_median": _median([float(r["far_power_over_noise"]) for r in mine]),
+            "edge_power_median": _median([float(r["edge_power_over_noise"]) for r in mine]),
             "tau_c_fit_median": _median([float(r["tau_c_fit_s"]) for r in mine]),
             "sigma_median_mps": _median([float(r["drift_sigma_mps"]) for r in formed]),
             "other_echoes_formed": sum(bool(r["formed"]) and not r["facet_echo"] for r in sel),
@@ -760,7 +764,8 @@ def _report(rows: list[dict[str, Any]], summary: list[dict[str, Any]], s: Settin
         lines += _table(halo, [("halo", "halo", ""), ("level", "level_db", ".0f"), ("estimator", "estimator", ""),
                                ("n", "n", "d"), ("formed", "formed", "d"), ("RMS m/s", "rms_mps", ".2f"),
                                ("robust", "robust_mps", ".2f"), ("contrast", "peak_contrast_median", ".1f"),
-                               ("far power", "far_power_median", ".2f")])
+                               ("far power", "far_power_median", ".2f"),
+                               ("edge power", "edge_power_median", ".2f")])
     orbit = [r for r in summary if r["block"] == "orbit"]
     if orbit:
         lines += ["", "## Orbit: the prior's scale height", ""]
