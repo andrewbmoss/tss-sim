@@ -7,9 +7,8 @@ night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
 sequence (10), the joint estimators (11), the fading outliers (12), the power
-cut (13), the diffuse halo (14).
-Not yet done in Phase 3: the study `wp5_route_one`,
-Poole's comparator on sequences.
+cut (13), the diffuse halo (14), Poole's velocity as the comparator (15).
+Not yet done in Phase 3: the study `wp5_route_one`.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
 
@@ -226,8 +225,8 @@ the classification first and to the drift only at second order.
 * The facet tier keeps state between calls (the latched plate azimuth, the
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
-* The halo, the Cramer-Rao harness, the study `wp5_route_one`, Poole's
-  comparator.  The onboard prior is section 7; its full N(h) (L4's
+* The study `wp5_route_one`.  (The harness is section 9, the halo section 14,
+  Poole's comparator section 15.)  The onboard prior is section 7; its full N(h) (L4's
   retrieval rather than an assumed scale height) is later work.
 * Noise so far is white, added to noise-free records or L2's thermal noise.
   The negative-beat half of an L2 drift record with thermal noise on was
@@ -850,4 +849,71 @@ Telling the two apart is open; nothing is changed in the estimator.
 Orbit scenes with the halo (the code runs; only checked for amplitude); a
 cross-track extent; scatterers with a narrow scattering angle; the halo
 together with the facet's specular fading.
+
+## 15. Poole's velocity as the comparator (TV Section 8.21, item 10)
+
+Poole (1985) forms a group range from the phase step across a change of start
+frequency and a velocity from the phase step between sweeps.  A drift sequence
+has one start frequency, so **only the velocity half is formed; the range half
+cannot be formed from this data** (option A, Andrew, 2026-11-27).
+`poole_range.velocity_series` takes the principal value between successive
+sweeps (+/-675 m/s of phase-range rate at 5 MHz and 45 Hz).  `-V* / mu_sat` is
+the line-of-sight rate in route one's sense: platform, drift and tilt together.
+
+`scripts/wp5_poole.py results/wp5_poole` at commit f06e2fa, on the sequences of
+sections 6 and 14, 48 noise (or halo) draws per case.  About 4 minutes.
+
+**Pair by pair**, against the line-of-sight rate L1 put into the facet's echo,
+over the main lobe, median RMS in m/s: Poole / the tier's phase steps, then
+Poole against the tier.
+
+| Scene | no noise | 20 dB | 10 dB |
+|---|---|---|---|
+| overhead | 0.51 / 0.22; 0.31 | 41 / 35; 20 | 231 / 223; 159 |
+| 2 km along | 0.51 / 0.22; 0.31 | 42 / 36; 20 | 233 / 217; 154 |
+| halo, 2 lengths, K 3 | 28.0 / 28.3; 0.72 | 47 / 45; 19 | 135 / 119; 62 |
+| 80 km plate | 1.20 / 0.63; 0.58 | not detected | not detected |
+
+**As a drift** (true 25 m/s), RMS error in m/s.  "Peak" is Poole's rate at the
+strongest pair; "mean" is its power-weighted mean over the lobe.  The joint
+columns and `pinned` form a drift only where the compact test passes (count in
+the last column); the Poole columns here are over all 48.
+
+| Scene, level | Poole peak | Poole mean | pinned | joint | joint_fading | route one formed |
+|---|---|---|---|---|---|---|
+| overhead, none | 1.31 | 0.36 | 0.07 | 0.11 | 0.08 | 48 |
+| overhead, 20 dB | 23.6 | 1.26 | 1.10 | 0.71 | 1.08 | 48 |
+| overhead, 10 dB | 77.6 | 9.44 | 5.65 | 2.81 | 3.04 | 26 |
+| 2 km along, none | 0.91 | 0.28 | 0.07 | 0.21 | 0.12 | 48 |
+| 2 km along, 20 dB | 26.5 | 1.72 | 1.25 | 0.88 | 1.07 | 48 |
+| 2 km along, 10 dB | 80.7 | 10.1 | 8.32 | 2.19 | 2.28 | 22 |
+| 80 km plate, none | 0.03 | 0.09 | declined | declined | declined | 0 |
+| halo, none | 70.5 | 29.6 | 32.7 | 36.4 | 66.9 | 37 |
+| halo, 20 dB | 76.9 | 29.2 | 32.6 | 36.2 | 65.7 | 38 |
+| halo, 10 dB | 78.8 | 25.3 | 33.7 | 36.0 | 69.4 | 41 |
+
+On the echoes route one formed at 10 dB, Poole's mean is 10.4 m/s overhead and
+9.6 m/s 2 km along.
+
+* **Pair by pair Poole's rate is the tier's own observable**: without noise the
+  two agree to 0.3 m/s.  With noise Poole's is 4 to 17 % further from the truth,
+  probably from its window over the whole record against the tier's gate (not
+  tested).
+* **One pair is no drift estimate under noise** (24 to 81 m/s).
+* **Averaged over the lobe it comes close to the drift**, because the platform's
+  part cancels when the whole lobe is in the window.  That average is the first
+  term of route one's pinned drift (section 5).  It is behind `joint` at 20 dB
+  (1.3 to 1.7 against 0.7 to 0.9 m/s) and well behind at 10 dB.
+* **What Poole's method does not give**: whether the echo is a compact facet (it
+  returns a number for the 80 km plate; right here only because that plate is
+  flat and overhead, so the line-of-sight rate is the drift; a tilted layer was
+  not run), the overflight time that corrects a lobe not centred in the window
+  (not run: every window here held the whole lobe), and an uncertainty.
+* **Under the halo none of them works**; Poole's mean is no worse than route
+  one's.
+* **Item 10, velocity half**: in these cases Poole's observable adds no
+  information beyond the phase steps route one already uses.  The range half
+  stays open: it needs a second start frequency in the drift mode.
+* The 80 km plate was not detected with noise, which is set from the compact
+  facet's echo; its noisy cases are not measured.
 

@@ -130,6 +130,10 @@ The replication set:
 * **Franklin and MacLean 1969**, for the external noise reference the link
   budget uses.  This is the reference that runs out below about 0.6 MHz, which
   is the origin of the extrapolation that WP12 exists to remove.
+* **Poole 1985, phase velocity**, as WP5's comparator for route one on the
+  drift sequences (`scripts/wp5_poole.py`, `docs/drift-tier.md` section 15); the
+  range half is not formed there.  The route-one bound harness
+  (`l3_signal/novel/drift_crb.py`) is the V1 check on the drift estimators.
 * **Chartier 2022**, for the PHaRLAP-based propagation comparison.  The PHaRLAP
   installation used here comes from the Chartier verification work on the
   author's machine, which means the ray-tracing configuration can be checked
