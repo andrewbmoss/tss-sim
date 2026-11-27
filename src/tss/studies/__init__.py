@@ -858,5 +858,6 @@ from tss.studies import (  # noqa: E402,F401
     wp4_campaign,
     wp4_dispersion,
     wp5_campaign,
+    wp5_route_one,
     wp9_bench,
 )

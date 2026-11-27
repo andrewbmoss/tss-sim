@@ -402,6 +402,29 @@ def test_the_ambiguity_check_belongs_to_the_fading_fit():
         DriftProcessing(estimator="joint_fading", ambiguity_margin=-1.0)
 
 
+# -- the study's recorded measure (Andrew, 2026-11-27: record, decide after the study) ----
+
+
+def test_the_power_far_from_the_peak_is_recorded_for_every_echo():
+    """Raw power more than 1.5 fitted widths from the fitted overflight time over
+    the noise: near 1 plus sidelobes for a facet; a declined echo has it too.  It
+    needs the detector's noise reference, and samples that far out (a window of
+    +/-2.5 widths has them, +/-1 has none)."""
+    seq = _straight({"id": "f1", "depth_m": DEPTH, "drift_mps": 25.0}, n=209).sequence
+    sig2, _ = _sigma2_for(seq, 20.0)
+    noisy = _with_noise(seq, sig2, 1700)
+    p = DriftProcessing(prior=PRIOR).process_sequence(noisy).products
+    assert 0.3 < p["far_power_over_noise"][0] < 8.0
+    declined = DriftProcessing(prior=PRIOR, min_contrast=1e12).process_sequence(noisy).products
+    assert math.isnan(declined["drift_mps"][0])
+    assert declined["far_power_over_noise"][0] == p["far_power_over_noise"][0]
+    # The summed detector (which misses it in this noise) gives no noise reference.
+    summed = DriftProcessing(prior=PRIOR, detector="summed").process_sequence(seq).products
+    assert math.isnan(summed["far_power_over_noise"][0])
+    short = _with_noise(_straight({"id": "f1", "depth_m": DEPTH, "drift_mps": 25.0}, n=61).sequence, sig2, 1)
+    assert math.isnan(DriftProcessing(prior=PRIOR).process_sequence(short).products["far_power_over_noise"][0])
+
+
 def test_range_gate_from_the_trace():
     from types import SimpleNamespace
 
