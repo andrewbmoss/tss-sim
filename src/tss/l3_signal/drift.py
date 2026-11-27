@@ -51,6 +51,12 @@ contract's names.  One receive channel (channel 0).  Steps:
     it is the gate, so all three form a drift on the same echoes, and its
     answer is the start and is kept as ``drift_pinned_mps``.  A joint fit that
     fails leaves the pinned drift, flagged ``JOINT_FAILED_PINNED_USED``.
+    **Ambiguity check** (``ambiguity_margin``, ``"joint_fading"`` only, off by
+    default; decision 2B, 2026-11-27): when the likelihood has a second
+    maximum, well apart in drift, within the margin of the best in log
+    likelihood, the echo is declined: ``drift_mps``, its sigma, ``t_pk_s``,
+    ``t_zc_s`` and ``along_track_m`` are NaN, flagged ``DECLINED: ambiguous``.
+    ``ambiguity_nll_margin`` and ``drift_alt_mps`` are reported either way.
     The default stays ``"pinned"`` for now; a later switch is to
     ``"joint_fading"``, not ``"joint"``, whose sigma is far too small under
     fading (decision (t) as amended by Andrew, 2026-11-27).
@@ -76,12 +82,13 @@ and ``v_eff`` is ``v_s_mps``.
 
 WHAT IS NOT DONE YET
 --------------------
-The diffuse halo, ``doppler_spread_hz``, the field-aligned and
+The diffuse halo, ``tau_c_s``, ``doppler_spread_hz``, the field-aligned and
 several-frequency products, the per-sweep products and the rest listed in
 ``flags["not_done"]``.  ``drift_sigma_mps`` is formed by the joint estimators
-only (NaN with ``"pinned"``), ``tau_c_s`` by ``"joint_fading"`` only: the
-maximum-likelihood time of an exponential correlation, not the lag-one
-definition of ``docs/drift-mode.md`` section 4.  Every facet product carries
+only (NaN with ``"pinned"``).  ``"joint_fading"`` also reports
+``tau_c_fit_s``, the maximum-likelihood time of an exponential correlation;
+``tau_c_s`` is left for the lag-one definition of ``docs/drift-mode.md``
+section 4 (Andrew, 2026-11-27).  Every facet product carries
 ``TILT_UNFLAGGED``.
 
 **Noise** (``docs/drift-tier.md`` sections 6 to 8).  With the beat given,
@@ -355,10 +362,17 @@ class DriftProcessing:
         pfa: float | None = None,
         pfa_per_sequence: float = 1.0e-2,
         estimator: str = "pinned",
+        ambiguity_margin: float | None = None,
     ) -> None:
         if estimator not in ESTIMATORS:
             raise ValueError(f"estimator must be one of {ESTIMATORS}")
         self.estimator = estimator
+        if ambiguity_margin is not None:
+            if estimator != "joint_fading":
+                raise ValueError("ambiguity_margin needs estimator='joint_fading'")
+            if not float(ambiguity_margin) >= 0.0:
+                raise ValueError("ambiguity_margin must not be negative")
+        self.ambiguity_margin = None if ambiguity_margin is None else float(ambiguity_margin)
         if detector not in ("windowed", "summed"):
             raise ValueError("detector must be 'windowed' or 'summed'")
         if pfa is not None and not 0.0 < float(pfa) < 1.0:
@@ -394,6 +408,7 @@ class DriftProcessing:
                 "min_contrast": self.min_contrast, "use_effective_speed": self.use_effective_speed,
                 "detector": self.detector, "window_sweeps": self.window_sweeps, "pfa": self.pfa,
                 "pfa_per_sequence": self.pfa_per_sequence, "estimator": self.estimator,
+                "ambiguity_margin": self.ambiguity_margin,
                 "prior_source": None if self.prior is None else self.prior.source}
 
     # -- steps 1 to 3 ----------------------------------------------------------------
@@ -565,8 +580,7 @@ class DriftProcessing:
                     "field_aligned", "several_frequency", "per_sweep_range_m", "per_sweep_power_db",
                     "per_sweep_doppler_hz", "snr_db", "resolution_mps", "v_unambiguous_mps",
                     "range_debiased_m", "los_rate_sigma_mps"]
-        formed = {"pinned": (), "joint": ("drift_sigma_mps",),
-                  "joint_fading": ("drift_sigma_mps", "tau_c_s")}[self.estimator]
+        formed = () if self.estimator == "pinned" else ("drift_sigma_mps",)
         flags: dict[str, Any] = {
             "detection": dict(self.last_detection), "max_range_m": gate,
             "range_gate": max_range_m is not None,
@@ -614,12 +628,19 @@ class DriftProcessing:
                       "t_pk_s": fit.t0_s, "t_zc_s": fit.t_zc_s, "t0_sigma_s": fit.t0_sigma_s,
                       "width_s": fit.width_s, "corr_t0_v": fit.corr_t0_v})
         if self.estimator == "joint_fading":
-            extra["tau_c_s"] = fit.tau_c_s
-            # docs/drift-mode.md section 4: above half the dwell only a lower bound.
-            if fit.tau_c_s > 0.5 * float(times[-1] - times[0]):
-                flags.append("TAU_LOWER_BOUND")
+            extra.update({"tau_c_fit_s": fit.tau_c_fit_s, "ambiguity_nll_margin": fit.nll_margin,
+                          "drift_alt_mps": fit.drift_alt_mps})
+            # The rule of docs/drift-mode.md section 4 for tau_c_s, on the fitted time.
+            if fit.tau_c_fit_s > 0.5 * float(times[-1] - times[0]):
+                flags.append("TAU_FIT_LOWER_BOUND")
             if fit.at_bound:
                 flags.append("FIT_AT_BOUND: " + ", ".join(fit.at_bound))
+            # A margin that could not be formed (NaN) is not a pass.
+            if self.ambiguity_margin is not None and not fit.nll_margin >= self.ambiguity_margin:
+                flags.append(f"DECLINED: ambiguous (a second maximum within {self.ambiguity_margin:g} "
+                             f"in log likelihood: margin {fit.nll_margin:.2f}, drift {fit.drift_alt_mps:.1f} m/s)")
+                for name in ("drift_mps", "drift_sigma_mps", "t_pk_s", "t_zc_s"):
+                    extra[name] = math.nan
         return extra, flags
 
     def _echo(self, x, tt, t_n, fs, k, f0, fb, platforms: Sequence[Any], prior, sample_var: float):

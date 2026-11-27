@@ -62,9 +62,19 @@ with ``P``, ``t0``, ``v``, ``W`` and ``tau_c`` fitted by maximum likelihood.
   tau_c)`` over the whole window and the drift prior, and a local fit is run
   from the best ``starts_per_width`` distinct cells at each width and from the
   pinned estimate; the lowest wins.  The global maximum itself can still be far
-  from the truth, which no search removes (``docs/drift-tier.md`` section 11).
+  from the truth, which no search removes (``docs/drift-tier.md`` sections 11
+  and 12).
 * The covariance is the inverse of the observed information (the Hessian of
   the negative log likelihood) over the parameters not held at a bound.
+* **A second maximum** (the ambiguity check, decision 2B of 2026-11-27).  Among
+  the local fits' answers, those whose drift is more than ``separation_sigmas``
+  (3) of the best fit's sigma from the best drift are other maxima of the
+  likelihood.  ``nll_margin`` is how far the lowest of them lies above the best
+  in negative log likelihood (a margin of 2 means ``e^-2`` as likely), and
+  ``drift_alt_mps`` its drift; infinite and NaN when there is none, and NaN
+  both when the best fit has no sigma.  It sees only the maxima the starts
+  reach.  Whether a small margin declines the echo is the caller's choice
+  (``l3/drift``, ``ambiguity_margin``).
 
 LIMITS
 ------
@@ -119,7 +129,9 @@ class JointEstimate:
     ``ok`` is false when no fit converged; the numbers are then NaN and
     ``reason`` says why.  ``noise_var`` is ``E |w|^2`` per sample, in the
     field's units: estimated from the residual (deterministic) or as given
-    (fading).  ``power``, ``tau_c_s`` and ``nll`` belong to the fading fit.
+    (fading).  ``power``, ``tau_c_fit_s`` (the fitted time of the exponential
+    correlation), ``nll``, ``nll_margin`` and ``drift_alt_mps`` (module
+    docstring, a second maximum) belong to the fading fit.
     ``at_bound`` names the parameters the fading fit left on a bound; their
     uncertainty is not in the sigmas.
     """
@@ -136,9 +148,11 @@ class JointEstimate:
     noise_var: float = math.nan
     corr_t0_v: float = math.nan
     power: float = math.nan
-    tau_c_s: float = math.nan
+    tau_c_fit_s: float = math.nan
     nll: float = math.nan
     at_bound: tuple[str, ...] = ()
+    nll_margin: float = math.nan
+    drift_alt_mps: float = math.nan
 
 
 def _rates(f_hz: float, group_path_m: float, mu_sat: float, v_s_mps: float) -> tuple[float, float]:
@@ -380,6 +394,7 @@ def estimate_route_one_joint_fading(
     width_start_s: float | None = None,
     v_max_mps: float = 300.0,
     starts_per_width: int = 6,
+    separation_sigmas: float = 3.0,
 ) -> JointEstimate:
     """Maximum likelihood of ``(P, t0, v, W, tau_c)`` under fading (module docstring).
 
@@ -388,7 +403,8 @@ def estimate_route_one_joint_fading(
     and the result's ``noise_var`` says what was.
     The pinned estimate, when given, is one more starting point.  ``v_max_mps``
     bounds the drift searched (the drift prior is +/- 250 m/s,
-    ``docs/drift-mode.md``).
+    ``docs/drift-mode.md``).  ``separation_sigmas`` says how far in drift
+    another maximum must be to count as one (module docstring).
     """
     from scipy.optimize import minimize
 
@@ -427,13 +443,16 @@ def estimate_route_one_joint_fading(
         starts.append((float(t0_start_s), float(drift_start_mps), float(width_start_s), p0, 0.5))
 
     best = None
+    found: list[tuple[float, float]] = []  # (nll, drift) of every local fit
     for t0, v, w, power, tau in starts:
         q0 = np.clip(np.array([t0, v, math.log(w), math.log(power), math.log(tau)]), lo, hi)
         sol = minimize(lambda r: nll(r * scale), q0 / scale, method="L-BFGS-B",
                        bounds=list(zip(lo / scale, hi / scale, strict=True)),
                        options={"maxiter": 500, "ftol": 1e-12, "gtol": 1e-6})
-        if math.isfinite(sol.fun) and (best is None or sol.fun < best.fun):
-            best = sol
+        if math.isfinite(sol.fun):
+            found.append((float(sol.fun), float(np.clip(sol.x[1] * scale[1], lo[1], hi[1]))))
+            if best is None or sol.fun < best.fun:
+                best = sol
     if best is None:
         return JointEstimate(False, "no local fit returned a finite likelihood")
     q = np.clip(best.x * scale, lo, hi)
@@ -464,8 +483,15 @@ def estimate_route_one_joint_fading(
         corr = float(cov[0, 1] / (sig_t0 * sig_v))
     else:
         reason = "converged; the observed information is not positive definite, no sigma"
+    margin_nll = drift_alt = math.nan
+    if math.isfinite(sig_v):
+        others = [(f, u) for f, u in found if abs(u - v) > float(separation_sigmas) * sig_v]
+        margin_nll = math.inf
+        if others:
+            f_alt, drift_alt = min(others)
+            margin_nll = f_alt - float(best.fun)
     return JointEstimate(
         True, reason, drift_mps=v, drift_sigma_mps=sig_v, t0_s=t0, t0_sigma_s=sig_t0, t_zc_s=t0 + kappa * v,
-        width_s=w, noise_var=noise_var, corr_t0_v=corr, power=power, tau_c_s=tau, nll=float(best.fun),
-        at_bound=at_bound,
+        width_s=w, noise_var=noise_var, corr_t0_v=corr, power=power, tau_c_fit_s=tau, nll=float(best.fun),
+        at_bound=at_bound, nll_margin=margin_nll, drift_alt_mps=drift_alt,
     )

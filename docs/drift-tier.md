@@ -6,7 +6,7 @@ Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
 night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
-sequence (10), the joint estimators (11).
+sequence (10), the joint estimators (11), the fading outliers (12).
 Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
 Poole's comparator on sequences.
 
@@ -220,8 +220,8 @@ the classification first and to the drift only at second order.
 * Contract products not formed yet: per-sweep `range_m`, `power_db` and
   `doppler_hz`; `snr_db`, `resolution_mps`, `v_unambiguous_mps`,
   `range_debiased_m`, `los_rate_sigma_mps`, `tau_c_s`, `doppler_spread_hz`,
-  `drift_sigma_mps` (NaN).  The last, and `tau_c_s`, are formed by the joint
-  estimators of section 11.
+  `drift_sigma_mps` (NaN).  The last is formed by the joint estimators of
+  section 11.
 * The facet tier keeps state between calls (the latched plate azimuth, the
   sheet's field direction, the surfaces and the Newton warm start), so a study
   must build a tier per scene.
@@ -474,10 +474,10 @@ overrides; the facet is found at 10 dB with the second echo slot empty.
   scaling.  The tier's value is 1.00 +/- 0.02 of the injected one (5
   sequences at 20 dB).  The summed detector has no noise reference, so
   `joint_fading` then falls back to the pinned drift.
-* **`tau_c_s`** is the fitted time of the exponential correlation, with
-  `TAU_LOWER_BOUND` above half the dwell.  `docs/drift-mode.md` section 4
-  defines the product from the lag-one correlation: the two differ, and the
-  contract is not edited here.
+* **`tau_c_fit_s`** is the fitted time of the exponential correlation, with
+  `TAU_FIT_LOWER_BOUND` above half the dwell.  `tau_c_s` is left for the
+  lag-one definition of `docs/drift-mode.md` section 4, not formed yet
+  (Andrew, 2026-11-27).
 
 ### The noise floor of the fading fit
 
@@ -495,7 +495,7 @@ fading and moves `t0` and the width:
 | 1e-2 | 0/56 | 0/32 |
 
 The fit therefore does not take `sigma^2` below 3e-3 of the largest sample
-power.  Under fading the floor binds in up to 21 % of fits at 20 dB and never
+power (accepted by Andrew, 2026-11-27).  Under fading the floor binds in up to 21 % of fits at 20 dB and never
 at 10 dB; the RMS errors below change by 0.01 of the bound or less from no
 floor to this one (1e-2 raises one case from 1.07 to 1.16).
 
@@ -607,4 +607,107 @@ under fading states a sigma far below its spread.
 Not done: fading at signal level (L2's specular fading through the tier), a
 Rician gain or another correlation shape, noise on the orbit scenes, the
 several-echo case, and the power-cut experiment (n).
+
+## 12. The fading outliers (decision 2B, 2026-11-27)
+
+Andrew chose to keep working on section 11's shortfall inside the 8 January
+2027 timebox.  Parameter level, section 9's scene.  Two seed sets, pooled
+below: the 200 per case of section 11 (from 10000) and fresh ones from 30000
+(600 per fading case, 200 per case without fading).  Outliers are errors
+beyond three fading bounds.  Echoes are those the pinned test accepts; "kept"
+is the fraction of them that still give a drift.
+
+### The ambiguity check
+
+`estimate_route_one_joint_fading` reports `nll_margin`: how far the lowest
+other maximum of the likelihood lies above the best one in negative log
+likelihood, "other" meaning more than three of the best fit's sigmas away in
+drift.  It sees the maxima its starts reach.  The tier's `ambiguity_margin`
+(off by default) declines an echo whose margin is smaller: no drift, flag
+`DECLINED: ambiguous`; `ambiguity_nll_margin`, `drift_alt_mps` and
+`drift_pinned_mps` stay.
+
+Each cell: kept; outliers among the kept; RMS error of the kept over the
+fading bound.
+
+| margin | 20 dB, 0.5 s (523) | 10 dB, 0.5 s (305) | 20 dB, 2 s (719) | 10 dB, 2 s (305) |
+|---|---|---|---|---|
+| off | 100 %; 1.1 %; 1.16 | 100 %; 5.6 %; 1.58 | 100 %; 3.3 %; 1.36 | 100 %; 6.6 %; 2.11 |
+| 0.5 | 100; 1.1; 1.16 | 97.0; 4.1; 1.48 | 100; 3.3; 1.36 | 99.3; 6.3; 2.10 |
+| 1 | 100; 1.1; 1.16 | 95.7; 3.8; 1.47 | 100; 3.3; 1.36 | 98.0; 5.7; 1.60 |
+| 2 | 100; 1.1; 1.16 | 91.1; 2.9; 1.33 | 99.4; 3.4; 1.35 | 94.1; 5.6; 1.61 |
+| 3 | 99.8; 1.0; 1.14 | 87.5; 2.6; 1.34 | 99.4; 3.4; 1.35 | 92.1; 5.3; 1.60 |
+| 5 | 99.2; 1.0; 1.14 | 72.5; 2.7; 1.34 | 98.9; 3.2; 1.35 | 77.4; 4.2; 1.34 |
+| 8 | 98.5; 1.0; 1.14 | 46.2; 3.5; 1.47 | 95.7; 2.8; 1.27 | 49.2; 5.3; 1.39 |
+| 12 | 94.5; 1.0; 1.13 | 18.7; 7.0; 1.82 | 89.2; 2.2; 1.23 | 21.0; 6.2; 1.56 |
+
+RMS over the bound without the outliers is 1.05 (20 dB, 0.5 s), 1.12, 1.12
+and 1.04 with the check off.
+
+Without fading (400, 391 and 154 echoes at 20, 15 and 10 dB) no margin up to
+8 declines any echo; 12 declines 4.5 % at 10 dB.
+
+Outliers declined, of all outliers, at margin 2: 0/6, 9/17, 0/24, 4/20.
+
+* **No margin brings all four fading cases within 20 % of the bound.**
+* At 10 dB the check works: many misses have a competing maximum (the second
+  maximum is within three bounds of the truth in 11 of 17 at 0.5 s).
+* At 20 dB it does little: the likelihood has one clear maximum in the wrong
+  place (1 of 24 outliers at 2 s has another near the truth), so no test of
+  the likelihood's maxima can catch them.
+* The 10 dB, 2 s drop from 2.11 to 1.60 at margin 1 is mostly one echo of the
+  first seed set, 105 m/s in error.  On the fresh seeds alone that case goes
+  from 1.71 to 1.65 at margins 1 and 2.
+* The two seed sets cost similar availability at margin 2 (6 to 9 % at 10 dB)
+  but differ in what they gain; the counts of outliers are small.
+
+### Does a fade that hides part of the envelope cause the misses?
+
+Tested with the true gain, which only the simulation knows.  Median over
+outliers against the rest, and the chance that an outlier ranks as more faded
+than another echo (AUC; 0.5 is no information), pooled:
+
+| Case | envelope power received, over its mean: outliers, others | AUC | weaker half's power: outliers, others | AUC |
+|---|---|---|---|---|
+| 20 dB, 0.5 s | 0.85, 0.90 | 0.57 | 0.56, 0.64 | 0.53 |
+| 10 dB, 0.5 s | 0.72, 1.11 | 0.71 | 0.52, 0.77 | 0.67 |
+| 20 dB, 2 s | 0.33, 0.82 | 0.80 | 0.22, 0.60 | 0.78 |
+| 10 dB, 2 s | 0.47, 1.36 | 0.82 | 0.32, 1.00 | 0.83 |
+
+**Yes for slow fading (2 s), weakly at 0.5 s.**  The shift of the received
+envelope's centroid says little (AUC 0.53 to 0.62).
+
+### Cheaper ideas tried
+
+Flags compared at equal cost, dropping the 10 % of echoes each ranks most
+suspect (outliers caught; RMS over the bound of the rest), pooled:
+
+| Flag | 20 dB, 0.5 s | 10 dB, 0.5 s | 20 dB, 2 s | 10 dB, 2 s |
+|---|---|---|---|---|
+| ambiguity margin, smallest | 2/6; 1.13 | 9/17; 1.34 | 8/24; 1.26 | 5/20; 1.61 |
+| stated sigma, largest | 2/6; 1.11 | 3/17; 1.48 | 12/24; 1.19 | 7/20; 2.04 |
+| power seen in the fit's own lobe, lowest | 0/6; 1.16 | 3/17; 1.51 | 6/24; 1.34 | 3/20; 1.62 |
+| the same, weaker half | 0/6; 1.17 | 4/17; 1.51 | 7/24; 1.33 | 4/20; 1.61 |
+| quiet samples in the lobe, most | 0/6; 1.17 | 5/17; 1.42 | 6/24; 1.34 | 5/20; 1.59 |
+
+* The fade shows in the truth but not usefully in the data: the three
+  measures formed from the fit and the samples rank outliers poorly (AUC 0.26
+  to 0.73), probably because the fit shapes its envelope to what it received.
+* **The stated sigma is the better flag at 20 dB** (AUC 0.86 and 0.87) and
+  poor at 10 dB, 0.5 s (0.59).  Section 11's rule of twice the median sigma
+  is too blunt to show it.  A flag combining the margin (10 dB) with sigma
+  against the sigma expected at the fitted parameters (20 dB) is not tested.
+* **Averaging the maxima** (the drift weighted by each maximum's likelihood,
+  no echo declined) gains little: 1.16, 1.47, 1.36, 2.02.  Not built.
+
+### Decided (Andrew, 2026-11-27)
+
+* `ambiguity_margin` stays **off**, which is the default.
+* The outlier work stops for now.  M3 reports the outlier fraction beside the
+  RMS error.
+* The combined margin and sigma flag is left untested.
+
+### Not done
+
+Through the tier with fading; other facet scenes; the combined flag above.
 

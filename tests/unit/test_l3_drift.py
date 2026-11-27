@@ -290,11 +290,14 @@ def test_joint_noise_free_straight_track_drift_within_1_mps(straight_run, estima
     assert p["slope_ratio"] == pytest.approx(float(pinned["slope_ratio"][0]), rel=1e-12)
     assert "drift_sigma_mps" not in prod.flags["not_done"]
     fading = estimator == "joint_fading"
-    assert ("tau_c_s" in prod.products) == fading
-    assert ("tau_c_s" in prod.flags["not_done"]) != fading
+    # The fitted exponential time has its own name; tau_c_s is docs/drift-mode.md's
+    # lag-one product, not formed yet (Andrew, 2026-11-27).
+    assert ("tau_c_fit_s" in prod.products) == fading
+    assert "tau_c_s" not in prod.products and "tau_c_s" in prod.flags["not_done"]
+    assert "TAU_LOWER_BOUND" not in prod.flags["echo_flags"][0]
     if fading:
-        # A constant gain over the pass: the decorrelation time is only a lower bound.
-        assert "TAU_LOWER_BOUND" in prod.flags["echo_flags"][0]
+        # A constant gain over the pass: the fitted time is only a lower bound.
+        assert "TAU_FIT_LOWER_BOUND" in prod.flags["echo_flags"][0]
 
 
 @pytest.mark.parametrize("estimator", JOINT)
@@ -349,6 +352,54 @@ def test_fading_fit_without_a_noise_reference_uses_the_pinned_drift(straight_run
     assert p.products["joint_ok"][0] == 0.0
     assert p.products["drift_mps"][0] == p.products["drift_pinned_mps"][0]
     assert any("no noise" in f for f in p.flags["echo_flags"][0])
+
+
+# -- part 3 step 2b: the ambiguity check ----------------------------------------------
+
+
+def test_the_ambiguity_check_is_off_by_default_and_reports_the_margin(straight_run):
+    tier = DriftProcessing(prior=PRIOR, estimator="joint_fading")
+    assert tier.describe()["ambiguity_margin"] is None
+    p = tier.process_sequence(straight_run.sequence).products
+    assert p["ambiguity_nll_margin"][0] > 5.0 and "drift_alt_mps" in p
+    assert p["drift_mps"][0] == pytest.approx(25.0, abs=1.0)
+
+
+def test_the_ambiguity_check_passes_an_unambiguous_echo(straight_run):
+    prod = DriftProcessing(prior=PRIOR, estimator="joint_fading", ambiguity_margin=5.0).process_sequence(
+        straight_run.sequence)
+    assert prod.products["drift_mps"][0] == pytest.approx(25.0, abs=1.0)
+    assert not any("ambiguous" in f for f in prod.flags["echo_flags"][0])
+
+
+@pytest.mark.parametrize(("found", "declined"), [(1.0, True), (3.0, False), (math.inf, False), (math.nan, True)])
+def test_a_second_maximum_within_the_margin_declines_the_drift(straight_run, monkeypatch, found, declined):
+    """Margin 2: a second maximum 1 below the best declines the echo, 3 does
+    not; no second maximum does not; a margin that could not be formed does."""
+    from tss.l3_signal import drift as drift_module
+    from tss.l3_signal.novel.route_one_joint import JointEstimate
+
+    fit = JointEstimate(True, "converged", drift_mps=30.0, drift_sigma_mps=2.0, t0_s=0.01, t_zc_s=0.27,
+                        width_s=0.9, tau_c_fit_s=1.0, nll_margin=found, drift_alt_mps=-40.0)
+    monkeypatch.setattr(drift_module, "estimate_route_one_joint_fading", lambda *a, **k: fit)
+    prod = DriftProcessing(prior=PRIOR, estimator="joint_fading", ambiguity_margin=2.0).process_sequence(
+        straight_run.sequence)
+    p = {k: v[0] for k, v in prod.products.items()}
+    flags = prod.flags["echo_flags"][0]
+    assert any(f.startswith("DECLINED: ambiguous") for f in flags) == declined
+    for name in ("drift_mps", "drift_sigma_mps", "t_pk_s", "t_zc_s", "along_track_m"):
+        assert math.isnan(p[name]) == declined, name
+    # What route one saw stays beside it, and the class is the pinned test's.
+    assert math.isfinite(p["drift_pinned_mps"]) and p["echo_class"] == "compact_facet"
+    assert p["joint_ok"] == 1.0
+
+
+def test_the_ambiguity_check_belongs_to_the_fading_fit():
+    for bad in ({"estimator": "pinned"}, {"estimator": "joint"}):
+        with pytest.raises(ValueError):
+            DriftProcessing(ambiguity_margin=2.0, **bad)
+    with pytest.raises(ValueError):
+        DriftProcessing(estimator="joint_fading", ambiguity_margin=-1.0)
 
 
 def test_range_gate_from_the_trace():

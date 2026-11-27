@@ -3,7 +3,8 @@
 Updated 2026-11-26, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
 the drift tier, the onboard prior, the windowed detector with its rate per
 sequence, the Cramer-Rao harness and the joint estimators done; the power-cut
-experiment, the halo and the study next).
+experiment, the halo and the study next; the work on the fading outliers
+stopped for now).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -707,6 +708,36 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 * For Andrew, open: whether the explained fading shortfall is accepted; and
   `tau_c_s` here is the fitted exponential time, not `docs/drift-mode.md`'s
   lag-one definition.
+* Next: the power-cut experiment (n), the halo, Poole's comparator, the study
+  `wp5_route_one`.
+
+## WP5 Phase 3, part 3 step 2b (2026-11-26): the fading outliers
+
+* Branch `claude/wp5-p3-fading-outliers`, from master c152931 (steps 1 and 2
+  merged).  Andrew, 2026-11-27: keep working on the fading shortfall inside the
+  8 January timebox (2B); the 3e-3 noise floor accepted; the fitted time
+  renamed `tau_c_fit_s` (flag `TAU_FIT_LOWER_BOUND`), `tau_c_s` kept for the
+  `docs/drift-mode.md` definition, not formed yet.
+* Ambiguity check: the fading fit reports `nll_margin` and `drift_alt_mps`;
+  tier option `ambiguity_margin`, **off by default**, declines the echo.
+  `docs/drift-tier.md` section 12.
+* Pooled over 523, 305, 719, 305 echoes (20 and 10 dB at 0.5 s; 20 and 10 dB at
+  2 s), margin off: outliers 1.1, 5.6, 3.3, 6.6 %, RMS 1.16, 1.58, 1.36, 2.11
+  of the bound.  Margin 2: kept 100, 91, 99, 94 %; outliers 1.1, 2.9, 3.4,
+  5.6 %; RMS 1.16, 1.33, 1.35, 1.61.  No cost without fading up to margin 8.
+  **No margin brings all four within 20 %.**
+* A fade hiding the envelope does go with the misses at tau_c 2 s (AUC 0.78 to
+  0.83, from the true gain), weakly at 0.5 s; measures formed from the data do
+  not find it.  The stated sigma ranks outliers well at 20 dB (AUC 0.86, 0.87).
+  Averaging the likelihood's maxima gains little.
+* Decided (Andrew, 2026-11-27): the check stays off (so availability stays
+  equal across the estimators, decision (s)); the outlier work stops for now;
+  M3 reports the outlier fraction beside the RMS; the combined margin and sigma
+  flag is left untested.
+* Fast suite 1102 passed, the two slow fading grids passed, ruff clean, smoke
+  unchanged.
+* The default estimator stays `pinned`; no number cited in the TV or
+  dissertation changes.
 * Next: the power-cut experiment (n), the halo, Poole's comparator, the study
   `wp5_route_one`.
 
