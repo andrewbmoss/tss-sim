@@ -617,7 +617,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 
 ## WP5 Phase 3 (2026-11-25 night, part 2): prior, detector, bound
 
-* Committed locally (c300fdd onward), not pushed.  `docs/drift-tier.md`
+* Committed c300fdd..60365b8; on origin/master (confirmed 2026-11-27).  `docs/drift-tier.md`
   sections 6 to 9; project note `wp5-p3-part2`.  Decisions (i) to (l), Option A.
 * Fix: the drift tier scales the field to a unit peak before route one's
   envelope fit (scipy's absolute tolerances stopped it early on
