@@ -1,0 +1,4 @@
+tau 0.5 20 dB formed 134/200 fading CRB 4.30 pinned 22.56 (5.25x) joint 29.17 (6.79x) robust-sd joint 27.89
+tau 0.5 10 dB formed 85/200 fading CRB 6.76 pinned 26.29 (3.89x) joint 29.74 (4.40x) robust-sd joint 28.54
+tau 2.0 20 dB formed 179/200 fading CRB 2.40 pinned 21.43 (8.92x) joint 22.74 (9.47x) robust-sd joint 16.83
+tau 2.0 10 dB formed 80/200 fading CRB 4.55 pinned 21.81 (4.79x) joint 19.92 (4.37x) robust-sd joint 14.77
