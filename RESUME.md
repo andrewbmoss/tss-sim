@@ -1,8 +1,9 @@
 # tss-sim: where things stand
 
-Updated 2026-11-25, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
-the drift tier, the onboard prior, the windowed detector and the Cramer-Rao
-harness done; the halo and the study next).
+Updated 2026-11-26, during WP5 Phase 3 (curved-Earth facets, the sheet wrap,
+the drift tier, the onboard prior, the windowed detector with its rate per
+sequence and the Cramer-Rao harness done; the joint estimator, the halo and
+the study next).
 WP0, WP3 and WP4 are complete; WP5 is in progress (Phases 0 to 2 done, Phase 3
 under way, see the last section) and WP5 and WP6 are on the critical path; WP9 is optional and depends
 on funding.  The history of what was built and why is in the git log,
@@ -617,7 +618,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
 
 ## WP5 Phase 3 (2026-11-25 night, part 2): prior, detector, bound
 
-* Committed locally (c300fdd onward), not pushed.  `docs/drift-tier.md`
+* Committed c300fdd..60365b8; on origin/master (confirmed 2026-11-27).  `docs/drift-tier.md`
   sections 6 to 9; project note `wp5-p3-part2`.  Decisions (i) to (l), Option A.
 * Fix: the drift tier scales the field to a unit peak before route one's
   envelope fit (scipy's absolute tolerances stopped it early on
@@ -651,3 +652,23 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   error is 1.6 and 2.8 times the bound (plan exit: within 20 % of it).
 * Next: the halo, the study `wp5_route_one`, Poole's comparator; Andrew to
   decide the per-cell P_fa and whether route one's slope test changes.
+
+## WP5 Phase 3, part 3 (2026-11-26): the false-alarm rate per sequence
+
+* Branch `claude/wp5-p3-detector-rate`.  Decisions (m), (q) and (u)
+  (Dissertation `Plans\WP5_plan.md`, P3, "Plan for part 3").
+* Detector: `pfa_per_sequence` 1e-2 by default, divided over the (window,
+  range bin) cells of each sequence (7.5e-8 per cell on the 209-sweep scene);
+  `pfa` per cell still overrides it; the report carries both.
+* 200 noise-only sequences: 2 with any cell over (L = 21), no false drift
+  (15 at 1e-4 per cell).  10 dB per sweep: the facet found in 200/200, 2
+  false echoes, 80 drifts on the facet and 1 on a false echo; the facet's
+  drifts are identical to those at 1e-4 per cell on the same seeds.  7 dB:
+  47, 50, 50 of 50 found at L = 11, 21, 41.  `docs/drift-tier.md` section 10.
+* Fast suite 1067 passed (about 12 minutes on this machine), ruff clean,
+  smoke unchanged before and after.
+* No number cited in the TV or dissertation changes; the TV sentence on why
+  the rate differs from WP4's is due at P3's TV update (section 8.20).
+* Next: the joint estimator (`estimator="joint"` and `"joint_fading"`,
+  timebox 8 January 2027), then the power-cut experiment, the halo, Poole's
+  comparator and the study `wp5_route_one`.
