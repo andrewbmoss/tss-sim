@@ -192,7 +192,7 @@ def test_detection_report_is_in_echo_order(straight_run):
     k = seq.records[0].sweep.k_f_hz_per_s
     seen_two = False
     for seed in range(5):
-        prod = DriftProcessing(prior=PRIOR).process_sequence(_with_noise(seq, sig2, 700 + seed))
+        prod = DriftProcessing(prior=PRIOR, pfa=1e-4).process_sequence(_with_noise(seq, sig2, 700 + seed))
         d = prod.flags["detection"]
         beats = 2.0 * k * np.asarray(prod.products["range_beat_m"], dtype=float) / C_LIGHT
         assert len(d["excess_db"]) == len(beats) == len(d["window_start_sweep"])
@@ -201,6 +201,61 @@ def test_detection_report_is_in_echo_order(straight_run):
         assert d["excess_db"][i] == max(d["excess_db"])
         seen_two |= len(beats) == 2
     assert seen_two
+
+
+def test_default_false_alarm_rate_is_stated_per_sequence(straight_run):
+    """Decisions (m) and (q), 2026-11-27: by default the rate is 1e-2 per
+    sequence, divided over the sequence's (window, range bin) cells.  Noise
+    only: the report says so, and of 30 sequences at most 2 declare any cell
+    (the union bound gives an expectation of at most 0.3; at 1e-4 per cell
+    nearly every sequence declares one)."""
+    seq = straight_run.sequence
+    with_any = 0
+    for seed in range(30):
+        tier = DriftProcessing(prior=PRIOR)
+        assert tier.describe()["pfa_per_sequence"] == 1e-2 and tier.describe()["pfa"] is None
+        d = tier.process_sequence(_with_noise(seq, 1.0, 1300 + seed, signal=False)).flags["detection"]
+        assert d["pfa_per_sequence"] == 1e-2
+        assert d["pfa_per_cell"] * d["n_cells"] == pytest.approx(1e-2, rel=1e-12)
+        with_any += d["n_cells_over"] > 0
+    assert with_any <= 2
+
+
+def test_a_range_gate_raises_the_per_cell_rate_and_keeps_the_sequence_rate(straight_run):
+    """Fewer range bins searched, the same chance per sequence (decision (q))."""
+    seq = _with_noise(straight_run.sequence, 1.0, 1400, signal=False)
+    tier = DriftProcessing(prior=PRIOR)
+    wide = tier.process_sequence(seq).flags["detection"]
+    gated = tier.process_sequence(seq, max_range_m=600e3).flags["detection"]
+    assert gated["n_cells"] < wide["n_cells"]
+    assert gated["pfa_per_cell"] > wide["pfa_per_cell"]
+    assert gated["pfa_per_cell"] * gated["n_cells"] == pytest.approx(1e-2, rel=1e-12)
+    assert gated["threshold_factor"] < wide["threshold_factor"]
+
+
+def test_a_per_cell_rate_overrides_the_sequence_rate(straight_run):
+    seq = _with_noise(straight_run.sequence, 1.0, 1401, signal=False)
+    d = DriftProcessing(prior=PRIOR, pfa=1e-3).process_sequence(seq).flags["detection"]
+    assert d["pfa_per_cell"] == 1e-3 and d["pfa_per_sequence"] is None
+    for bad in ({"pfa_per_sequence": 0.0}, {"pfa_per_sequence": 1.0}, {"pfa": 0.0}):
+        with pytest.raises(ValueError):
+            DriftProcessing(**bad)
+
+
+def test_default_detector_finds_the_facet_at_10_db_with_no_second_echo(straight_run):
+    """10 dB per sweep (budget definition) at the default rate: the facet in 10
+    of 10, and the second echo slot empty in at least 9 (at 1e-4 per cell it
+    held a false echo in 196 of 200, docs/drift-tier.md section 8)."""
+    seq = straight_run.sequence
+    sig2, fb = _sigma2_for(seq, 10.0)
+    k = seq.records[0].sweep.k_f_hz_per_s
+    single = 0
+    for seed in range(10):
+        prod = DriftProcessing(prior=PRIOR).process_sequence(_with_noise(seq, sig2, 1500 + seed))
+        beats = 2.0 * k * np.asarray(prod.products["range_beat_m"], dtype=float) / C_LIGHT
+        assert beats.size and np.min(np.abs(beats - fb)) < 2 * 66.0
+        single += beats.size == 1
+    assert single >= 9
 
 
 def test_range_gate_from_the_trace():

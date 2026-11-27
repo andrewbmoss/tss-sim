@@ -5,6 +5,8 @@ of 2026-11-25 09:01 (project note `claude/wp5-p3-decisions-2026-11-25.md`).
 Phase 2's sequence path is in `docs/drift-sequence.md`.  Part 2 (the same
 night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
+Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
+sequence (10).
 Not yet done in Phase 3: the diffuse halo, the study `wp5_route_one`,
 Poole's comparator on sequences.
 
@@ -318,8 +320,8 @@ false echo and none formed.
 the tracker then integrates along the trace; here nothing follows the
 detector but route one.  A rate stated per sequence (1e-7 per cell is about
 0.01 false echoes per sequence) costs about 1 dB of threshold and no
-detections at 10 dB.  The default stays 1e-4 as decided; the choice is
-put back to Andrew.
+detections at 10 dB.  The default stayed 1e-4 as decided and the choice was
+put back to Andrew, who set the rate per sequence (section 10).
 
 The range gate takes the larger of the O and X columns' virtual ranges and
 is a bound only when the O trace is among the columns that bracket the
@@ -393,3 +395,53 @@ quadrature (4.9 m/s at 10 dB), while the bound treats them jointly
 scale, the ephemeris, a Rician `K`; the 10 dB estimator figure is over the
 formed drifts only.  `drift_sigma_mps` in the product stays NaN: the bound
 is not the estimator's error.
+
+## 10. The false-alarm rate stated per sequence (part 3, decisions (m) and (q))
+
+Andrew, 2026-11-27: the detector's rate is stated per sequence, 1e-2 by
+default (`pfa_per_sequence`), and the per-cell rate is that over the number
+of (window, range bin) cells in the sequence.  This is a union bound on the
+chance that any cell of a noise-only sequence crosses the threshold, and it
+is conservative because overlapping windows share sweeps.  A range gate
+leaves fewer cells, so the rate per cell rises and the rate per sequence
+stays.  `pfa`, per cell as WP4 states it, still overrides it when given.  The
+report carries `pfa_per_cell` and `pfa_per_sequence` (None when `pfa` was
+given).
+
+It differs from WP4's per-cell rate because WP4's tracker integrates along
+the trace after the detector, so a false cell rarely reaches a product.  In
+drift mode nothing follows the detector but route one.
+
+Measured at the default (the straight scene of section 6, 209 sweeps, 200
+noise-only sequences per window; the noise-only seeds are 20000 to 20199):
+
+| Window L | cells | rate per cell | threshold over the mean | sequences with any cell over | cells over | echoes declared | drifts formed |
+|---|---|---|---|---|---|---|---|
+| 11 | 140295 | 7.1e-8 | 38.0 | 2/200 | 3 | 2 | 0 |
+| 21 (default) | 133245 | 7.5e-8 | 54.5 | 2/200 | 4 | 2 | 0 |
+| 41 | 119145 | 8.4e-8 | 83.7 | 1/200 | 2 | 1 | 0 |
+
+At 1e-4 per cell, L = 21 declared 1.91 echoes per noise-only sequence and
+formed 15 false drifts in 200 (section 8).
+
+Detection and formation with the facet present (nothing given; 200 sequences
+at 10 dB per sweep, seeds from 30000; 50 at 7 and 4 dB, seeds from 40000 and
+50000):
+
+| SNR/sweep | L | facet detected | false echoes | drifts formed on the facet | on a false echo |
+|---|---|---|---|---|---|
+| 10 dB | 11 / 21 / 41 | 200 / 200 / 200 of 200 | 1 / 2 / 0 | 71 / 80 / 77 | 0 / 1 / 0 |
+| 7 dB | 11 / 21 / 41 | 47 / 50 / 50 of 50 | 1 / 0 / 0 | 8 / 9 / 9 | 0 / 0 / 0 |
+| 4 dB | 11 / 21 / 41 | 7 / 20 / 34 of 50 | 0 / 1 / 1 | 0 / 2 / 2 | 0 / 0 / 0 |
+
+The new threshold does not change the facet's estimate: on the same 200 seeds
+at 10 dB with L = 21, both rates form the same 80 drifts with identical
+values; at 1e-4 per cell there are 197 false echoes and 6 false drifts, at
+the default 2 and 1.  The 80 of 200 formed on these seeds stands beside 96 of
+200 on section 8's seeds and 92 of 200 with the beat given (section 6): at
+10 dB route one's slope test forms about 40 to 48 % of compact facets on
+this scene.
+
+Tests (`tests/unit/test_l3_drift.py`): noise-only sequences rarely declare
+any cell; the per-cell rate follows the number of cells, gated and not; `pfa`
+overrides; the facet is found at 10 dB with the second echo slot empty.
