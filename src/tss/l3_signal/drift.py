@@ -51,7 +51,9 @@ contract's names.  One receive channel (channel 0).  Steps:
     it is the gate, so all three form a drift on the same echoes, and its
     answer is the start and is kept as ``drift_pinned_mps``.  A joint fit that
     fails leaves the pinned drift, flagged ``JOINT_FAILED_PINNED_USED``.
-    The default stays ``"pinned"`` until the exit is met (decision (t)).
+    The default stays ``"pinned"`` for now; a later switch is to
+    ``"joint_fading"``, not ``"joint"``, whose sigma is far too small under
+    fading (decision (t) as amended by Andrew, 2026-11-27).
 
 THE EFFECTIVE SPEED ON AN ORBIT
 -------------------------------
