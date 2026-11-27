@@ -772,3 +772,19 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   or in the study), and which halo cases the study carries.
 * Next: the study `wp5_route_one` (its run time to be put to Andrew first).
 
+## WP5 Phase 3, rough patches: a short look (2026-11-27)
+
+* Andrew chose option (b): a bounded, report-only look before the study.
+  `scripts/wp5_rough_test.py`, `docs/drift-tier.md` section 16.  Nothing in
+  route one or the tier changed.
+* Thresholds set to reject 5 % of unfaded reflectors.  The joint fit's residual
+  catches the patches but also 50 to 100 % of faded reflectors.  At 20 dB a
+  contrast below 56 catches all patches (K = 0) and loses 5 to 22 % of faded
+  reflectors; at 10 dB the power far from the peak catches 85 % and loses 16 %.
+* Thresholds depend on SNR, and both rely on the halo staying on through the
+  pass (option A).
+* The study's halo cases: none, K = 10 and 3 at 2 lengths, and K = 0 (put to
+  Andrew 2026-11-27, no objection).
+* For Andrew: adopt a rejection test, or record these statistics per echo in the
+  study and decide with its results.
+

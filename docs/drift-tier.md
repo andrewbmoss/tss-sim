@@ -7,7 +7,8 @@ night; decisions (i) to (l), Option A): noise (section 6), the onboard prior
 (7), the windowed detector and range gate (8), the Cramer-Rao bound (9).
 Part 3 (decisions (m) to (u), 2026-11-27): the false-alarm rate stated per
 sequence (10), the joint estimators (11), the fading outliers (12), the power
-cut (13), the diffuse halo (14), Poole's velocity as the comparator (15).
+cut (13), the diffuse halo (14), Poole's velocity as the comparator (15), a look
+at spotting rough patches (16).
 Not yet done in Phase 3: the study `wp5_route_one`.
 
 ## 1. Rays on a sphere (`l1_propagation/sphere.py`)
@@ -916,4 +917,60 @@ On the echoes route one formed at 10 dB, Poole's mean is 10.4 m/s overhead and
   stays open: it needs a second start frequency in the drift mode.
 * The 80 km plate was not detected with noise, which is set from the compact
   facet's echo; its noisy cases are not measured.
+
+## 16. Spotting a rough patch: a short look (report only)
+
+Andrew, 2026-11-27, option (b), before the study: can a statistic of the echo
+separate the patches section 14's test lets through?  **Nothing here is used by
+route one or the tier.**
+
+`scripts/wp5_rough_test.py results/wp5_rough` at commit e58480d, about 2
+minutes: section 14's scene, 100 draws per case at 20 and 10 dB, the strongest
+echo, where the compact test forms a drift.  True reflectors: no halo, without
+fading and with Rayleigh specular fading at 0.5 and 2 s through L2.  Rough: a
+halo of 2 lengths at K = 10 and 3, and K = 0 (the patch alone).  Each
+statistic's threshold rejects 5 % of a separate calibration set (200 noise
+draws of the unfaded reflector at the same SNR).
+
+Statistics: the deterministic joint fit's residual variance over the measured
+noise; its residual in the lobe over the fitted echo; its residual outside the
+lobe over the noise; the raw power more than 1.5 fitted widths from the
+overflight time over the noise; and route one's own peak contrast, with a
+stricter threshold.
+
+Share of the formed echoes rejected, in %.  The first three columns are true
+reflectors **lost**; the last three are rough echoes **caught**.
+
+| 20 dB: statistic, threshold | no fading | fading 0.5 s | fading 2 s | K 0 | K 3 | K 10 |
+|---|---|---|---|---|---|---|
+| residual / noise > 1.18 | 5 | 100 | 100 | 100 | 100 | 100 |
+| residual / echo > 0.021 | 10 | 100 | 99 | 89 | 91 | 98 |
+| residual outside lobe / noise > 1.21 | 4 | 100 | 100 | 98 | 100 | 100 |
+| far power / noise > 3.09 | 4 | 48 | 29 | 89 | 94 | 96 |
+| contrast < 56 | 5 | 5 | 22 | 100 | 98 | 94 |
+| *formed echoes* | *100* | *60* | *83* | *44* | *80* | *98* |
+
+| 10 dB: statistic, threshold | no fading | fading 0.5 s | fading 2 s | K 0 | K 3 | K 10 |
+|---|---|---|---|---|---|---|
+| residual / noise > 1.135 | 4 | 100 | 92 | 100 | 100 | 100 |
+| residual / echo > 0.21 | 4 | 84 | 58 | 34 | 46 | 36 |
+| residual outside lobe / noise > 1.17 | 2 | 84 | 50 | 98 | 99 | 97 |
+| far power / noise > 1.42 | 4 | 16 | 16 | 85 | 88 | 89 |
+| contrast < 11.1 | 0 | 3 | 5 | 68 | 58 | 44 |
+| *formed echoes* | *47* | *38* | *38* | *53* | *84* | *73* |
+
+* **The joint fit's mismatch catches the patches and throws away the faded
+  reflectors with them** (residual over noise: 92 to 100 % of both).  It cannot
+  tell fading from roughness.
+* The two measures of power away from the peak keep most faded reflectors.
+  **At 20 dB the stricter contrast does best** (every K = 0 patch and 94 to 98 %
+  of the halo cases caught, 5 to 22 % of faded reflectors lost); **at 10 dB the far power does best** (85 to 89 %
+  caught, 16 % of faded reflectors lost).  Neither is best at both.
+* **The thresholds depend on the SNR.**  One contrast threshold of 11 for both
+  loses 0 to 5 % of reflectors and catches 59 to 68 % of patches, 58 to 59 % at
+  K = 3 and 19 to 44 % at K = 10.
+* **Both work because this halo stays on through the pass** (option A).  A patch
+  whose power rose and fell like a reflector's would probably pass them: not
+  tested.  Neither are other windows (these are +/-2.3 s), other facet shapes,
+  or a halo together with fading.
 
