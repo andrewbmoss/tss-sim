@@ -33,11 +33,13 @@ def test_the_default_layout_is_the_approved_one():
     jobs = W.jobs(s)
     count = {b: sum(j.block == b for j in jobs) for b in W.BLOCKS}
     assert count == {"scenes": len(SCENES), "monte_carlo": 9 * 4 * 100, "oscillator": 9 * 100,
-                     "halo": 4 * 100, "orbit": 3 * 100}
+                     "halo": 6 * 100, "orbit": 3 * 100}
     assert len({j.job_id for j in jobs}) == len(jobs)
     assert s.levels == (0.0, 5.0, 10.0, 15.0, 20.0, "link") and s.tau_c_s == (None, 0.1, 0.5, 1.0)
     assert s.oscillator_main == 5.8e-8 and s.oscillator_second == 3.2e-9
-    assert s.halo_cases == {"none": None, "K10": 10.0, "K3": 3.0, "K0": 0.0} and s.halo_ratio == 2.0
+    assert s.halo_cases == {"none": None, "K10": 10.0, "K3": 3.0, "K0": 0.0} and s.halo_ratios == (2.0, 4.0)
+    assert {(j.halo, j.halo_ratio) for j in jobs if j.block == "halo"} == {
+        ("none", None), ("K10", 2.0), ("K10", 4.0), ("K3", 2.0), ("K3", 4.0), ("K0", 2.0)}
     assert s.halo_levels == (10.0, 20.0) and s.orbit_scale_heights_km == (100.0, 200.0, 300.0)
     assert s.estimators == ("pinned", "joint", "joint_fading")
 
@@ -111,13 +113,27 @@ def test_the_same_job_gives_the_same_rows(fast_settings, cache):
     assert a[0]["oscillator"] == "goal"
 
 
-def test_a_halo_job_carries_its_case(fast_settings):
+def test_a_halo_job_carries_its_case_and_length(fast_settings, monkeypatch):
     jobs = [j for j in W.jobs(fast_settings) if j.block == "halo"]
-    assert [j.halo for j in jobs] == ["none", "K10", "K3", "K0"]
+    assert [(j.halo, j.halo_ratio) for j in jobs] == [
+        ("none", None), ("K10", 2.0), ("K10", 4.0), ("K3", 2.0), ("K3", 4.0), ("K0", 2.0)]
     got = W.needed_caches(jobs, fast_settings)
     cache = {key: W.prepare(key, fast_settings) for key in got}
-    rows = [r for r in W.run_job(jobs[2], fast_settings, cache) if r["facet_echo"]]
-    assert {r["halo"] for r in rows} == {"K3"} and {r["level_db"] for r in rows} == {20.0}
+    built, straight = [], W._straight
+    monkeypatch.setattr(W, "_straight", lambda setup: built.append(setup.facet["halo"]) or straight(setup))
+    rows = [r for r in W.run_job(jobs[4], fast_settings, cache) if r["facet_echo"]]
+    assert [(h["k"], h["ratio"]) for h in built] == [(3.0, 4.0)]
+    assert {(r["halo"], r["halo_ratio"]) for r in rows} == {("K3", 4.0)}
+    assert {r["level_db"] for r in rows} == {20.0}
+
+
+def test_the_halo_lengths_are_set_from_the_configuration():
+    s = W.settings({"wp5_route_one": {"halo_ratios": [2, 1], "seeds": 1}})
+    assert s.halo_ratios == (2.0, 1.0)
+    assert [j.halo_ratio for j in W.jobs(s) if j.halo == "K3"] == [2.0, 1.0]
+    assert [j.halo_ratio for j in W.jobs(s) if j.halo == "K0"] == [2.0]
+    with pytest.raises(ValueError, match="halo_ratios"):
+        W.settings({"wp5_route_one": {"halo_ratios": []}})
 
 
 @pytest.mark.slow
@@ -145,6 +161,9 @@ def test_the_summary_groups_the_facet_echoes_and_counts_the_formed():
     assert got["rms_mps"] == pytest.approx(math.sqrt((1 + 4 + 2500) / 3))
     assert got["bound_mps"] > 0 and got["outliers"] == pytest.approx(1 / 3)
     assert got["other_echoes_formed"] == 1
+    halo = [{**base, "block": "halo", "halo": "K3", "halo_ratio": r, "formed": True, "err_mps": 1.0}
+            for r in (2.0, 4.0)]
+    assert [g["halo_ratio"] for g in W.summarise(halo)] == [2.0, 4.0]
 
 
 def test_a_run_writes_its_outputs_resumes_and_refuses_another_commits_parts(tmp_path):

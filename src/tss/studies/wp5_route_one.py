@@ -28,9 +28,9 @@ THE BLOCKS
     The same nine scenes without fading at 10 dB and the link budget, with the
     oscillator at the INS-26 goal.
 ``halo``
-    The plasma 5 MHz facet without a halo and with halos of two facet lengths at
-    K = 10 and 3, and the patch alone (K = 0), at 10 and 20 dB; a new halo each
-    seed.
+    The plasma 5 MHz facet without a halo, with halos of 2 and of 4 facet
+    lengths at K = 10 and 3, and the patch alone (K = 0) at 2 facet lengths, at
+    10 and 20 dB; a new halo each seed.
 ``orbit``
     The three plasma facets on a 600 km orbit (3-D plates), at 10 and 20 dB,
     processed with a prior whose scale height is 100, 200 (the medium's) and
@@ -78,8 +78,8 @@ fading, a halo that rises and falls with the pass, and Poole's comparator
 
 RUNNING
 -------
-``tss study wp5_route_one --out results/wp5_route_one --strict``.  Hours: about
-five on 14 processes.  Each job writes ``parts/<job>.json`` as it ends, so a
+``tss study wp5_route_one --out results/wp5_route_one --strict``.  About 12
+hours on 14 processes (estimated from a one-seed trial).  Each job writes ``parts/<job>.json`` as it ends, so a
 run that stops is resumed by the same command with the same ``--out`` from the
 same commit.  ``progress.json`` holds the count and the time left.  The
 ``wp5_route_one`` configuration block (``--set wp5_route_one.seeds=30``; lists
@@ -146,11 +146,11 @@ ORBIT_INCLINATION_DEG, ORBIT_U0_DEG, ORBIT_DRIFT_MPS = 60.0, 20.0, 25.0
 
 ROW_FIELDS = (
     "block", "scene_id", "group", "echo_class_truth", "medium", "f_mhz", "level_db", "tau_c_s",
-    "oscillator", "halo", "h_assumed_km", "seed", "estimator", "echo_id", "facet_echo", "detected",
+    "oscillator", "halo", "halo_ratio", "h_assumed_km", "seed", "estimator", "echo_id", "facet_echo", "detected",
     "formed", "echo_class", "truth_mps", "bias_mps", "drift_mps", "err_mps", "param_err_mps",
     "drift_sigma_mps", "drift_pinned_mps", "slope_ratio", "peak_contrast", "far_power_over_noise",
-    "edge_power_over_noise", "tau_c_fit_s", "snr_db", "range_m", "blanked_fraction", "n_sweeps", "w_s", "p_group_m", "mu_sat",
-    "flags",
+    "edge_power_over_noise", "tau_c_fit_s", "snr_db", "range_m", "blanked_fraction", "n_sweeps", "w_s",
+    "p_group_m", "mu_sat", "flags",
 )
 
 
@@ -172,7 +172,8 @@ class Settings:
     oscillator_levels: tuple[Any, ...] = (10.0, "link")
     halo_cases: Mapping[str, float | None] = dataclasses.field(
         default_factory=lambda: {"none": None, "K10": 10.0, "K3": 3.0, "K0": 0.0})
-    halo_ratio: float = 2.0
+    #: Halo lengths in facet lengths, for K > 0; the patch alone (K = 0) takes the first.
+    halo_ratios: tuple[float, ...] = (2.0, 4.0)
     halo_points: int = 200
     halo_levels: tuple[Any, ...] = (10.0, 20.0)
     orbit_environments: tuple[str, ...] = ORBIT_ENVIRONMENTS
@@ -197,6 +198,10 @@ def settings(config: Mapping[str, Any]) -> Settings:
             given[key] = tuple(v if v == "link" else float(v) for v in given[key])
     if "tau_c_s" in given:
         given["tau_c_s"] = tuple(None if v in (None, "none") else float(v) for v in given["tau_c_s"])
+    if "halo_ratios" in given:
+        given["halo_ratios"] = tuple(float(v) for v in given["halo_ratios"])
+        if not given["halo_ratios"]:
+            raise ValueError("wp5_route_one.halo_ratios needs at least one length")
     out = Settings(**given)
     bad = set(out.blocks) - set(BLOCKS)
     if bad:
@@ -213,11 +218,13 @@ class Job:
     seed: int = 0
     tau_c_s: float | None = None
     halo: str = "none"
+    halo_ratio: float | None = None  # halo length in facet lengths; None without a halo
 
     @property
     def job_id(self) -> str:
         tau = "none" if self.tau_c_s is None else f"{self.tau_c_s:g}"
-        return f"{self.block}__{self.scene_id}__tau{tau}__halo{self.halo}__s{self.seed}"
+        length = "" if self.halo_ratio is None else f"x{self.halo_ratio:g}"
+        return f"{self.block}__{self.scene_id}__tau{tau}__halo{self.halo}{length}__s{self.seed}"
 
 
 def jobs(s: Settings) -> list[Job]:
@@ -233,7 +240,9 @@ def jobs(s: Settings) -> list[Job]:
     if "oscillator" in s.blocks:
         out += [Job("oscillator", i, n) for i in s.mc_scenes for n in range(s.seeds)]
     if "halo" in s.blocks:
-        out += [Job("halo", HALO_SCENE, n, halo=case) for case in s.halo_cases for n in range(s.seeds)]
+        for case, k in s.halo_cases.items():
+            ratios = (None,) if k is None else s.halo_ratios if k > 0.0 else s.halo_ratios[:1]
+            out += [Job("halo", HALO_SCENE, n, halo=case, halo_ratio=r) for r in ratios for n in range(s.seeds)]
     if "orbit" in s.blocks:
         out += [Job("orbit", f"O_{env}", n) for env in s.orbit_environments for n in range(s.seeds)]
     return out
@@ -514,7 +523,8 @@ def _rows(job: Job, s: Settings, got: dict[str, Any], sequence: Any, level: Any,
                 "echo_class_truth": setup.echo_class_truth, "medium": setup.medium,
                 "f_mhz": setup.f_hz / 1e6, "level_db": level,
                 "tau_c_s": math.nan if job.tau_c_s is None else job.tau_c_s, "oscillator": oscillator,
-                "halo": job.halo, "h_assumed_km": h_km, "seed": job.seed, "estimator": est,
+                "halo": job.halo, "halo_ratio": math.nan if job.halo_ratio is None else job.halo_ratio,
+                "h_assumed_km": h_km, "seed": job.seed, "estimator": est,
                 "truth_mps": setup.truth_mps, "bias_mps": setup.bias_mps, "param_err_mps": param_err,
                 "snr_db": snr, "n_sweeps": int(setup.t_s.size), "w_s": setup.w_s,
                 "p_group_m": got.get("p_group_m", math.nan), "mu_sat": got.get("mu_sat", math.nan),
@@ -581,8 +591,8 @@ def run_job(job: Job, s: Settings, cache: Mapping[str, Any]) -> list[dict[str, A
         if k_factor is not None:
             # A new halo each seed; the level is still set by the facet alone.
             facet = {**cached["setup"].facet, "halo": {
-                "k": k_factor, "ratio": s.halo_ratio, "n_points": s.halo_points,
-                "seed": _seed(s, "halo", job.halo, job.seed)}}
+                "k": k_factor, "ratio": job.halo_ratio, "n_points": s.halo_points,
+                "seed": _seed(s, "halo", job.halo, job.halo_ratio, job.seed)}}
             run = _straight(dataclasses.replace(cached["setup"], facet=facet))
             got = {**cached, "echoes": run["echoes"], "base": run["base"]}
     setup = got["setup"]
@@ -613,7 +623,8 @@ def run_job(job: Job, s: Settings, cache: Mapping[str, Any]) -> list[dict[str, A
 # Summary
 # ---------------------------------------------------------------------------
 
-_GROUP = ("block", "scene_id", "level_db", "tau_c_s", "oscillator", "halo", "h_assumed_km", "estimator")
+_GROUP = ("block", "scene_id", "level_db", "tau_c_s", "oscillator", "halo", "halo_ratio", "h_assumed_km",
+          "estimator")
 
 
 def _bound(first: Mapping[str, Any], level: Any, snr_db: float) -> float:
@@ -761,7 +772,8 @@ def _report(rows: list[dict[str, Any]], summary: list[dict[str, Any]], s: Settin
     halo = [r for r in summary if r["block"] == "halo"]
     if halo:
         lines += ["", "## Halo: availability and error against strength", ""]
-        lines += _table(halo, [("halo", "halo", ""), ("level", "level_db", ".0f"), ("estimator", "estimator", ""),
+        lines += _table(halo, [("halo", "halo", ""), ("length, facets", "halo_ratio", "g"),
+                               ("level", "level_db", ".0f"), ("estimator", "estimator", ""),
                                ("n", "n", "d"), ("formed", "formed", "d"), ("RMS m/s", "rms_mps", ".2f"),
                                ("robust", "robust_mps", ".2f"), ("contrast", "peak_contrast_median", ".1f"),
                                ("far power", "far_power_median", ".2f"),

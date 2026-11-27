@@ -981,7 +981,8 @@ No rejection rule is adopted.  The study `wp5_route_one`:
 * records route one's peak contrast and the far-from-peak power over the noise
   for **every echo**;
 * reports availability and drift error against halo strength, in the cases
-  without a halo, with halos of 2 facet lengths at K = 10 and K = 3, and K = 0;
+  without a halo, with halos of two lengths (2 and 4 facet lengths, section 17)
+  at K = 10 and K = 3, and K = 0;
 * leaves the choice of a rejection rule until its results are in.
 
 ## 17. The study `wp5_route_one`
@@ -994,7 +995,7 @@ definitions are in the docstring of `src/tss/studies/wp5_route_one.py`.
 | `scenes` | all 117 Phase 0 scenes | none; receiver without impairments | 117 |
 | `monte_carlo` | 7 environments at nadir, 25 m/s, and the 2 budget points | 0, 5, 10, 15, 20 dB per sweep and the link budget; no fading and Rayleigh 0.1, 0.5, 1.0 s; oscillator at the INS-26 threshold | 3600 |
 | `oscillator` | the same 9 | 10 dB and link budget, no fading; oscillator at the INS-26 goal | 900 |
-| `halo` | plasma 5 MHz | no halo, K 10, K 3 at 2 facet lengths, K 0; 10 and 20 dB | 400 |
+| `halo` | plasma 5 MHz | no halo; K 10 and K 3 at 2 and 4 facet lengths; K 0 at 2; 10 and 20 dB | 600 |
 | `orbit` | 3 plasma facets, 600 km orbit | 10 and 20 dB; prior scale height 100, 200, 300 km | 300 |
 
 Every echo's row carries route one's peak contrast and two measures of power
@@ -1009,6 +1010,10 @@ overhead.
     tss study wp5_route_one --out results/wp5_route_one --strict
 
 The same command resumes an interrupted run from the same commit.
+
+The second halo length is 4 facet lengths (the plan's decision (dd) asks for two
+lengths).  A one-seed trial put the run near 11 h without it; the second length
+adds about 1 h.
 
 Not in it: phase-wander and Rician fading, open item 12 (the range-correlation
 credit), clutter, a halo with fading, a halo that rises and falls with the

@@ -799,6 +799,7 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   estimator.  The tier records `far_power_over_noise`.
 * The reference run goes to `data/reference/wp5_route_one`, committed
   separately.
-* Open: the plan text of decision (dd) says "two halo lengths"; the approved
-  layout and this study run 2 facet lengths only.  To confirm with Andrew.
+* Halo lengths (plan decision (dd), "two halo lengths"): 2 and 4 facet lengths
+  at K = 10 and 3, the patch alone at 2; 600 halo jobs.  Andrew chose 4 as the
+  second length ("go 4").  Estimated run about 12 h on 14 processes.
 
