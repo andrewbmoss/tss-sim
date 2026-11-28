@@ -51,6 +51,16 @@ contract's names.  One receive channel (channel 0).  Steps:
     it is the gate, so all three form a drift on the same echoes, and its
     answer is the start and is kept as ``drift_pinned_mps``.  A joint fit that
     fails leaves the pinned drift, flagged ``JOINT_FAILED_PINNED_USED``.
+    **Recorded, not used** (Andrew, 2026-11-27): ``far_power_over_noise``,
+    the mean power of the per-sweep values more than 1.5 fitted envelope widths
+    from the fitted overflight time over their noise variance (the ``sinc^2``
+    power fit; NaN without the windowed detector's noise reference, or when no
+    sample is that far out, as for a patch, whose fitted envelope fills the
+    window).  ``edge_power_over_noise`` is the same mean over the window's first
+    and last fifths, with no fit, so every echo with a noise reference has it;
+    it reads far from the facet only in a window several widths long.  Both,
+    with ``peak_contrast``, are recorded for a rejection rule to be chosen after
+    the study (``docs/drift-tier.md`` section 16).
     **Ambiguity check** (``ambiguity_margin``, ``"joint_fading"`` only, off by
     default; decision 2B, 2026-11-27): when the likelihood has a second
     maximum, well apart in drift, within the margin of the best in log
@@ -111,7 +121,7 @@ import numpy as np
 
 from tss.constants import C_LIGHT
 from tss.interfaces import DriftProduct, ReceivedSequence
-from tss.l3_signal.novel.route_one_estimator import estimate_route_one
+from tss.l3_signal.novel.route_one_estimator import estimate_route_one, fit_overflight_time
 from tss.l3_signal.novel.route_one_joint import (
     JointEstimate,
     estimate_route_one_joint,
@@ -126,6 +136,13 @@ __all__ = ["OnboardPrior", "DriftProcessing", "effective_speed_ratio", "onboard_
 
 #: ``f_N^2 / N_e``, Hz^2 m^3.
 _FN2_PER_NE = 80.6163
+
+#: ``far_power_over_noise`` counts the samples further than this many fitted
+#: envelope widths from the fitted overflight time.
+_FAR_WIDTHS = 1.5
+#: ``edge_power_over_noise`` counts the samples in this share of the window at
+#: each end.
+_EDGE_SHARE = 0.2
 
 ESTIMATORS = ("pinned", "joint", "joint_fading")
 
@@ -709,11 +726,20 @@ class DriftProcessing:
                                  v_s_mps=v_eff, slope_tolerance=self.slope_tolerance,
                                  min_contrast=self.min_contrast)
         joint: dict[str, Any] = {}
+        # The per-sweep value sums the gated samples; then the unit-peak scaling.
+        field_var = (n - i0) * sample_var / peak_power if peak_power > 0.0 else math.nan
+        far_power = edge_power = math.nan
+        if math.isfinite(field_var) and field_var > 0.0:
+            span = float(times[-1] - times[0])
+            edge = np.abs(times - 0.5 * (times[0] + times[-1])) >= (0.5 - _EDGE_SHARE) * span
+            edge_power = float(np.mean(power[edge]) / field_var)
+            centre, width = fit_overflight_time(times, power)
+            far = np.abs(times - centre) > _FAR_WIDTHS * width
+            if far.any():
+                far_power = float(np.mean(power[far]) / field_var)
         if not est.separable:
             echo_flags.append("DECLINED: " + est.reason)
         elif self.estimator != "pinned":
-            # The per-sweep value sums the gated samples; then the unit-peak scaling.
-            field_var = (n - i0) * sample_var / peak_power if peak_power > 0.0 else math.nan
             joint, joint_flags = self._joint(times, field_e, est, field_var, f_hz=f_eff,
                                              group_path_m=p_group, mu_sat=mu_sat, v_s_mps=v_eff)
             echo_flags.extend(joint_flags)
@@ -729,7 +755,8 @@ class DriftProcessing:
             "along_track_m": v_eff * t0 if est.separable else math.nan,
             "v_mps": v, "v_eff_mps": v_eff, "facet_depth_m": depth, "geometry": geometry,
             "power_peak_db": 10.0 * math.log10(peak_power) if peak_power > 0 else -math.inf,
-            "echo_class": echo_class, "flags": echo_flags,
+            "echo_class": echo_class, "far_power_over_noise": far_power, "edge_power_over_noise": edge_power,
+            "flags": echo_flags,
         }
         row.update(joint)
         return row
