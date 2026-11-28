@@ -803,3 +803,41 @@ moment-method anchor) and G2 (coupling paths 1, 3, 10, 30 m; baseline 3 ns).
   at K = 10 and 3, the patch alone at 2; 600 halo jobs.  Andrew chose 4 as the
   second length ("go 4").  Estimated run about 12 h on 14 processes.
 
+## WP5 Phase 3, the `wp5_route_one` reference run (2026-11-27)
+
+* `data/reference/wp5_route_one` (commit 545c00e), run `--strict` at e7c98f5:
+  5517 jobs, none failed, 79950 rows, 100 seeds, 12 h 44 min on 14 processes.
+  `manifest.json` shows a clean tree; it does not record the `--strict` flag.
+* Noise free: untilted within 1 m/s on 56/56 (`pinned` max 0.70,
+  `joint_fading` 0.41), `joint` 54/56 (max 1.05); extended plates 12/12
+  declined; all 8 sheet scenes declined as extended; the 0.5 km plate reads
+  +4.7 to +10.4 m/s (parameter level 0.007), cause not examined.
+* RMS error over the Cramer-Rao bound, pooled over nine scenes, formed echoes
+  (`pinned` / `joint` / `joint_fading`), no fading: 10 dB 2.78 / 1.07 / 1.19;
+  15 dB 1.89 / 0.98 / 1.16; 20 dB 1.63 / 0.99 / 2.07; link 1.69 / 1.15 / 1.54.
+  Rayleigh 0.1 s: `joint_fading` 1.08-1.12 from 10 dB; 0.5 s: 1.32-1.69;
+  1.0 s: 1.68-2.20; the other two 1.8-9.2 under fading from 10 dB.
+* Share of facet echoes forming a drift (same for all three), at
+  5 / 10 / 15 / 20 dB / link: no fading 5 / 36 / 95 / 100 / 100 %; 0.1 s
+  6 / 22 / 29 / 29 / 28 %; 0.5 s 7 / 35 / 61 / 70 / 70 %; 1.0 s
+  8 / 36 / 67 / 76 / 80 %.  From 15 dB the rest are declined by the slope test;
+  lower, some are also not detected.
+* Link-budget drift-mode SNR per sweep: 23.8 to 35.8 dB.
+* Budget points at 10 dB against TV `c3r1budget` (only 5 and 10 MHz at 500 km
+  simulated): without fading the simulated RMS is 0.15 to 0.48 of the TV total.
+  The TV oscillator term (8.8 and 9.1 m/s) does not appear: the chain de-chirps
+  with the transmitter's own oscillator, so the range-correlation credit (open
+  item 12, undecided) is in effect taken.  Median RMS ratio, threshold over goal
+  oscillator, at the link SNR: 1.04 to 1.08.
+* Halo, 20 dB, median error `joint`: K 10 8.8 (2 lengths) and 5.4 m/s (4);
+  K 3 20.9 and 13.0; K 0 patch 123, and it forms a drift on 51 %.  Power in the
+  window's ends over the noise rises with halo strength (medians clean 2.3,
+  K 10 9, K 3 25, K 0 68); no rejection rule chosen.
+* Orbit, prior's scale height 100-300 km: `pinned` and `joint` RMS move by at
+  most 0.01 m/s at 20 dB and 0.17 m/s at 10 dB (the formed sets differ there);
+  `joint_fading` at 100 km is up to 0.46 m/s worse.
+* The pooled figures above were computed from the echo file with a throwaway
+  script; per-scene figures are in the reference `summary.md`.  Before the TV
+  cites a pooled figure, put its calculation in the repository.
+* The Technical Volume is not edited.
+
