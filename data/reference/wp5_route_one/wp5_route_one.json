@@ -1,0 +1,133 @@
+{
+  "settings": {
+    "seed": 20261127,
+    "seeds": 100,
+    "processes": 14,
+    "blocks": [
+      "scenes",
+      "monte_carlo",
+      "oscillator",
+      "halo",
+      "orbit"
+    ],
+    "scene_ids": [],
+    "mc_scenes": [
+      "A_free_3MHz_500km_x0_v25",
+      "A_free_5MHz_500km_x0_v25",
+      "A_free_10MHz_500km_x0_v25",
+      "A_free_5MHz_1000km_x0_v25",
+      "A_plasma_3MHz_mu0.5_x0_v25",
+      "A_plasma_5MHz_mu0.5_x0_v25",
+      "A_plasma_10MHz_mu0.8_x0_v25",
+      "E_plasma_5MHz_P500km_v25",
+      "E_plasma_10MHz_P500km_v25"
+    ],
+    "levels": [
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      "link"
+    ],
+    "tau_c_s": [
+      null,
+      0.1,
+      0.5,
+      1.0
+    ],
+    "estimators": [
+      "pinned",
+      "joint",
+      "joint_fading"
+    ],
+    "oscillator_main": 5.8e-08,
+    "oscillator_second": 3.2e-09,
+    "oscillator_levels": [
+      10.0,
+      "link"
+    ],
+    "halo_cases": {
+      "none": null,
+      "K10": 10.0,
+      "K3": 3.0,
+      "K0": 0.0
+    },
+    "halo_ratios": [
+      2.0,
+      4.0
+    ],
+    "halo_points": 200,
+    "halo_levels": [
+      10.0,
+      20.0
+    ],
+    "orbit_environments": [
+      "plasma_3MHz_mu0.5",
+      "plasma_5MHz_mu0.5",
+      "plasma_10MHz_mu0.8"
+    ],
+    "orbit_levels": [
+      10.0,
+      20.0
+    ],
+    "orbit_scale_heights_km": [
+      100.0,
+      200.0,
+      300.0
+    ]
+  },
+  "metrics": {
+    "rows": 79950,
+    "jobs_failed": 0,
+    "seeds": 100,
+    "A_untilted_pinned_formed": 56,
+    "A_untilted_pinned_within_1mps": 56,
+    "A_untilted_joint_formed": 56,
+    "A_untilted_joint_within_1mps": 54,
+    "A_untilted_joint_fading_formed": 56,
+    "A_untilted_joint_fading_within_1mps": 56,
+    "B_tilted_pinned_formed": 32,
+    "B_tilted_pinned_within_1mps": 0,
+    "B_tilted_joint_formed": 32,
+    "B_tilted_joint_within_1mps": 0,
+    "B_tilted_joint_fading_formed": 32,
+    "B_tilted_joint_fading_within_1mps": 0,
+    "C_extended_pinned_formed": 0,
+    "C_extended_pinned_within_1mps": 0,
+    "C_extended_joint_formed": 0,
+    "C_extended_joint_within_1mps": 0,
+    "C_extended_joint_fading_formed": 0,
+    "C_extended_joint_fading_within_1mps": 0,
+    "D_length_pinned_formed": 3,
+    "D_length_pinned_within_1mps": 2,
+    "D_length_joint_formed": 3,
+    "D_length_joint_within_1mps": 1,
+    "D_length_joint_fading_formed": 3,
+    "D_length_joint_fading_within_1mps": 2,
+    "S_sheet_pinned_formed": 0,
+    "S_sheet_pinned_within_1mps": 0,
+    "S_sheet_joint_formed": 0,
+    "S_sheet_joint_within_1mps": 0,
+    "S_sheet_joint_fading_formed": 0,
+    "S_sheet_joint_fading_within_1mps": 0,
+    "E_budget_pinned_formed": 2,
+    "E_budget_pinned_within_1mps": 2,
+    "E_budget_joint_formed": 2,
+    "E_budget_joint_within_1mps": 2,
+    "E_budget_joint_fading_formed": 2,
+    "E_budget_joint_fading_within_1mps": 2,
+    "link_snr_db_A_free_3MHz_500km_x0_v25": 25.817591698949546,
+    "link_snr_db_A_free_5MHz_500km_x0_v25": 30.597744318158284,
+    "link_snr_db_A_free_10MHz_500km_x0_v25": 35.84474918162492,
+    "link_snr_db_A_free_5MHz_1000km_x0_v25": 23.770096139077125,
+    "link_snr_db_A_plasma_3MHz_mu0.5_x0_v25": 30.26088969941684,
+    "link_snr_db_A_plasma_5MHz_mu0.5_x0_v25": 30.104913571911734,
+    "link_snr_db_A_plasma_10MHz_mu0.8_x0_v25": 34.22147955651302,
+    "link_snr_db_E_plasma_5MHz_P500km_v25": 30.598407821961366,
+    "link_snr_db_E_plasma_10MHz_P500km_v25": 35.84008901977964
+  },
+  "failed": [],
+  "jobs": 5517,
+  "wall_s_this_run": 45826.010006189346
+}
